@@ -211,6 +211,98 @@
 
         /* End 3D Bot */
 
+        /* Companion Mode */
+        .bot-container.fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100vw;
+            height: 100vh;
+            margin: 0;
+            z-index: 999;
+            background: var(--bg-color);
+            background-image: radial-gradient(circle at center, rgba(56, 189, 248, 0.1), transparent 60%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .bot-container.fullscreen .bot-head {
+            transform: scale(2.5);
+            transition: transform 0.5s ease;
+        }
+
+        .companion-overlay {
+            display: none;
+            position: absolute;
+            color: var(--text-color);
+            text-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 1s;
+        }
+
+        .bot-container.fullscreen .companion-overlay {
+            display: block;
+        }
+
+        .companion-time {
+            top: 60px;
+            font-size: 4rem;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .companion-weather {
+            top: 140px;
+            font-size: 1.5rem;
+            opacity: 0.8;
+        }
+
+        .companion-dialogue {
+            bottom: 120px;
+            font-size: 1.5rem;
+            font-style: italic;
+            max-width: 60%;
+            text-align: center;
+            background: var(--glass-bg);
+            padding: 15px 30px;
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+            opacity: 0;
+            transition: opacity 1s;
+        }
+
+        .companion-dialogue.show {
+            opacity: 1;
+        }
+
+        .companion-close {
+            display: none;
+            position: absolute;
+            top: 40px;
+            right: 40px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            padding: 12px 24px;
+            color: var(--text-color);
+            font-weight: bold;
+            border-radius: 12px;
+            cursor: pointer;
+            z-index: 1000;
+            transition: background 0.2s;
+        }
+
+        .companion-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .bot-container.fullscreen .companion-close {
+            display: block;
+        }
+
+
         /* Views */
         main {
             flex: 1;
@@ -583,7 +675,24 @@
     <main>
         <!-- Chat View -->
         <div id="view-chat" class="view-section active chat-layout">
-            <div class="bot-container">
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
+                <button class="btn" onclick="toggleCompanionMode()"
+                    style="background: var(--glass-bg); border: 1px solid var(--glass-border); color: var(--text-color); font-size: 0.85rem; padding: 6px 14px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        style="margin-right: 5px;">
+                        <path
+                            d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3">
+                        </path>
+                    </svg>
+                    Companion Standby Mode
+                </button>
+            </div>
+
+            <div class="bot-container" id="bot-container-main">
+                <button class="companion-close" onclick="toggleCompanionMode()">Exit Standby</button>
+                <div class="companion-overlay companion-time" id="comp-time">00:00</div>
+                <div class="companion-overlay companion-weather" id="comp-weather">Scanning environment...</div>
+
                 <div class="bot-head" id="bot-head">
                     <div class="eyes">
                         <div class="eye"></div>
@@ -591,6 +700,8 @@
                     </div>
                     <div class="mouth" id="mouth"></div>
                 </div>
+
+                <div class="companion-overlay companion-dialogue" id="comp-dialogue">Hello there!</div>
             </div>
 
             <div class="chat-history" id="chat-box">
@@ -886,6 +997,57 @@
         function OnInput() {
             this.style.height = 'auto';
             this.style.height = (this.scrollHeight) + 'px';
+        }
+
+        // ==== Companion Standby Mode ====
+        let companionActive = false;
+        let companionInterval = null;
+
+        const facts = [
+            "Did you know I can control Proxmox nodes natively via SSH?",
+            "I'm keeping an eye on your local agents and network devices.",
+            "If you need to search the web, just ask! I have a DuckDuckGo scraper.",
+            "My JSON extraction engines are fully operational.",
+            "I'm resting, but my subprocesses are actively monitoring."
+        ];
+
+        function toggleCompanionMode() {
+            const container = document.getElementById('bot-container-main');
+            companionActive = !companionActive;
+
+            if (companionActive) {
+                container.classList.add('fullscreen');
+                updateCompanionTime();
+                companionInterval = setInterval(updateCompanionTick, 1000);
+            } else {
+                container.classList.remove('fullscreen');
+                clearInterval(companionInterval);
+                document.getElementById('comp-dialogue').classList.remove('show');
+            }
+        }
+
+        function updateCompanionTime() {
+            const now = new Date();
+            document.getElementById('comp-time').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+
+        function updateCompanionTick() {
+            updateCompanionTime();
+
+            // Every 15 seconds randomly show a thought bubble
+            if (Math.random() < 0.05) {
+                const diag = document.getElementById('comp-dialogue');
+                diag.innerText = facts[Math.floor(Math.random() * facts.length)];
+                diag.classList.add('show');
+
+                // Head tilt animation
+                const head = document.getElementById('bot-head');
+                head.style.transform = `scale(2.5) rotate(${Math.random() > 0.5 ? 10 : -10}deg)`;
+                setTimeout(() => {
+                    head.style.transform = 'scale(2.5) rotate(0deg)';
+                    diag.classList.remove('show');
+                }, 5000);
+            }
         }
 
         // Init

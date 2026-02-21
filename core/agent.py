@@ -70,11 +70,17 @@ class OpenClawAgent:
         system_prompt = self.personality.construct_system_prompt(current_query=message_text)
         context = self.memory.get_short_term_context()[:-1] # Exclude the user message we just added
         
-        # Get tools
+        # Get tools and construct XML prompt
         tools = self.skill_manager.get_all_tools()
+        tools_xml_prompt = "\n\nAVAILABLE TOOLS:\nYou have access to the following tools. To use a tool, you MUST output an XML block like this: <tool name=\"tool_name\">{\"arg_name\": \"arg_value\"}</tool>. Do NOT output any raw JSON outside of the XML block. If you do not need a tool, just answer normally.\nTools available:\n"
+        import json
+        for t in tools:
+            tools_xml_prompt += f"- {t['function']['name']}: {t['function'].get('description', '')}\n  Schema: {json.dumps(t['function'].get('parameters', {}))}\n"
         
-        # Query Model
-        response = self.router.generate(message_text, system_prompt=system_prompt, context=context, tools=tools)
+        system_prompt += tools_xml_prompt
+        
+        # Query Model (no native tools parameter)
+        response = self.router.generate(message_text, system_prompt=system_prompt, context=context)
         
         # Add assistant response to short term
         if response["content"]:
@@ -113,8 +119,8 @@ class OpenClawAgent:
             
             # Single reasoning pass for all batched tool executions
             try:
-                sys_prompt_pass2 = "You successfully executed one or more tools. Summarize the results conversationally for the user. Do NOT output raw JSON or internal tool dictionaries."
-                final_res = self.router.generate("Review the compiled tool results and provide the final answer conversationally.", system_prompt=sys_prompt_pass2, context=self.memory.get_short_term_context(), tools=tools)
+                sys_prompt_pass2 = "You successfully executed one or more tools. Summarize the results conversationally for the user. Do NOT output raw JSON, internal tool dictionaries, or any <tool> tags. Provide a human readable response."
+                final_res = self.router.generate("Review the compiled tool results and provide the final answer conversationally.", system_prompt=sys_prompt_pass2, context=self.memory.get_short_term_context())
                 if final_res.get("content"):
                     self.platform_manager.send(platform_name, user_id, final_res["content"])
                     self.memory.add_short_term("assistant", final_res["content"])
@@ -136,8 +142,14 @@ class OpenClawAgent:
         system_prompt = self.personality.construct_system_prompt(current_query=message_text)
         context = self.memory.get_short_term_context()[:-1] 
         tools = self.skill_manager.get_all_tools()
+        tools_xml_prompt = "\n\nAVAILABLE TOOLS:\nYou have access to the following tools. To use a tool, you MUST output an XML block like this: <tool name=\"tool_name\">{\"arg_name\": \"arg_value\"}</tool>. Do NOT output any raw JSON outside of the XML block. If you do not need a tool, just answer normally.\nTools available:\n"
+        import json
+        for t in tools:
+            tools_xml_prompt += f"- {t['function']['name']}: {t['function'].get('description', '')}\n  Schema: {json.dumps(t['function'].get('parameters', {}))}\n"
         
-        response = self.router.generate(message_text, system_prompt=system_prompt, context=context, tools=tools)
+        system_prompt += tools_xml_prompt
+        
+        response = self.router.generate(message_text, system_prompt=system_prompt, context=context)
         
         final_reply = response.get("content", "") or ""
         raw_tools = []
@@ -177,8 +189,8 @@ class OpenClawAgent:
             
             # Run exactly ONE secondary context inference pass matching the GUI
             try:
-                sys_prompt_pass2 = "You successfully executed one or more tools. Summarize the results conversationally for the user. Do NOT output raw JSON or internal tool dictionaries."
-                final_res = self.router.generate("Review the structured tool outputs and provide the final answer conversationally.", system_prompt=sys_prompt_pass2, context=self.memory.get_short_term_context(), tools=tools)
+                sys_prompt_pass2 = "You successfully executed one or more tools. Summarize the results conversationally for the user. Do NOT output raw JSON, internal tool dictionaries, or any <tool> tags. Provide a human readable response."
+                final_res = self.router.generate("Review the structured tool outputs and provide the final answer conversationally.", system_prompt=sys_prompt_pass2, context=self.memory.get_short_term_context())
                 
                 if final_res.get("content"):
                     curr_reply = final_res['content']

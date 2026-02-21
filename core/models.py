@@ -39,9 +39,10 @@ class LLMRouter:
         coding_keywords = ["code", "script", "python", "bash", "javascript", "function", "debug", "html", "css", "docker", "api"]
         return any(word in prompt.lower() for word in coding_keywords)
 
-    def generate(self, prompt, system_prompt="You are a helpful AI assistant.", context=None, tools=None):
+    def generate(self, prompt, system_prompt=None, context=None, tools=None):
         """
-        Main generation entrypoint. Uses Ollama or LiteLLM based on config and complexity.
+        Generates a response from the configured LLM.
+        Note: `tools` is ignored here as we've moved to XML-based tool execution.
         """
         is_complex = self.evaluate_complexity(prompt, context)
         is_code = self.is_coding_task(prompt)
@@ -66,70 +67,52 @@ class LLMRouter:
             
         messages.append({"role": "user", "content": prompt})
 
-        # Route to provider
+        # Route to provider (native tools parameter is intentionally None to force XML behavior)
         if selected_model["provider"] == "ollama":
             url = selected_model.get("ollama_url", "http://localhost:11434")
-            res = self._call_ollama(messages, selected_model["model"], url, tools=tools)
+            res = self._call_ollama(messages, selected_model["model"], url, tools=None)
         
         elif selected_model["provider"] == "litellm":
             env_key = selected_model.get("api_key_env", "OPENAI_API_KEY")
             api_key = os.environ.get(env_key)
-            res = self._call_litellm(messages, selected_model["model"], api_key, tools=tools)
+            res = self._call_litellm(messages, selected_model["model"], api_key, tools=None)
 
         else:
             raise ValueError(f"Unknown provider: {selected_model['provider']}")
             
-        # UNIVERSAL JSON HALLUCINATION EXTRACTOR
-        # Regardless of provider (Ollama or LiteLLM endpoints), many local models hallucinate
-        # raw JSON dictionaries into the text block alongside or instead of native schemas.
-        # This recursive decoder rips them out of the string so they don't bleed into the Chat UI.
+        # UNIVERSAL XML TOOL EXTRACTOR
+        # Parses <tool name="...">{...}</tool> from the output text.
         content = res.get("content", "")
         tool_calls = res.get("tool_calls", [])
         
-        if content and "{" in content and "}" in content:
-            try:
-                import re
-                decoder = json.JSONDecoder()
+        if content and "<tool" in content:
+            import re
+            import json
+            
+            # Find all XML tool tags
+            pattern = r"<tool\s+name=[\"']([^\"']+)[\"']>([\s\S]*?)</tool>"
+            matches = list(re.finditer(pattern, content))
+            
+            for match in matches:
+                func_name = match.group(1)
+                args_str = match.group(2).strip()
+                args = {}
                 
-                pos = 0
-                while pos < len(content):
-                    match = re.search(r'\{', content[pos:])
-                    if not match:
-                        break
-                    start_idx = pos + match.start()
-                    
+                if args_str:
                     try:
-                        parsed, num_chars = decoder.raw_decode(content[start_idx:])
+                        args = json.loads(args_str)
+                    except Exception as e:
+                        logging.warning(f"Failed to parse XML tool args for {func_name}: {e}")
                         
-                        if isinstance(parsed, dict) and ("function" in parsed or "name" in parsed):
-                            func_name = parsed.get("function", {}).get("name") or parsed.get("name")
-                            args = parsed.get("function", {}).get("arguments") or parsed.get("arguments", {})
-                            
-                            if not args and "parameters" in parsed:
-                                args = parsed.get("parameters", {})
-                            
-                            if isinstance(args, str):
-                                try:
-                                    args = json.loads(args)
-                                except:
-                                    pass
-                            
-                            if func_name:
-                                tool_calls.append({
-                                    "function": {
-                                        "name": func_name,
-                                        "arguments": args
-                                    }
-                                })
-                                content = content[:start_idx] + content[start_idx + num_chars:]
-                                continue
-                    except json.JSONDecodeError:
-                        pass
-                    
-                    pos = start_idx + 1
-
-            except Exception as e:
-                logging.debug(f"Failed fallback JSON parsing: {e}")
+                tool_calls.append({
+                    "function": {
+                        "name": func_name,
+                        "arguments": args
+                    }
+                })
+            
+            # Remove all `<tool>...</tool>` blocks from the conversational content
+            content = re.sub(pattern, "", content)
             
         res["content"] = content.strip()
         res["tool_calls"] = tool_calls

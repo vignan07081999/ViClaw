@@ -183,6 +183,16 @@ def main():
                     if want_integration:
                         config["skills"]["auto_integrations"] = discovered_devices
                         console.print("[green]Awesome! I'll auto-configure the connection parameters for these endpoints on your first boot.[/green]")
+                        
+                        # Add SSH Setup
+                        config["ssh_hosts"] = {}
+                        console.print("\n[bold yellow]SSH Setup for Local Control[/bold yellow]")
+                        for ip, services in discovered_devices.items():
+                            svc_str = ", ".join(services)
+                            if questionary.confirm(f"Do you want to setup remote SSH access for {ip} ({svc_str})?", default=False).ask():
+                                username = questionary.text(f"SSH Username for {ip}:", default="root").ask()
+                                password = questionary.password(f"SSH Password (stored locally in config.json):").ask()
+                                config["ssh_hosts"][ip] = {"username": username, "password": password}
             except Exception as e:
                 console.print(f"[red]Error during AI analysis: {e}[/red]")
                 

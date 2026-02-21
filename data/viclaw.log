@@ -233,3 +233,56 @@ WARNING:root:Configuration file not found at /Users/MXW476/Library/CloudStorage/
 2026-02-21 01:40:20,721 - root - INFO - Starting ViClaw Proactive Heartbeat...
 2026-02-21 01:40:20,722 - root - INFO - OpenClaw is running. Press Ctrl+C to terminate.
 2026-02-21 01:40:20,722 - root - INFO - OpenClaw is running. Press Ctrl+C to terminate.
+2026-02-21 01:45:20,755 - root - INFO - Heartbeat: Agent is idle. Triggering proactive inference.
+2026-02-21 01:45:20,755 - root - INFO - Heartbeat: Agent is idle. Triggering proactive inference.
+Exception in thread Thread-1 (loop):
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/threading.py", line 1045, in _bootstrap_inner
+    self.run()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/threading.py", line 982, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/MXW476/Library/CloudStorage/GoogleDrive-vignan07081999@gmail.com/My Drive/AI Agent/OpenClawClone/core/agent.py", line 221, in loop
+    if os.path.exists(reminders_file):
+       ^^
+NameError: name 'os' is not defined
+WARNING:root:Configuration file not found at /Users/MXW476/Library/CloudStorage/GoogleDrive-vignan07081999@gmail.com/My Drive/AI Agent/OpenClawClone/data/config.json. Creating default config.
+2026-02-21 01:58:00,723 - root - INFO - Loading skills...
+2026-02-21 01:58:00,723 - root - INFO - Loading skills...
+2026-02-21 01:58:00,724 - root - INFO - Loaded skill: sessions
+2026-02-21 01:58:00,724 - root - INFO - Loaded skill: sessions
+2026-02-21 01:58:00,795 - root - INFO - Loaded skill: RemoteSSH
+2026-02-21 01:58:00,795 - root - INFO - Loaded skill: RemoteSSH
+2026-02-21 01:58:00,795 - root - INFO - Loaded skill: shell_engine
+2026-02-21 01:58:00,795 - root - INFO - Loaded skill: shell_engine
+2026-02-21 01:58:00,796 - root - INFO - Loaded skill: SystemInfo
+2026-02-21 01:58:00,796 - root - INFO - Loaded skill: SystemInfo
+2026-02-21 01:58:00,796 - root - INFO - Loaded skill: reminders
+2026-02-21 01:58:00,796 - root - INFO - Loaded skill: reminders
+2026-02-21 01:58:00,796 - root - INFO - Loaded skill: FileIO
+2026-02-21 01:58:00,796 - root - INFO - Loaded skill: FileIO
+2026-02-21 01:58:00,798 - root - INFO - Loaded skill: WebSearch
+2026-02-21 01:58:00,798 - root - INFO - Loaded skill: WebSearch
+2026-02-21 01:58:00,798 - root - INFO - Installing ClawHub default skills...
+2026-02-21 01:58:00,798 - root - INFO - Installing ClawHub default skills...
+2026-02-21 01:58:00,798 - root - INFO - Default skills installed successfully.
+2026-02-21 01:58:00,798 - root - INFO - Default skills installed successfully.
+2026-02-21 01:58:00,798 - root - INFO - Loading skills...
+2026-02-21 01:58:00,798 - root - INFO - Loading skills...
+2026-02-21 01:58:00,798 - root - INFO - Loaded skill: sessions
+2026-02-21 01:58:00,798 - root - INFO - Loaded skill: sessions
+2026-02-21 01:58:00,798 - root - INFO - Loaded skill: RemoteSSH
+2026-02-21 01:58:00,798 - root - INFO - Loaded skill: RemoteSSH
+2026-02-21 01:58:00,798 - root - INFO - Loaded skill: shell_engine
+2026-02-21 01:58:00,798 - root - INFO - Loaded skill: shell_engine
+2026-02-21 01:58:00,798 - root - INFO - Loaded skill: SystemInfo
+2026-02-21 01:58:00,798 - root - INFO - Loaded skill: SystemInfo
+2026-02-21 01:58:00,798 - root - INFO - Loaded skill: reminders
+2026-02-21 01:58:00,798 - root - INFO - Loaded skill: reminders
+2026-02-21 01:58:00,798 - root - INFO - Loaded skill: FileIO
+2026-02-21 01:58:00,798 - root - INFO - Loaded skill: FileIO
+2026-02-21 01:58:00,798 - root - INFO - Loaded skill: WebSearch
+2026-02-21 01:58:00,798 - root - INFO - Loaded skill: WebSearch
+2026-02-21 01:58:00,799 - root - INFO - Starting ViClaw Proactive Heartbeat...
+2026-02-21 01:58:00,799 - root - INFO - Starting ViClaw Proactive Heartbeat...
+2026-02-21 01:58:00,799 - root - INFO - OpenClaw is running. Press Ctrl+C to terminate.
+2026-02-21 01:58:00,799 - root - INFO - OpenClaw is running. Press Ctrl+C to terminate.
