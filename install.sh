@@ -1,33 +1,65 @@
 #!/bin/bash
-
 set -e
 
-echo "========================================================"
-echo "          OpenClaw Clone - Interactive Installer        "
-echo "========================================================"
-echo ""
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+cd "$DIR"
 
-# Color codes
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-NC='\033[0m'
+echo "========================================================"
+echo "          ViClaw (OpenClaw Clone) Installer             "
+echo "========================================================"
 
-# Check if Python > 3.9 is installed
 if ! command -v python3 &> /dev/null; then
-    echo -e "${RED}Python 3 is not installed. Please install Python 3.9+ first.${NC}"
+    echo "Python 3 is not installed. Please install Python 3.9+ first."
     exit 1
 fi
 
-echo -e "${GREEN}Creating Python Virtual Environment...${NC}"
+echo "Creating Python Virtual Environment..."
 python3 -m venv venv
 source venv/bin/activate
 
-echo -e "${GREEN}Installing Requirements...${NC}"
+echo "Installing Requirements..."
 pip install --upgrade pip
 pip install -r requirements.txt
 
-echo -e "${GREEN}Starting Guided Configuration Wizard...${NC}"
+echo "Starting Guided Configuration Wizard..."
 python install.py
 
-echo -e "${GREEN}Installation Complete! Activate the virtual environment using 'source venv/bin/activate' and run 'python main.py' to start.${NC}"
+# Setup Systemd Service if root/sudo is available, else provide manual instructions
+echo "Setting up systemd service to run ViClaw automatically..."
+SERVICE_FILE="/etc/systemd/system/viclaw.service"
+
+# Generate the service file content
+cat << EOF > /tmp/viclaw.service
+[Unit]
+Description=ViClaw AI Agent Daemon
+After=network.target
+
+[Service]
+Type=simple
+User=$USER
+WorkingDirectory=$DIR
+ExecStart=$DIR/venv/bin/python $DIR/main.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+if [ "$EUID" -eq 0 ]; then
+    mv /tmp/viclaw.service $SERVICE_FILE
+    systemctl daemon-reload
+    systemctl enable viclaw
+    systemctl start viclaw
+    echo "Service installed and started. Check status with 'systemctl status viclaw'."
+elif command -v sudo &> /dev/null && [ -n "$SUDO_USER" ] || sudo -n true 2>/dev/null; then
+    sudo mv /tmp/viclaw.service $SERVICE_FILE
+    sudo systemctl daemon-reload
+    sudo systemctl enable viclaw
+    sudo systemctl start viclaw
+    echo "Service installed and started via sudo. Check status with 'sudo systemctl status viclaw'."
+else
+    echo "Not running as root. To install the service manually so the agent auto-starts on reboot, run:"
+    echo "sudo mv /tmp/viclaw.service /etc/systemd/system/viclaw.service"
+    echo "sudo systemctl daemon-reload && sudo systemctl enable viclaw && sudo systemctl start viclaw"
+fi

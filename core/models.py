@@ -73,18 +73,46 @@ class LLMRouter:
         try:
             client = ollama.Client(host=self.ollama_url)
             
-            # Prepare tools if any
             options = {}
             if tools:
-                # Ollama support for tools depends on the version and model.
                 options['tools'] = tools
                 
             response = client.chat(model=self.default_model, messages=messages, **options)
             
-            # Extract content and tool calls
             message = response.get('message', {})
             content = message.get('content', '')
             tool_calls = message.get('tool_calls', [])
+            
+            # Fallback parsing for models like llama3.2 that sometimes output raw JSON text
+            # instead of using the native tool calling schema when heavily prompted.
+            if not tool_calls and content and "{" in content and "}" in content:
+                try:
+                    import re
+                    # Look for potential JSON tool execution blocks
+                    match = re.search(r'\{.*\}', content, re.DOTALL)
+                    if match:
+                        potential_json = match.group(0)
+                        parsed = json.loads(potential_json)
+                        if "function" in parsed or "name" in parsed:
+                            # It tried to output a tool call manually
+                            func_name = parsed.get("function", {}).get("name") or parsed.get("name")
+                            args = parsed.get("function", {}).get("arguments") or parsed.get("arguments", {})
+                            if isinstance(args, str):
+                                try:
+                                    args = json.loads(args)
+                                except:
+                                    pass
+                            
+                            if func_name:
+                                tool_calls.append({
+                                    "function": {
+                                        "name": func_name,
+                                        "arguments": args
+                                    }
+                                })
+                                content = content.replace(potential_json, "").strip() # Remove the JSON from the conversational response
+                except Exception as e:
+                    logging.debug(f"Failed fallback JSON parsing: {e}")
             
             return {
                 "content": content,
