@@ -81,26 +81,46 @@ class OpenClawAgent:
             self.memory.add_short_term("assistant", response["content"])
             self.platform_manager.send(platform_name, user_id, response["content"])
         
-        # Handle autonomous tool calls
+        # Handle autonomous tool calls in a batched execution pass
         if response["tool_calls"]:
+            executed_results = []
             for tc in response["tool_calls"]:
                 tool_name = tc.get("function", {}).get("name")
                 tool_args = tc.get("function", {}).get("arguments", {})
+                
+                # Fast type enforcement for hallucinated empty string parameters dicts
+                if isinstance(tool_args, str):
+                    try:
+                        import json
+                        tool_args = json.loads(tool_args) if tool_args.strip() else {}
+                    except:
+                        tool_args = {}
+                elif not isinstance(tool_args, dict):
+                    tool_args = {}
+                    
                 logging.info(f"Agent requested tool: {tool_name} with {tool_args}")
                 
                 try:
                     tool_result = self.skill_manager.execute_tool(tool_name, tool_args)
-                    self.memory.add_short_term("user", f"[TOOL EXECUTION RESULT: {tool_name}]\n{tool_result}")
-                    
-                    # Optionally, do a second reasoning pass with the tool result (if the issue is complex)
-                    sys_prompt_pass2 = "You successfully executed a tool. Summarize the result conversationally for the user. Do NOT output raw JSON or internal tool dictionaries."
-                    final_res = self.router.generate("Review the tool results and provide the final answer conversationally.", system_prompt=sys_prompt_pass2, context=self.memory.get_short_term_context(), tools=tools)
-                    if final_res.get("content"):
-                        self.platform_manager.send(platform_name, user_id, final_res["content"])
-                        self.memory.add_short_term("assistant", final_res["content"])
+                    executed_results.append(f"[TOOL EXECUTION RESULT: {tool_name}]\n{tool_result}")
                 except Exception as e:
                     logging.error(f"Error executing tool {tool_name}: {e}")
-                    self.platform_manager.send(platform_name, user_id, f"I encountered an error running {tool_name}.")
+                    executed_results.append(f"[TOOL EXECUTION ERROR: {tool_name}]\n{e}")
+            
+            # Combine all results into single memory block
+            combined_results = "\n\n".join(executed_results)
+            self.memory.add_short_term("user", combined_results)
+            
+            # Single reasoning pass for all batched tool executions
+            try:
+                sys_prompt_pass2 = "You successfully executed one or more tools. Summarize the results conversationally for the user. Do NOT output raw JSON or internal tool dictionaries."
+                final_res = self.router.generate("Review the compiled tool results and provide the final answer conversationally.", system_prompt=sys_prompt_pass2, context=self.memory.get_short_term_context(), tools=tools)
+                if final_res.get("content"):
+                    self.platform_manager.send(platform_name, user_id, final_res["content"])
+                    self.memory.add_short_term("assistant", final_res["content"])
+            except Exception as e:
+                logging.error(f"Error formulating summary pass: {e}")
+                self.platform_manager.send(platform_name, user_id, "I executed the operations successfully, but encountered an error translating the logs.")
 
     def process_immediate_message(self, platform_name, user_id, message_text):
         """
@@ -127,29 +147,49 @@ class OpenClawAgent:
             
         if response.get("tool_calls"):
             raw_tools = response["tool_calls"]
+            executed_results = []
+            
             for tc in response["tool_calls"]:
                 tool_name = tc.get("function", {}).get("name")
                 tool_args = tc.get("function", {}).get("arguments", {})
+                
+                # Type enforcement
+                if isinstance(tool_args, str):
+                    try:
+                        import json
+                        tool_args = json.loads(tool_args) if tool_args.strip() else {}
+                    except:
+                        tool_args = {}
+                elif not isinstance(tool_args, dict):
+                    tool_args = {}
+                    
                 try:
                     tool_result = self.skill_manager.execute_tool(tool_name, tool_args)
-                    self.memory.add_short_term("user", f"[TOOL EXECUTION RESULT: {tool_name}]\n{tool_result}")
-                    
-                    sys_prompt_pass2 = "You successfully executed a tool. Summarize the result conversationally for the user. Do NOT output raw JSON or internal tool dictionaries."
-                    final_res = self.router.generate("Review the tool results and provide the final answer conversationally.", system_prompt=sys_prompt_pass2, context=self.memory.get_short_term_context(), tools=tools)
-                    
-                    if final_res.get("content"):
-                        curr_reply = final_res['content']
-                        # Prevent duplicate prefixing
-                        if final_reply and not final_reply.isspace():
-                            final_reply += f"\n\n{curr_reply}"
-                        else:
-                            final_reply = curr_reply
-                            
-                        self.memory.add_short_term("assistant", curr_reply)
+                    executed_results.append(f"[TOOL EXECUTION RESULT: {tool_name}]\n{tool_result}")
                 except Exception as e:
-                    err_msg = f"I encountered an error running {tool_name}."
-                    final_reply += f"\n\n{err_msg}"
+                    err_msg = f"I encountered an error running {tool_name}: {e}"
+                    executed_results.append(err_msg)
                     logging.error(e)
+            
+            # Combine all batched results into memory
+            combined_results = "\n\n".join(executed_results)
+            self.memory.add_short_term("user", combined_results)
+            
+            # Run exactly ONE secondary context inference pass matching the GUI
+            try:
+                sys_prompt_pass2 = "You successfully executed one or more tools. Summarize the results conversationally for the user. Do NOT output raw JSON or internal tool dictionaries."
+                final_res = self.router.generate("Review the structured tool outputs and provide the final answer conversationally.", system_prompt=sys_prompt_pass2, context=self.memory.get_short_term_context(), tools=tools)
+                
+                if final_res.get("content"):
+                    curr_reply = final_res['content']
+                    if final_reply and not final_reply.isspace():
+                        final_reply += f"\n\n{curr_reply}"
+                    else:
+                        final_reply = curr_reply
+                        
+                    self.memory.add_short_term("assistant", curr_reply)
+            except Exception as e:
+                logging.error(f"Failed to generate composite summary: {e}")
                     
         return final_reply, raw_tools
 
