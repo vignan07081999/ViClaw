@@ -93,9 +93,9 @@ class OpenClawAgent:
                     self.memory.add_short_term("user", f"[TOOL EXECUTION RESULT: {tool_name}]\n{tool_result}")
                     
                     # Optionally, do a second reasoning pass with the tool result (if the issue is complex)
-                    sys_prompt_pass2 = "You just executed a tool. Finalize your answer based on the result. Do not repeat the user's prompt. Be concise."
-                    final_res = self.router.generate("Review the tool results and provide the final answer.", system_prompt=sys_prompt_pass2, context=self.memory.get_short_term_context())
-                    if final_res["content"]:
+                    sys_prompt_pass2 = "You successfully executed a tool. Summarize the result conversationally for the user. Do NOT output raw JSON or internal tool dictionaries."
+                    final_res = self.router.generate("Review the tool results and provide the final answer conversationally.", system_prompt=sys_prompt_pass2, context=self.memory.get_short_term_context(), tools=tools)
+                    if final_res.get("content"):
                         self.platform_manager.send(platform_name, user_id, final_res["content"])
                         self.memory.add_short_term("assistant", final_res["content"])
                 except Exception as e:
@@ -134,12 +134,18 @@ class OpenClawAgent:
                     tool_result = self.skill_manager.execute_tool(tool_name, tool_args)
                     self.memory.add_short_term("user", f"[TOOL EXECUTION RESULT: {tool_name}]\n{tool_result}")
                     
-                    sys_prompt_pass2 = "You just executed a tool. Finalize your answer based on the result. Do not reiterate the user's prompt. Be concise."
-                    final_res = self.router.generate("Review the tool results and provide the final answer.", system_prompt=sys_prompt_pass2, context=self.memory.get_short_term_context())
+                    sys_prompt_pass2 = "You successfully executed a tool. Summarize the result conversationally for the user. Do NOT output raw JSON or internal tool dictionaries."
+                    final_res = self.router.generate("Review the tool results and provide the final answer conversationally.", system_prompt=sys_prompt_pass2, context=self.memory.get_short_term_context(), tools=tools)
                     
                     if final_res.get("content"):
-                        final_reply += f"\n\n{final_res['content']}"
-                        self.memory.add_short_term("assistant", final_res["content"])
+                        curr_reply = final_res['content']
+                        # Prevent duplicate prefixing
+                        if final_reply and not final_reply.isspace():
+                            final_reply += f"\n\n{curr_reply}"
+                        else:
+                            final_reply = curr_reply
+                            
+                        self.memory.add_short_term("assistant", curr_reply)
                 except Exception as e:
                     err_msg = f"I encountered an error running {tool_name}."
                     final_reply += f"\n\n{err_msg}"

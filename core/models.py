@@ -96,7 +96,7 @@ class LLMRouter:
             
             # Fallback parsing for models like llama3.2/qwen that sometimes output raw JSON text
             # instead of using the native tool calling schema when heavily prompted.
-            if not tool_calls and content and "{" in content and "}" in content:
+            if content and "{" in content and "}" in content:
                 try:
                     import re
                     decoder = json.JSONDecoder()
