@@ -1,199 +1,779 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <title>ViClaw 3D Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ViClaw Premium Dashboard</title>
     <style>
-        body { margin: 0; padding: 0; background: #0f172a; color: #f8fafc; font-family: 'Segoe UI', sans-serif; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
-        
-        /* Nav back */
-        .back-btn { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.1); padding: 10px 20px; text-decoration: none; color: white; border-radius: 8px; font-weight: bold; border: 1px solid rgba(255,255,255,0.2); }
-        .back-btn:hover { background: rgba(255,255,255,0.2); }
+        :root {
+            /* Dark Mode (Default) */
+            --bg-color: #0f172a;
+            --text-color: #f8fafc;
+            --glass-bg: rgba(30, 41, 59, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --accent: #38bdf8;
+            --accent-hover: #0ea5e9;
+            --msg-user: rgba(56, 189, 248, 0.2);
+            --msg-bot: rgba(51, 65, 85, 0.6);
+            --msg-sys: rgba(100, 116, 139, 0.3);
+            --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
 
-        /* The Bot Container */
-        .bot-container { position: relative; width: 300px; height: 300px; display: flex; justify-content: center; align-items: center; animation: float 6s ease-in-out infinite; }
-        
-        /* Floating Chat Bubble */
-        .thought-bubble { position: absolute; top: -100px; background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); padding: 15px 25px; border-radius: 20px; font-size: 1.1rem; max-width: 280px; text-align: center; opacity: 0; transition: opacity 0.5s; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 10px 25px rgba(0,0,0,0.5); z-index: 10; word-wrap: break-word;}
-        .thought-bubble.visible { opacity: 1; }
-        
-        /* 3D Face / Head */
-        .bot-head { width: 220px; height: 180px; background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 40%; box-shadow: inset 0 0 30px #0ea5e9, 0 20px 50px rgba(0,0,0,0.8); display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; overflow: hidden; border: 2px solid #38bdf8;}
-        
-        /* Eyes container */
-        .eyes { display: flex; gap: 35px; margin-bottom: 25px; }
-        .eye { width: 45px; height: 16px; background: #38bdf8; border-radius: 10px; box-shadow: 0 0 20px #38bdf8; animation: blink 4s infinite; transition: all 0.2s ease;}
-        
-        /* Mouth */
-        .mouth { width: 35px; height: 5px; background: #38bdf8; border-radius: 2px; box-shadow: 0 0 10px #38bdf8; transition: width 0.1s; }
-        .mouth.speaking { animation: speak 0.2s infinite alternate; }
-        
-        /* Animations */
-        @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-20px); } }
-        @keyframes blink { 0%, 96%, 98% { transform: scaleY(1); } 97% { transform: scaleY(0.1); } }
-        @keyframes speak { from { width: 35px; } to { width: 90px; height: 10px; border-radius: 5px; } }
-        
-        /* Collapsible Chat */
-        .chat-container { position: absolute; bottom: 0; right: 40px; width: 400px; background: rgba(30,41,59,0.95); backdrop-filter: blur(10px); border-top-left-radius: 15px; border-top-right-radius: 15px; border: 1px solid rgba(255,255,255,0.2); border-bottom: none; display: flex; flex-direction: column; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); transform: translateY(calc(100% - 55px)); box-shadow: 0 -10px 30px rgba(0,0,0,0.5); }
-        .chat-container.open { transform: translateY(0); }
-        .chat-header { padding: 18px; background: linear-gradient(90deg, #0284c7, #0ea5e9); color: white; border-top-left-radius: 15px; border-top-right-radius: 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 1.1rem;}
-        .chat-box { height: 400px; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
-        .msg-user { align-self: flex-end; background: #0ea5e9; padding: 10px 15px; border-radius: 15px 15px 0 15px; max-width: 80%; word-wrap: break-word;}
-        .msg-bot { align-self: flex-start; background: #334155; padding: 10px 15px; border-radius: 15px 15px 15px 0; max-width: 80%; word-wrap: break-word; line-height: 1.4; color: #e2e8f0; border: 1px solid rgba(255,255,255,0.05); }
-        .chat-input-area { display: flex; padding: 15px; border-top: 1px solid rgba(255,255,255,0.1); background: rgba(15,23,42,0.8); }
-        .chat-input-area input { flex: 1; padding: 12px; background: #0f172a; border: 1px solid #475569; border-radius: 8px; color: white; outline: none; font-size: 1rem; }
-        .chat-input-area input:focus { border-color: #0ea5e9; }
-        .chat-input-area button { padding: 12px 20px; margin-left: 10px; background: #0ea5e9; border: none; border-radius: 8px; color: white; cursor: pointer; font-weight: bold; font-size: 1rem; transition: background 0.2s; }
-        .chat-input-area button:hover { background: #0284c7; }
-        
-        /* Custom scrollbar */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
-        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
-    </style>
-</head>
-<body>
+        [data-theme="light"] {
+            --bg-color: #f1f5f9;
+            --text-color: #0f172a;
+            --glass-bg: rgba(255, 255, 255, 0.7);
+            --glass-border: rgba(0, 0, 0, 0.1);
+            --accent: #0284c7;
+            --accent-hover: #0369a1;
+            --msg-user: rgba(2, 132, 199, 0.15);
+            --msg-bot: rgba(226, 232, 240, 0.8);
+            --msg-sys: rgba(203, 213, 225, 0.5);
+            --card-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+        }
 
-    <a href="/" class="back-btn">&larr; Back to Admin</a>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+        }
 
-    <div class="bot-container">
-        <div class="thought-bubble" id="thought-bubble">Awaiting input...</div>
-        <div class="bot-head" id="bot-head">
-            <div class="eyes">
-                <div class="eye"></div>
-                <div class="eye"></div>
-            </div>
-            <div class="mouth" id="mouth"></div>
-        </div>
-    </div>
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+            background-image: radial-gradient(circle at top right, rgba(56, 189, 248, 0.15), transparent 40%),
+                radial-gradient(circle at bottom left, rgba(56, 189, 248, 0.05), transparent 30%);
+        }
 
-    <!-- Collapsible Chat -->
-    <div class="chat-container" id="chat-container">
-        <div class="chat-header" onclick="toggleChat()">
-            <span>💬 ViClaw Direct Interface</span>
-            <span id="chat-toggle-icon">▲</span>
-        </div>
-        <div class="chat-box" id="chat-box">
-            <div class="msg-bot">Session established. I'm ready.</div>
-        </div>
-        <form class="chat-input-area" id="chat-form" onsubmit="sendMessage(event)">
-            <input type="text" id="chat-input" placeholder="Message ViClaw..." required autocomplete="off" />
-            <button type="submit">Send</button>
-        </form>
-    </div>
+        /* Sidebar Nav */
+        nav {
+            width: 280px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-right: 1px solid var(--glass-border);
+            padding: 2rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            z-index: 10;
+        }
 
-    <script>
-        // Track the length of memory so we only show NEW thoughts
-        let lastMemoryCount = 0;
+        .brand {
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--accent);
+        }
 
-        function toggleChat() {
-            const container = document.getElementById('chat-container');
-            const icon = document.getElementById('chat-toggle-icon');
-            container.classList.toggle('open');
-            icon.innerText = container.classList.contains('open') ? '▼' : '▲';
-            
-            if (container.classList.contains('open')) {
-                document.getElementById('chat-input').focus();
+        .nav-link {
+            padding: 0.8rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text-color);
+            opacity: 0.8;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s;
+        }
+
+        .nav-link:hover {
+            opacity: 1;
+            background: var(--glass-border);
+        }
+
+        .nav-link.active {
+            opacity: 1;
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .spacer {
+            flex: 1;
+        }
+
+        .theme-toggle {
+            cursor: pointer;
+            padding: 0.8rem;
+            background: var(--glass-border);
+            border: none;
+            border-radius: 8px;
+            color: var(--text-color);
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .theme-toggle:hover {
+            background: var(--accent);
+            color: white;
+        }
+
+        /* Main Content Area */
+        main {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        /* Views */
+        .view-section {
+            display: none;
+            height: 100%;
+            flex-direction: column;
+            animation: fadeIn 0.4s ease forwards;
+        }
+
+        .view-section.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
             }
         }
 
-        function setThought(text, duration=5000) {
-            const bubble = document.getElementById('thought-bubble');
-            const mouth = document.getElementById('mouth');
-            
-            // Truncate for the bubble if too long
-            const displayText = text.length > 80 ? text.substring(0, 80) + "..." : text;
-            
-            bubble.innerText = displayText;
-            bubble.classList.add('visible');
-            mouth.classList.add('speaking');
-            
-            setTimeout(() => {
-                bubble.classList.remove('visible');
-                mouth.classList.remove('speaking');
-            }, duration);
+        /* Glass Cards */
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 1.5rem;
         }
 
-        // Poll for spontaneous thoughts or background events
-        setInterval(() => {
-            fetch('/api/memory')
-                .then(res => res.json())
-                .then(data => {
-                    if (data.short_term && data.short_term.length > lastMemoryCount) {
-                        // There are new messages!
-                        const newMessages = data.short_term.slice(lastMemoryCount);
-                        lastMemoryCount = data.short_term.length;
-                        
-                        const chatBox = document.getElementById('chat-box');
-                        
-                        newMessages.forEach(msg => {
-                            if (msg.role === 'assistant') {
-                                setThought(msg.content, 8000);
-                                chatBox.innerHTML += `<div class="msg-bot"><b>ViClaw:</b> ${msg.content.replace(/\\n/g, '<br>')}</div>`;
-                            } else if (msg.role === 'user') {
-                                // In case the user typed it from another client like CLI
-                                chatBox.innerHTML += `<div class="msg-user"><b>User:</b> ${msg.content}</div>`;
-                            } else if (msg.role === 'system') {
-                                chatBox.innerHTML += `<div class="msg-bot" style="color: #64748b; font-size: 0.9em;"><i>[System] ${msg.content}</i></div>`;
-                            }
-                        });
-                        chatBox.scrollTop = chatBox.scrollHeight;
-                    }
-                });
-        }, 2000);
+        h2 {
+            margin-bottom: 1.5rem;
+            font-weight: 700;
+        }
 
-        function sendMessage(e) {
+        h3 {
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        /* Chat UI */
+        .chat-layout {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            max-width: 900px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .chat-history {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem 0;
+            display: flex;
+            flex-direction: column;
+            gap: 1.2rem;
+            scroll-behavior: smooth;
+        }
+
+        .msg-container {
+            display: flex;
+            flex-direction: column;
+            max-width: 85%;
+        }
+
+        .msg-container.user {
+            align-self: flex-end;
+        }
+
+        .msg-container.bot {
+            align-self: flex-start;
+        }
+
+        .msg-container.sys {
+            align-self: center;
+            max-width: 95%;
+            width: 100%;
+        }
+
+        .bubble {
+            padding: 1rem 1.2rem;
+            border-radius: 12px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .user .bubble {
+            background: var(--msg-user);
+            border-bottom-right-radius: 2px;
+        }
+
+        .bot .bubble {
+            background: var(--msg-bot);
+            border-bottom-left-radius: 2px;
+        }
+
+        .sys .bubble {
+            background: var(--msg-sys);
+            text-align: left;
+            font-size: 0.9rem;
+            font-family: monospace;
+            border-radius: 8px;
+        }
+
+        .raw-toggle-btn {
+            background: transparent;
+            border: 1px dashed var(--accent);
+            color: var(--accent);
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            margin-top: 8px;
+            align-self: flex-start;
+            transition: all 0.2s;
+        }
+
+        .raw-toggle-btn:hover {
+            background: var(--msg-user);
+        }
+
+        .raw-content {
+            display: none;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 10px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            margin-top: 8px;
+            white-space: pre-wrap;
+            border: 1px solid var(--glass-border);
+        }
+
+        [data-theme="light"] .raw-content {
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        .raw-content.visible {
+            display: block;
+        }
+
+        /* Input Area */
+        .chat-input-wrapper {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 0.8rem;
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+            box-shadow: var(--card-shadow);
+        }
+
+        .chat-input-wrapper textarea {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-color);
+            font-size: 1rem;
+            resize: none;
+            outline: none;
+            padding: 0.5rem;
+            min-height: 44px;
+            max-height: 150px;
+        }
+
+        .chat-input-wrapper textarea::placeholder {
+            color: var(--text-color);
+            opacity: 0.5;
+        }
+
+        .send-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0 1.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .send-btn:hover {
+            background: var(--accent-hover);
+        }
+
+        /* Config / Forms */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            opacity: 0.9;
+        }
+
+        .form-group input[type="text"] {
+            width: 100%;
+            padding: 0.8rem 1rem;
+            background: rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            color: var(--text-color);
+            font-size: 1rem;
+            outline: none;
+        }
+
+        [data-theme="light"] .form-group input[type="text"] {
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        .form-group input[type="text"]:focus {
+            border-color: var(--accent);
+        }
+
+        .btn {
+            background: var(--accent);
+            color: white;
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .btn:hover {
+            background: var(--accent-hover);
+        }
+
+        .flex-row {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .flex-card {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        pre {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            border: 1px solid var(--glass-border);
+            font-size: 0.9rem;
+        }
+
+        [data-theme="light"] pre {
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        ul.skills-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        ul.skills-list li {
+            padding: 0.8rem;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        ul.skills-list li:last-child {
+            border-bottom: none;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--glass-border);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent);
+        }
+
+        .bot-indicator {
+            font-size: 0.8rem;
+            opacity: 0.6;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav>
+        <div class="brand">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+            </svg>
+            ViClaw
+        </div>
+
+        <div class="nav-link active" onclick="switchView('chat')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            Chat
+        </div>
+        <div class="nav-link" onclick="switchView('diagnostics')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+            </svg>
+            Diagnostics
+        </div>
+        <div class="nav-link" onclick="switchView('skills')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon
+                    points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+            </svg>
+            Skills & Config
+        </div>
+
+        <div class="spacer"></div>
+
+        <button class="theme-toggle" onclick="toggleTheme()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="5" />
+                <line x1="12" y1="1" x2="12" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="23" />
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                <line x1="1" y1="12" x2="3" y2="12" />
+                <line x1="21" y1="12" x2="23" y2="12" />
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+            </svg>
+            Toggle Theme
+        </button>
+    </nav>
+
+    <main>
+        <!-- Chat View -->
+        <div id="view-chat" class="view-section active chat-layout">
+            <div class="chat-history" id="chat-box">
+                <!-- Messages populated here -->
+            </div>
+
+            <form class="chat-input-wrapper" id="chat-form">
+                <textarea id="chat-input" placeholder="Type a message or use /slash commands..." rows="1"
+                    onkeydown="handleEnter(event)"></textarea>
+                <button type="submit" class="send-btn">Send</button>
+            </form>
+        </div>
+
+        <!-- Diagnostics View -->
+        <div id="view-diagnostics" class="view-section">
+            <h2>System Diagnostics</h2>
+
+            <div class="flex-row">
+                <div class="glass-card flex-card" id="diag-daemon">
+                    <h3>Daemon Status</h3>
+                    <p>Loading...</p>
+                </div>
+                <div class="glass-card flex-card" id="diag-model">
+                    <h3>Model Architecture</h3>
+                    <p>Loading...</p>
+                </div>
+                <div class="glass-card flex-card" id="diag-db">
+                    <h3>Memory Allocation</h3>
+                    <p>Loading...</p>
+                </div>
+            </div>
+
+            <div class="glass-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 style="margin: 0;">Tail Logs (backend)</h3>
+                    <button class="btn" onclick="fetchLogs()"
+                        style="padding: 0.5rem 1rem; font-size: 0.9rem;">Refresh</button>
+                </div>
+                <pre id="sys-logs">Awaiting log stream...</pre>
+            </div>
+        </div>
+
+        <!-- Skills & Config View -->
+        <div id="view-skills" class="view-section">
+            <h2>ClawHub & Integrations</h2>
+
+            <div class="glass-card">
+                <h3>Install New Skill</h3>
+                <form id="clawhub-form" onsubmit="installSkill(event)">
+                    <div class="form-group flex-row">
+                        <input type="text" id="skill-url" placeholder="https://github.com/user/viclaw-skill..."
+                            style="flex: 1;" required>
+                        <button type="submit" class="btn" id="install-btn">Install Skill</button>
+                    </div>
+                    <div id="install-msg" style="font-size: 0.9rem; margin-top: 0.5rem;"></div>
+                </form>
+            </div>
+
+            <div class="glass-card">
+                <h3>Loaded Agent Skills</h3>
+                <ul class="skills-list" id="skills-list">
+                    <li>Loading skills payload...</li>
+                </ul>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // ==== UI State ====
+        let isDarkMode = true;
+        let lastMemoryCount = 0;
+
+        function toggleTheme() {
+            isDarkMode = !isDarkMode;
+            document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
+        }
+
+        function switchView(viewName) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+
+            document.getElementById(`view-${viewName}`).classList.add('active');
+            event.currentTarget.classList.add('active');
+
+            if (viewName === 'diagnostics') loadDiagnostics();
+            if (viewName === 'skills') loadSkills();
+        }
+
+        function toggleRaw(id) {
+            const el = document.getElementById(id);
+            if (el) el.classList.toggle('visible');
+        }
+
+        function handleEnter(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                document.getElementById('chat-form').dispatchEvent(new Event('submit'));
+            }
+        }
+
+        // ==== Chat Engine ====
+        const chatBox = document.getElementById('chat-box');
+
+        function appendMessage(role, content, rawJSON = null) {
+            const container = document.createElement('div');
+            container.className = `msg-container ${role}`;
+
+            let nameTag = '';
+            if (role === 'user') nameTag = '<div class="bot-indicator">You</div>';
+            if (role === 'bot') nameTag = '<div class="bot-indicator">ViClaw Intelligence</div>';
+
+            // Format line breaks
+            let formattedContent = content.replace(/\\n/g, '<br>').replace(/\n/g, '<br>');
+
+            let rawUI = '';
+            if (rawJSON) {
+                const uniqueId = 'raw-' + Math.random().toString(36).substr(2, 9);
+                let rawStr = typeof rawJSON === 'string' ? rawJSON : JSON.stringify(rawJSON, null, 2);
+                rawUI = `
+                    <button class="raw-toggle-btn" onclick="toggleRaw('${uniqueId}')">Show/Hide Raw Tool JSON</button>
+                    <div class="raw-content" id="${uniqueId}">${rawStr}</div>
+                `;
+            }
+
+            container.innerHTML = `
+                ${nameTag}
+                <div class="bubble">${formattedContent}</div>
+                ${rawUI}
+            `;
+
+            chatBox.appendChild(container);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        document.getElementById('chat-form').addEventListener('submit', (e) => {
             e.preventDefault();
             const input = document.getElementById('chat-input');
-            const message = input.value;
-            if (!message.trim()) return;
-            
+            const message = input.value.trim();
+            if (!message) return;
+
             input.value = '';
-            
-            // We do NOT add the user message here manually if we rely on the memory poller,
-            // BUT to ensure instant UI feedback, we can add it, and let the poller ignore it
-            // Actually, the webui POST to /api/chat blocks until response, so we do it manually
-            // Stop the poller temporarily or let it duplicate? Poller might duplicate.
-            // Let's just rely on the API response to render to avoid duplicates, or render local and increment count.
-            
-            const chatBox = document.getElementById('chat-box');
-            chatBox.innerHTML += `<div class="msg-user">${message}</div>`;
+            input.style.height = 'auto'; // reset textarea
+
+            appendMessage('user', message);
+
+            const typingId = 'typing-' + Date.now();
+            const typingContainer = document.createElement('div');
+            typingContainer.className = 'msg-container bot';
+            typingContainer.id = typingId;
+            typingContainer.innerHTML = `<div class="bot-indicator">ViClaw</div><div class="bubble"><i>Processing request...</i></div>`;
+            chatBox.appendChild(typingContainer);
             chatBox.scrollTop = chatBox.scrollHeight;
-            
-            setThought("Processing...", 30000); // Keep speaking while waiting
-            
-            // We increment lastMemoryCount locally so the poller skips capturing our exact text as a duplicate
-            // We'll just fetch memory after response to sync.
-            
+
             fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message: message })
             })
-            .then(res => res.json())
-            .then(data => {
-                // The API /api/chat pushes to short term memory internally.
-                // Re-fetch memory to sync the count so the poller doesn't double print
-                fetch('/api/memory').then(r=>r.json()).then(m => {
-                    lastMemoryCount = m.short_term ? m.short_term.length : 0;
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById(typingId)?.remove();
+
+                    // Fetch memory to sync local count so async poller skips it
+                    fetch('/api/memory').then(r => r.json()).then(m => {
+                        lastMemoryCount = m.short_term ? m.short_term.length : 0;
+                    });
+
+                    appendMessage('bot', data.reply, data.raw_content);
+                })
+                .catch(err => {
+                    document.getElementById(typingId)?.remove();
+                    appendMessage('sys', `Network Error: Could not reach daemon. [${err}]`);
                 });
-                
-                chatBox.innerHTML += `<div class="msg-bot">${data.reply.replace(/\\n/g, '<br>')}</div>`;
-                chatBox.scrollTop = chatBox.scrollHeight;
-                setThought(data.reply, 5000);
-            })
-            .catch(err => {
-                chatBox.innerHTML += `<div class="msg-bot" style="color:#ef4444;">Error mapping to agent. Is daemon running?</div>`;
-                setThought("Connection lost...", 3000);
+        });
+
+        // Background Async Poller
+        setInterval(() => {
+            fetch('/api/memory')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.short_term && data.short_term.length > lastMemoryCount) {
+                        const newMessages = data.short_term.slice(lastMemoryCount);
+                        lastMemoryCount = data.short_term.length;
+
+                        newMessages.forEach(msg => {
+                            if (msg.role === 'assistant') {
+                                appendMessage('bot', msg.content, msg.raw);
+                            } else if (msg.role === 'user') {
+                                // Check if this is a tool execution block disguised inside "user" to fix hallucinations
+                                if (msg.content.includes('[TOOL EXECUTION RESULT:')) {
+                                    appendMessage('sys', "Tool execution completed.", msg.content);
+                                } else {
+                                    appendMessage('user', msg.content);
+                                }
+                            } else if (msg.role === 'system') {
+                                appendMessage('sys', msg.content);
+                            }
+                        });
+                    }
+                });
+        }, 2000);
+
+        // ==== Diagnostics Engine ====
+        function loadDiagnostics() {
+            fetch('/api/diagnostics')
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('diag-daemon').querySelector('p').innerText = data.daemon_status;
+                    document.getElementById('diag-model').querySelector('p').innerHTML = `<b>Provider:</b> ${data.provider}<br><b>Model:</b> ${data.model}<br><b>Link:</b> ${data.ollama_status}`;
+                    document.getElementById('diag-db').querySelector('p').innerText = data.db_size;
+                });
+            fetchLogs();
+        }
+
+        function fetchLogs() {
+            fetch('/api/logs').then(r => r.json()).then(d => {
+                const el = document.getElementById('sys-logs');
+                el.innerText = d.logs || 'No recent logs.';
+                el.scrollTop = el.scrollHeight;
             });
         }
-        
-        // Initial setup
-        fetch('/api/memory').then(r=>r.json()).then(m => {
+
+        // ==== Skills Engine ====
+        function loadSkills() {
+            fetch('/api/skills').then(r => r.json()).then(data => {
+                const list = document.getElementById('skills-list');
+                list.innerHTML = '';
+                if (data.skills && data.skills.length > 0) {
+                    data.skills.forEach(s => {
+                        list.innerHTML += `<li><b>${s.name}</b>: ${s.description}</li>`;
+                    });
+                } else {
+                    list.innerHTML = '<li>No skills located.</li>';
+                }
+            });
+        }
+
+        function installSkill(e) {
+            e.preventDefault();
+            const btn = document.getElementById('install-btn');
+            const msg = document.getElementById('install-msg');
+            const url = document.getElementById('skill-url').value;
+
+            btn.innerText = "Downloading...";
+            btn.disabled = true;
+            msg.innerHTML = "Connecting to ClawHub...";
+            msg.style.color = "var(--text-color)";
+
+            fetch('/api/install_skill', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: url })
+            }).then(r => r.json()).then(d => {
+                btn.innerText = "Install Skill";
+                btn.disabled = false;
+                if (d.success) {
+                    msg.style.color = "#10b981"; // success green
+                    msg.innerHTML = "Skill installed! Agent memory reloaded.";
+                    document.getElementById('skill-url').value = '';
+                    loadSkills();
+                } else {
+                    msg.style.color = "#ef4444"; // error red
+                    msg.innerHTML = "Failed: " + d.message;
+                }
+            });
+        }
+
+        // Auto-sizing textarea
+        const tx = document.getElementById('chat-input');
+        tx.setAttribute('style', 'height:' + (tx.scrollHeight) + 'px;overflow-y:hidden;');
+        tx.addEventListener("input", OnInput, false);
+        function OnInput() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        }
+
+        // Init
+        fetch('/api/memory').then(r => r.json()).then(m => {
             lastMemoryCount = m.short_term ? m.short_term.length : 0;
+            appendMessage('bot', "Connection established. ViClaw Intelligence active.");
         });
-        setTimeout(() => setThought("All systems nominal.", 3000), 1000);
     </script>
 </body>
+
 </html>

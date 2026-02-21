@@ -120,11 +120,13 @@ class OpenClawAgent:
         response = self.router.generate(message_text, system_prompt=system_prompt, context=context, tools=tools)
         
         final_reply = response["content"]
+        raw_tools = []
         
         if response["content"]:
             self.memory.add_short_term("assistant", response["content"])
             
         if response["tool_calls"]:
+            raw_tools = response["tool_calls"]
             for tc in response["tool_calls"]:
                 tool_name = tc.get("function", {}).get("name")
                 tool_args = tc.get("function", {}).get("arguments", {})
@@ -143,7 +145,7 @@ class OpenClawAgent:
                     final_reply += f"\n\n{err_msg}"
                     logging.error(e)
                     
-        return final_reply
+        return final_reply, raw_tools
 
     def start_heartbeat(self):
         """

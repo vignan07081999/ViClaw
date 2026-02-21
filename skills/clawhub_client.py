@@ -16,23 +16,39 @@ class ClawHubClient:
 
     def download_and_install(self, repo_url):
         """
-        Downloads a skill from a given URL (e.g. github zipball) and extracts it.
-        For this clone, we simulate fetching a standard skill structure and writing it to skills/
+        Downloads a skill. For the clone, we support direct GitHub Raw URLs
+        or we automatically convert standard GitHub blob URLs to raw content.
         """
         logging.info(f"Connecting to ClawHub to install skill from {repo_url}...")
         try:
-            # Simulated zip download for the clone
-            if "github.com" in repo_url:
-                zip_url = repo_url.rstrip('/') + "/archive/refs/heads/main.zip"
-                response = requests.get(zip_url)
-                if response.status_code == 200:
-                    with zipfile.ZipFile(io.BytesIO(response.content)) as z:
-                        # Extract directly to skills dir (flattening if needed, but keeping simple for demo)
-                        z.extractall(SKILLS_DIR)
-                    logging.info("Skill downloaded successfully.")
-                    return True
+            # Convert standard github link to raw link if necessary
+            if "github.com" in repo_url and "/blob/" in repo_url:
+                repo_url = repo_url.replace("github.com", "raw.githubusercontent.com").replace("/blob/", "/")
+            
+            # Fetch the skill block
+            response = requests.get(repo_url, timeout=10)
+            if response.status_code == 200:
+                content = response.text
+                
+                # Try to extract a class name for the file name, or fallback to URL suffix
+                file_name = repo_url.split("/")[-1]
+                if not file_name.endswith(".py"):
+                    # Attempt crude parsing if not specified
+                    import re
+                    match = re.search(r'class\s+([A-Za-z0-9_]+)', content)
+                    if match:
+                        file_name = match.group(1).lower() + ".py"
+                    else:
+                        file_name = "custom_skill.py"
+                        
+                target_path = os.path.join(SKILLS_DIR, file_name)
+                with open(target_path, "w", encoding="utf-8") as f:
+                    f.write(content)
+                
+                logging.info(f"Skill compiled and installed to {target_path}.")
+                return True
             else:
-                logging.error("Unsupported ClawHub URL format.")
+                logging.error(f"Failed to fetch. Server returned {response.status_code}")
                 return False
         except Exception as e:
             logging.error(f"Failed to download skill: {e}")

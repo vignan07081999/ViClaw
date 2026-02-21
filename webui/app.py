@@ -213,9 +213,9 @@ def handle_chat(payload: ChatMessage):
         # Pushing this via the local API so it routes properly through agent state memory
         # We need a synchronous response for HTTP, wait for agent logic.
         
-        reply = agent_instance.process_immediate_message("web", "local_web_user", payload.message)
-        return {"reply": reply}
-    return {"reply": "Agent is offline."}
+        reply, raw_content = agent_instance.process_immediate_message("web", "local_web_user", payload.message)
+        return {"reply": reply, "raw_content": raw_content}
+    return {"reply": "Agent is offline.", "raw_content": None}
 
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard():
