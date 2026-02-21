@@ -54,6 +54,17 @@ def index():
                     </form>
                 </div>
             </div>
+
+            <div class="card">
+                <h2>System Diagnostics</h2>
+                <button onclick="loadDiagnostics()" style="margin-bottom: 10px;">Run Health Check</button>
+                <div id="diag-results" style="display: flex; gap: 20px; flex-wrap: wrap;">
+                    <!-- Diagnostics inserted here -->
+                </div>
+                <h3 style="margin-top:20px;">Recent Daemon Logs</h3>
+                <button onclick="loadLogs()" style="margin-bottom: 10px; background-color: #7f8c8d;">Fetch Logs</button>
+                <pre id="log-box" style="background:#2c3e50; color:#ecf0f1; padding:10px; border-radius:4px; max-height:200px; overflow-y:scroll; font-size:12px;">Waiting for logs...</pre>
+            </div>
             
             <script>
                 // Load Skills
@@ -72,6 +83,45 @@ def index():
                             });
                         }
                     });
+
+                // Load Diagnostics
+                function loadDiagnostics() {
+                    const resDiv = document.getElementById('diag-results');
+                    resDiv.innerHTML = '<p>Running checks...</p>';
+                    fetch('/api/diagnostics')
+                        .then(res => res.json())
+                        .then(data => {
+                            resDiv.innerHTML = `
+                                <div style="flex: 1; min-width:200px; background:#e8f4f8; padding:15px; border-radius:8px;">
+                                    <b>Daemon Status:</b><br>${data.daemon_status}
+                                </div>
+                                <div style="flex: 1; min-width:200px; background:#e8f8f5; padding:15px; border-radius:8px;">
+                                    <b>Memory DB Size:</b><br>${data.db_size}
+                                </div>
+                                <div style="flex: 1; min-width:200px; background:#fef9e7; padding:15px; border-radius:8px;">
+                                    <b>Ollama Link:</b><br>${data.ollama_status}
+                                </div>
+                                <div style="flex: 1; min-width:200px; background:#f8d7da; padding:15px; border-radius:8px;">
+                                    <b>Main Model:</b><br>${data.model}
+                                </div>
+                            `;
+                        });
+                }
+
+                // Load Logs
+                function loadLogs() {
+                    const logBox = document.getElementById('log-box');
+                    logBox.innerHTML = 'Fetching...';
+                    fetch('/api/logs')
+                        .then(res => res.json())
+                        .then(data => {
+                            logBox.innerHTML = data.logs;
+                            logBox.scrollTop = logBox.scrollHeight;
+                        });
+                }
+
+                // Initial loads
+                loadDiagnostics();
 
                 // Handle Chat
                 function sendMessage(event) {
@@ -131,6 +181,51 @@ def get_memory():
     if agent_instance and hasattr(agent_instance, 'memory'):
         return {"short_term": agent_instance.memory.get_short_term_context()}
     return {"short_term": []}
+
+@app.get("/api/diagnostics")
+def get_diagnostics():
+    import os
+    import subprocess
+    import requests
+    from core.config import get_config
+    
+    config = get_config()
+    db_size = "Unknown"
+    if os.path.exists("data/memory.db"):
+        db_size = f"{os.path.getsize('data/memory.db') / (1024 * 1024):.2f} MB"
+        
+    ollama_status = "Not Using Ollama"
+    if config.get("provider") == "ollama":
+        url = config.get("ollama_url", "http://localhost:11434")
+        try:
+            res = requests.get(f"{url.rstrip('/')}/api/tags", timeout=3)
+            ollama_status = "Online" if res.status_code == 200 else f"Offline ({res.status_code})"
+        except Exception:
+            ollama_status = "Unreachable"
+
+    daemon_status = "Unknown"
+    try:
+        res = subprocess.run(["systemctl", "is-active", "viclaw"], capture_output=True, text=True)
+        daemon_status = res.stdout.strip()
+    except Exception:
+        daemon_status = "Not running as systemd service"
+
+    return {
+        "model": config.get("model", "Unknown"),
+        "provider": config.get("provider", "Unknown"),
+        "db_size": db_size,
+        "ollama_status": ollama_status,
+        "daemon_status": daemon_status
+    }
+
+@app.get("/api/logs")
+def get_logs():
+    import subprocess
+    try:
+        res = subprocess.run(["journalctl", "-u", "viclaw", "-n", "20", "--no-pager"], capture_output=True, text=True)
+        return {"logs": res.stdout}
+    except Exception as e:
+        return {"logs": f"Error fetching logs: {str(e)}"}
 
 def start_webui(agent):
     global agent_instance
