@@ -28,9 +28,16 @@ class AgentMemory:
 
     def add_short_term(self, role, content):
         self.short_term_context.append({"role": role, "content": content})
+        
+        # Smart Context compression: If over limit, we remove the oldest 2 messages
+        # to ensure we typically drop a full (user + assistant) pair rather than breaking flow
         if len(self.short_term_context) > self.max_short_term:
-            # Shift out oldest, but keep system prompt if we put it here (we usually don't put system in short term)
-            self.short_term_context.pop(0)
+            logging.info("Memory Limit Reached: Sliding context window to compress memory.")
+            # Drop the oldest two messages (assuming they aren't marked as system critical)
+            # In a full implementation, you could summarize these and inject them as a fresh 'system' message
+            pop_count = 2 if len(self.short_term_context) >= 2 else 1
+            for _ in range(pop_count):
+                self.short_term_context.pop(0)
 
     def get_short_term_context(self):
         return self.short_term_context

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ViClaw 3D Dashboard</title>
+    <style>
+        body { margin: 0; padding: 0; background: #0f172a; color: #f8fafc; font-family: 'Segoe UI', sans-serif; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+        
+        /* Nav back */
+        .back-btn { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.1); padding: 10px 20px; text-decoration: none; color: white; border-radius: 8px; font-weight: bold; border: 1px solid rgba(255,255,255,0.2); }
+        .back-btn:hover { background: rgba(255,255,255,0.2); }
+
+        /* The Bot Container */
+        .bot-container { position: relative; width: 300px; height: 300px; display: flex; justify-content: center; align-items: center; animation: float 6s ease-in-out infinite; }
+        
+        /* Floating Chat Bubble */
+        .thought-bubble { position: absolute; top: -100px; background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); padding: 15px 25px; border-radius: 20px; font-size: 1.1rem; max-width: 280px; text-align: center; opacity: 0; transition: opacity 0.5s; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 10px 25px rgba(0,0,0,0.5); z-index: 10; word-wrap: break-word;}
+        .thought-bubble.visible { opacity: 1; }
+        
+        /* 3D Face / Head */
+        .bot-head { width: 220px; height: 180px; background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 40%; box-shadow: inset 0 0 30px #0ea5e9, 0 20px 50px rgba(0,0,0,0.8); display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; overflow: hidden; border: 2px solid #38bdf8;}
+        
+        /* Eyes container */
+        .eyes { display: flex; gap: 35px; margin-bottom: 25px; }
+        .eye { width: 45px; height: 16px; background: #38bdf8; border-radius: 10px; box-shadow: 0 0 20px #38bdf8; animation: blink 4s infinite; transition: all 0.2s ease;}
+        
+        /* Mouth */
+        .mouth { width: 35px; height: 5px; background: #38bdf8; border-radius: 2px; box-shadow: 0 0 10px #38bdf8; transition: width 0.1s; }
+        .mouth.speaking { animation: speak 0.2s infinite alternate; }
+        
+        /* Animations */
+        @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-20px); } }
+        @keyframes blink { 0%, 96%, 98% { transform: scaleY(1); } 97% { transform: scaleY(0.1); } }
+        @keyframes speak { from { width: 35px; } to { width: 90px; height: 10px; border-radius: 5px; } }
+        
+        /* Collapsible Chat */
+        .chat-container { position: absolute; bottom: 0; right: 40px; width: 400px; background: rgba(30,41,59,0.95); backdrop-filter: blur(10px); border-top-left-radius: 15px; border-top-right-radius: 15px; border: 1px solid rgba(255,255,255,0.2); border-bottom: none; display: flex; flex-direction: column; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); transform: translateY(calc(100% - 55px)); box-shadow: 0 -10px 30px rgba(0,0,0,0.5); }
+        .chat-container.open { transform: translateY(0); }
+        .chat-header { padding: 18px; background: linear-gradient(90deg, #0284c7, #0ea5e9); color: white; border-top-left-radius: 15px; border-top-right-radius: 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 1.1rem;}
+        .chat-box { height: 400px; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+        .msg-user { align-self: flex-end; background: #0ea5e9; padding: 10px 15px; border-radius: 15px 15px 0 15px; max-width: 80%; word-wrap: break-word;}
+        .msg-bot { align-self: flex-start; background: #334155; padding: 10px 15px; border-radius: 15px 15px 15px 0; max-width: 80%; word-wrap: break-word; line-height: 1.4; color: #e2e8f0; border: 1px solid rgba(255,255,255,0.05); }
+        .chat-input-area { display: flex; padding: 15px; border-top: 1px solid rgba(255,255,255,0.1); background: rgba(15,23,42,0.8); }
+        .chat-input-area input { flex: 1; padding: 12px; background: #0f172a; border: 1px solid #475569; border-radius: 8px; color: white; outline: none; font-size: 1rem; }
+        .chat-input-area input:focus { border-color: #0ea5e9; }
+        .chat-input-area button { padding: 12px 20px; margin-left: 10px; background: #0ea5e9; border: none; border-radius: 8px; color: white; cursor: pointer; font-weight: bold; font-size: 1rem; transition: background 0.2s; }
+        .chat-input-area button:hover { background: #0284c7; }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    </style>
+</head>
+<body>
+
+    <a href="/" class="back-btn">&larr; Back to Admin</a>
+
+    <div class="bot-container">
+        <div class="thought-bubble" id="thought-bubble">Awaiting input...</div>
+        <div class="bot-head" id="bot-head">
+            <div class="eyes">
+                <div class="eye"></div>
+                <div class="eye"></div>
+            </div>
+            <div class="mouth" id="mouth"></div>
+        </div>
+    </div>
+
+    <!-- Collapsible Chat -->
+    <div class="chat-container" id="chat-container">
+        <div class="chat-header" onclick="toggleChat()">
+            <span>💬 ViClaw Direct Interface</span>
+            <span id="chat-toggle-icon">▲</span>
+        </div>
+        <div class="chat-box" id="chat-box">
+            <div class="msg-bot">Session established. I'm ready.</div>
+        </div>
+        <form class="chat-input-area" id="chat-form" onsubmit="sendMessage(event)">
+            <input type="text" id="chat-input" placeholder="Message ViClaw..." required autocomplete="off" />
+            <button type="submit">Send</button>
+        </form>
+    </div>
+
+    <script>
+        // Track the length of memory so we only show NEW thoughts
+        let lastMemoryCount = 0;
+
+        function toggleChat() {
+            const container = document.getElementById('chat-container');
+            const icon = document.getElementById('chat-toggle-icon');
+            container.classList.toggle('open');
+            icon.innerText = container.classList.contains('open') ? '▼' : '▲';
+            
+            if (container.classList.contains('open')) {
+                document.getElementById('chat-input').focus();
+            }
+        }
+
+        function setThought(text, duration=5000) {
+            const bubble = document.getElementById('thought-bubble');
+            const mouth = document.getElementById('mouth');
+            
+            // Truncate for the bubble if too long
+            const displayText = text.length > 80 ? text.substring(0, 80) + "..." : text;
+            
+            bubble.innerText = displayText;
+            bubble.classList.add('visible');
+            mouth.classList.add('speaking');
+            
+            setTimeout(() => {
+                bubble.classList.remove('visible');
+                mouth.classList.remove('speaking');
+            }, duration);
+        }
+
+        // Poll for spontaneous thoughts or background events
+        setInterval(() => {
+            fetch('/api/memory')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.short_term && data.short_term.length > lastMemoryCount) {
+                        // There are new messages!
+                        const newMessages = data.short_term.slice(lastMemoryCount);
+                        lastMemoryCount = data.short_term.length;
+                        
+                        const chatBox = document.getElementById('chat-box');
+                        
+                        newMessages.forEach(msg => {
+                            if (msg.role === 'assistant') {
+                                setThought(msg.content, 8000);
+                                chatBox.innerHTML += `<div class="msg-bot"><b>ViClaw:</b> ${msg.content.replace(/\\n/g, '<br>')}</div>`;
+                            } else if (msg.role === 'user') {
+                                // In case the user typed it from another client like CLI
+                                chatBox.innerHTML += `<div class="msg-user"><b>User:</b> ${msg.content}</div>`;
+                            } else if (msg.role === 'system') {
+                                chatBox.innerHTML += `<div class="msg-bot" style="color: #64748b; font-size: 0.9em;"><i>[System] ${msg.content}</i></div>`;
+                            }
+                        });
+                        chatBox.scrollTop = chatBox.scrollHeight;
+                    }
+                });
+        }, 2000);
+
+        function sendMessage(e) {
+            e.preventDefault();
+            const input = document.getElementById('chat-input');
+            const message = input.value;
+            if (!message.trim()) return;
+            
+            input.value = '';
+            
+            // We do NOT add the user message here manually if we rely on the memory poller,
+            // BUT to ensure instant UI feedback, we can add it, and let the poller ignore it
+            // Actually, the webui POST to /api/chat blocks until response, so we do it manually
+            // Stop the poller temporarily or let it duplicate? Poller might duplicate.
+            // Let's just rely on the API response to render to avoid duplicates, or render local and increment count.
+            
+            const chatBox = document.getElementById('chat-box');
+            chatBox.innerHTML += `<div class="msg-user">${message}</div>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+            
+            setThought("Processing...", 30000); // Keep speaking while waiting
+            
+            // We increment lastMemoryCount locally so the poller skips capturing our exact text as a duplicate
+            // We'll just fetch memory after response to sync.
+            
+            fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: message })
+            })
+            .then(res => res.json())
+            .then(data => {
+                // The API /api/chat pushes to short term memory internally.
+                // Re-fetch memory to sync the count so the poller doesn't double print
+                fetch('/api/memory').then(r=>r.json()).then(m => {
+                    lastMemoryCount = m.short_term ? m.short_term.length : 0;
+                });
+                
+                chatBox.innerHTML += `<div class="msg-bot">${data.reply.replace(/\\n/g, '<br>')}</div>`;
+                chatBox.scrollTop = chatBox.scrollHeight;
+                setThought(data.reply, 5000);
+            })
+            .catch(err => {
+                chatBox.innerHTML += `<div class="msg-bot" style="color:#ef4444;">Error mapping to agent. Is daemon running?</div>`;
+                setThought("Connection lost...", 3000);
+            });
+        }
+        
+        // Initial setup
+        fetch('/api/memory').then(r=>r.json()).then(m => {
+            lastMemoryCount = m.short_term ? m.short_term.length : 0;
+        });
+        setTimeout(() => setThought("All systems nominal.", 3000), 1000);
+    </script>
+</body>
+</html>

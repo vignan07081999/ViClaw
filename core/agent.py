@@ -114,14 +114,68 @@ class OpenClawAgent:
     def start_heartbeat(self):
         """
         A background loop that allows the agent to act proactively on schedule or monitor state.
+        Triggers spontaneous action if idle.
         """
         self.running = True
-        logging.info("Starting OpenClaw Heartbeat...")
+        logging.info("Starting ViClaw Proactive Heartbeat...")
         
         def loop():
+            last_action_time = time.time()
+            idle_threshold = 300 # 5 minutes
+            
             while self.running:
-                # In a full implementation, the heartbeat evaluates timed tasks or pending jobs.
-                time.sleep(60) # Wake every 60 seconds
+                time.sleep(60) 
+                
+                # If idle for a while, trigger a proactive reasoning cycle
+                if time.time() - last_action_time > idle_threshold:
+                    logging.info("Heartbeat: Agent is idle. Triggering proactive inference.")
+                    last_action_time = time.time()
+                    
+                    sys_prompt = self.personality.construct_system_prompt()
+                    sys_prompt += "\n\n[SYSTEM EVENT]: You have been idle. Do you have any pending reminders or tasks to execute? If yes, use a tool or send a proactive message. If no, output strictly empty text."
+                    
+                    # Inject persistent reminders if they exist
+                    reminders_file = "data/reminders.json"
+                    if os.path.exists(reminders_file):
+                        try:
+                            with open(reminders_file, "r") as f:
+                                import json
+                                reminders_data = json.load(f)
+                                if reminders_data:
+                                    sys_prompt += "\n\nActive Persistent Reminders:\n"
+                                    for r in reminders_data:
+                                        sys_prompt += f"- {r['topic']}: {r['instruction']}\n"
+                        except Exception:
+                            pass
+                    
+                    context = self.memory.get_short_term_context()
+                    tools = self.skill_manager.get_all_tools()
+                    
+                    try:
+                        response = self.router.generate("[Heartbeat Check]", system_prompt=sys_prompt, context=context, tools=tools)
+                        
+                        if response["content"] and response["content"].strip():
+                            # Spontaneous message
+                            self.memory.add_short_term("assistant", response["content"])
+                            self.platform_manager.send("cli", "local_user", response["content"])
+                            
+                        if response["tool_calls"]:
+                            for tc in response["tool_calls"]:
+                                tool_name = tc.get("function", {}).get("name")
+                                tool_args = tc.get("function", {}).get("arguments", {})
+                                logging.info(f"Heartbeat requested tool: {tool_name} with {tool_args}")
+                                tool_result = self.skill_manager.execute_tool(tool_name, tool_args)
+                                
+                                # Process tool result proactively
+                                sys_prompt_pass2 = "You executed a proactive tool. If the user needs to know this result immediately, generate a message. Otherwise remain silent."
+                                final_res = self.router.generate(f"Tool Result: {tool_result}", system_prompt=sys_prompt_pass2, context=self.memory.get_short_term_context())
+                                
+                                if final_res["content"] and final_res["content"].strip():
+                                    self.platform_manager.send("cli", "local_user", final_res["content"])
+                                    self.memory.add_short_term("assistant", final_res["content"])
+                                    
+                    except Exception as e:
+                        logging.error(f"Heartbeat proactive loop error: {e}")
                 
         t = threading.Thread(target=loop, daemon=True)
         t.start()

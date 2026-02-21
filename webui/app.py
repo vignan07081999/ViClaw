@@ -15,6 +15,9 @@ agent_instance = None
 class ChatMessage(BaseModel):
     message: str
 
+class SkillInstallRequest(BaseModel):
+    url: str
+
 @app.get("/", response_class=HTMLResponse)
 def index():
     html_content = """
@@ -41,6 +44,15 @@ def index():
                 <div style="flex: 1;">
                     <h2>Agent Status: <span class="status-on">Running</span></h2>
                     <p>Background daemon active.</p>
+                    <a href="/dashboard" style="display: inline-block; padding: 10px 15px; background: #0ea5e9; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; margin-bottom: 20px;">Open 3D Dashboard →</a>
+                    
+                    <h3>ClawHub Setup</h3>
+                    <form id="clawhub-form" onsubmit="installSkill(event)" style="margin-bottom: 20px;">
+                        <input type="text" id="skill-url" placeholder="Enter ClawHub/GitHub URL..." required style="width: 60%;" />
+                        <button type="submit" id="install-btn">Install</button>
+                        <div id="install-msg" style="margin-top: 5px; font-size: 0.9em;"></div>
+                    </form>
+
                     <h3>Loaded Skills</h3>
                     <ul id="skills-list">Loading...</ul>
                 </div>
@@ -68,21 +80,57 @@ def index():
             
             <script>
                 // Load Skills
-                fetch('/api/skills')
-                    .then(response => response.json())
+                function loadSkills() {
+                    fetch('/api/skills')
+                        .then(response => response.json())
+                        .then(data => {
+                            const list = document.getElementById('skills-list');
+                            list.innerHTML = '';
+                            if (data.skills.length === 0) {
+                                list.innerHTML = '<li>No skills loaded.</li>';
+                            } else {
+                                data.skills.forEach(skill => {
+                                    const li = document.createElement('li');
+                                    li.innerHTML = '<strong>' + skill.name + '</strong>: ' + skill.description;
+                                    list.appendChild(li);
+                                });
+                            }
+                        });
+                }
+                
+                loadSkills();
+
+                function installSkill(event) {
+                    event.preventDefault();
+                    const urlInput = document.getElementById('skill-url');
+                    const msgDiv = document.getElementById('install-msg');
+                    const btn = document.getElementById('install-btn');
+                    
+                    const url = urlInput.value;
+                    if(!url) return;
+                    
+                    btn.innerText = "Installing...";
+                    btn.disabled = true;
+                    msgDiv.innerHTML = "<span style='color:blue;'>Downloading from ClawHub...</span>";
+                    
+                    fetch('/api/install_skill', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: url })
+                    })
+                    .then(res => res.json())
                     .then(data => {
-                        const list = document.getElementById('skills-list');
-                        list.innerHTML = '';
-                        if (data.skills.length === 0) {
-                            list.innerHTML = '<li>No skills loaded.</li>';
+                        btn.innerText = "Install";
+                        btn.disabled = false;
+                        if(data.success) {
+                            msgDiv.innerHTML = "<span style='color:green;'>Skill installed successfully! Reloading...</span>";
+                            urlInput.value = '';
+                            loadSkills();
                         } else {
-                            data.skills.forEach(skill => {
-                                const li = document.createElement('li');
-                                li.innerHTML = '<strong>' + skill.name + '</strong>: ' + skill.description;
-                                list.appendChild(li);
-                            });
+                            msgDiv.innerHTML = "<span style='color:red;'>" + data.message + "</span>";
                         }
                     });
+                }
 
                 // Load Diagnostics
                 function loadDiagnostics() {
@@ -169,12 +217,35 @@ def handle_chat(payload: ChatMessage):
         return {"reply": reply}
     return {"reply": "Agent is offline."}
 
+@app.get("/dashboard", response_class=HTMLResponse)
+def dashboard():
+    import os
+    dash_path = os.path.join(os.path.dirname(__file__), "dashboard.html")
+    if os.path.exists(dash_path):
+        with open(dash_path, "r") as f:
+            return f.read()
+    return "Dashboard HTML missing"
+
 @app.get("/api/skills")
 def get_skills():
     if agent_instance and hasattr(agent_instance, 'skill_manager'):
         skills = agent_instance.skill_manager.get_loaded_skills_info()
         return {"skills": skills}
     return {"skills": []}
+
+@app.post("/api/install_skill")
+def install_skill(payload: SkillInstallRequest):
+    if not agent_instance:
+        return {"success": False, "message": "Agent offline."}
+    
+    from skills.clawhub_client import ClawHubClient
+    client = ClawHubClient()
+    success = client.download_and_install(payload.url)
+    if success:
+        # Reload skills
+        agent_instance.skill_manager._load_all_skills()
+        return {"success": True, "message": "Installed perfectly."}
+    return {"success": False, "message": "Failed to install. Check daemon logs."}
 
 @app.get("/api/memory")
 def get_memory():

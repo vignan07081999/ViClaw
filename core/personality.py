@@ -1,23 +1,26 @@
 from datetime import datetime
+from core.config import get_config
 
 class PersonalityProfile:
     def __init__(self, memory_module):
         self.memory = memory_module
         
-        # Default OpenClaw archetype
-        self.base_instructions = (
-            "You are OpenClaw, an autonomous, proactive AI agent running locally on the user's "
-            "machine. You are highly capable, direct, and concise. Your goal is to help the user "
-            "achieve their tasks quickly by running tools, searching for information, and managing "
-            "their environment safely."
-        )
-
     def construct_system_prompt(self, current_query=None):
         """
         Assembles the system prompt including base traits, current temporal facts,
         and injected semantic memories based on the current query.
         """
-        prompt = self.base_instructions + "\n\n"
+        config = get_config()
+        identity = config.get("identity", {"name": "ViClaw", "personality": "helpful, direct, and concise"})
+        
+        base_instructions = (
+            f"You are {identity['name']}, an autonomous, proactive AI agent running locally on the user's "
+            f"machine. You are highly capable, and your personality is: {identity['personality']}. Your goal is to help the user "
+            "achieve their tasks quickly by running tools, searching for information, and managing "
+            "their environment safely."
+        )
+
+        prompt = base_instructions + "\n\n"
         
         # Inject Temporal Facts
         current_time = datetime.now()

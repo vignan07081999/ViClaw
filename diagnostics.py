@@ -97,9 +97,10 @@ def master_menu():
         console.print("[3] Reinstall Agent Dependencies")
         console.print("[4] Uninstall Agent (Destructive)")
         console.print("[5] Refresh Status")
+        console.print("[6] Run Automated Doctor (Troubleshoot Errors)")
         console.print("[0] Exit Menu")
         
-        choice = Prompt.ask("\nChoose an option", choices=["0", "1", "2", "3", "4", "5"], default="5")
+        choice = Prompt.ask("\nChoose an option", choices=["0", "1", "2", "3", "4", "5", "6"], default="5")
         
         if choice == "0":
             break
@@ -111,11 +112,13 @@ def master_menu():
             run_script("reinstall.sh")
         elif choice == "4":
             run_script("uninstall.sh")
-            # If they actually uninstalled, the loop should probably exit
             if not os.path.exists("data/config.json"):
                 break
         elif choice == "5":
             continue
+        elif choice == "6":
+            import doctor
+            doctor.run_doctor()
 
 if __name__ == "__main__":
     master_menu()

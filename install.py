@@ -30,8 +30,17 @@ def main():
     console.print(Panel.fit("[bold cyan]Welcome to ViClaw (OpenClaw Clone) Setup Wizard[/bold cyan]", border_style="cyan"))
     config = {}
 
-    # 1. Model Provider Configuration
-    console.print("\n[bold yellow]1. Model Setup[/bold yellow]")
+    # 1. Agent Identity
+    console.print("\n[bold yellow]1. Agent Identity[/bold yellow]")
+    agent_name = Prompt.ask("What would you like to name your AI agent?", default="ViClaw")
+    agent_personality = Prompt.ask("Describe its personality (e.g. 'sarcastic, helpful, concise')", default="helpful, direct, and concise")
+    config["identity"] = {
+        "name": agent_name,
+        "personality": agent_personality
+    }
+
+    # 2. Model Provider Configuration
+    console.print("\n[bold yellow]2. Model Setup[/bold yellow]")
     provider_choice = Prompt.ask(
         "Which provider do you want to use for the main LLM?",
         choices=["1", "2"],
@@ -68,8 +77,8 @@ def main():
         api_key_env = Prompt.ask("What environment variable holds this API key?", default="OPENAI_API_KEY")
         config["api_key_env"] = api_key_env
 
-    # 2. Messaging Platforms Configuration
-    console.print("\n[bold yellow]2. Messaging Platform Integrations[/bold yellow]")
+    # 3. Messaging Platforms Configuration
+    console.print("\n[bold yellow]3. Messaging Platform Integrations[/bold yellow]")
     config["platforms"] = {}
     
     if Confirm.ask("Enable [bold]CLI / Terminal[/bold] interaction?", default=True):
@@ -87,13 +96,13 @@ def main():
         token = Prompt.ask("Enter Discord Bot Token")
         config["platforms"]["discord"] = {"enabled": True, "token": token}
 
-    # 3. WebUI Configuration
-    console.print("\n[bold yellow]3. WebUI Setup[/bold yellow]")
+    # 4. WebUI Configuration
+    console.print("\n[bold yellow]4. WebUI Setup[/bold yellow]")
     enable_webui = Confirm.ask("Enable local [bold]WebUI[/bold] for monitoring memories and skills?", default=True)
     config["webui"] = {"enabled": enable_webui, "port": 8501}
     
-    # 4. Agent Skills
-    console.print("\n[bold yellow]4. Skills & ClawHub[/bold yellow]")
+    # 5. Agent Skills
+    console.print("\n[bold yellow]5. Skills & ClawHub[/bold yellow]")
     install_defaults = Confirm.ask("Install default community agent skills (Calendar, Weather, System Info)?", default=True)
     config["skills"] = {"install_defaults": install_defaults}
 
