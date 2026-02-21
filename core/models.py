@@ -94,36 +94,63 @@ class LLMRouter:
             content = message.get('content', '')
             tool_calls = message.get('tool_calls', [])
             
-            # Fallback parsing for models like llama3.2 that sometimes output raw JSON text
+            # Fallback parsing for models like llama3.2/qwen that sometimes output raw JSON text
             # instead of using the native tool calling schema when heavily prompted.
             if not tool_calls and content and "{" in content and "}" in content:
                 try:
                     import re
-                    # Look for potential JSON tool execution blocks
-                    match = re.search(r'\{.*\}', content, re.DOTALL)
-                    if match:
-                        potential_json = match.group(0)
-                        parsed = json.loads(potential_json)
-                        if "function" in parsed or "name" in parsed:
-                            # It tried to output a tool call manually
-                            func_name = parsed.get("function", {}).get("name") or parsed.get("name")
-                            args = parsed.get("function", {}).get("arguments") or parsed.get("arguments", {})
-                            if isinstance(args, str):
-                                try:
-                                    args = json.loads(args)
-                                except:
-                                    pass
+                    decoder = json.JSONDecoder()
+                    
+                    # We look for '{' iteratively and try to decode a JSON object.
+                    pos = 0
+                    while pos < len(content):
+                        # Find the next '{'
+                        match = re.search(r'\{', content[pos:])
+                        if not match:
+                            break
+                        start_idx = pos + match.start()
+                        
+                        try:
+                            # Try to parse a full json object from this index
+                            parsed, num_chars = decoder.raw_decode(content[start_idx:])
                             
-                            if func_name:
-                                tool_calls.append({
-                                    "function": {
-                                        "name": func_name,
-                                        "arguments": args
-                                    }
-                                })
-                                content = content.replace(potential_json, "").strip() # Remove the JSON from the conversational response
+                            # If successful, check if it resembles a tool call
+                            if isinstance(parsed, dict) and ("function" in parsed or "name" in parsed):
+                                func_name = parsed.get("function", {}).get("name") or parsed.get("name")
+                                args = parsed.get("function", {}).get("arguments") or parsed.get("arguments", {})
+                                
+                                # Some models nest arguments under "parameters" instead of "arguments"
+                                if not args and "parameters" in parsed:
+                                    args = parsed.get("parameters", {})
+                                
+                                if isinstance(args, str):
+                                    try:
+                                        args = json.loads(args)
+                                    except:
+                                        pass
+                                
+                                if func_name:
+                                    tool_calls.append({
+                                        "function": {
+                                            "name": func_name,
+                                            "arguments": args
+                                        }
+                                    })
+                                    # Strip the JSON from the conversational response
+                                    content = content[:start_idx] + content[start_idx + num_chars:]
+                                    # Don't increment pos, because we just shrank the string
+                                    continue
+                        except json.JSONDecodeError:
+                            # Not a valid root JSON object, skip this '{'
+                            pass
+                        
+                        pos = start_idx + 1
+
                 except Exception as e:
                     logging.debug(f"Failed fallback JSON parsing: {e}")
+                
+            # Final cleanup of leftover whitespace from string replacements
+            content = content.strip()
             
             return {
                 "content": content,

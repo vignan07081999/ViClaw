@@ -165,6 +165,9 @@ def main():
                 # Use the AI to generate a dynamic prompt
                 with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), transient=True) as progress:
                     progress.add_task(description="Asking AI to analyze scan results...", total=None)
+                    import core.config
+                    core.config.APP_CONFIG.clear()
+                    core.config.APP_CONFIG.update(config)
                     router = LLMRouter()
                     
                     sys_prompt = "You are an installation wizard assistant. You just finished scanning the user's local network."
