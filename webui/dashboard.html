@@ -717,7 +717,30 @@
 
         <!-- Diagnostics View -->
         <div id="view-diagnostics" class="view-section">
-            <h2>System Diagnostics</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>System Diagnostics</h2>
+                <div id="ota-badge"
+                    style="display: none; background: #f59e0b; color: white; padding: 0.5rem 1rem; border-radius: 8px; font-weight: bold; cursor: pointer; animation: pulse 2s infinite;"
+                    onclick="triggerOTAUpdate()">
+                    New OTA Update Available! Click to Install.
+                </div>
+            </div>
+
+            <style>
+                @keyframes pulse {
+                    0% {
+                        transform: scale(1);
+                    }
+
+                    50% {
+                        transform: scale(1.05);
+                    }
+
+                    100% {
+                        transform: scale(1);
+                    }
+                }
+            </style>
 
             <div class="flex-row">
                 <div class="glass-card flex-card" id="diag-daemon">
@@ -945,6 +968,46 @@
             });
         }
 
+        // ==== OTA Update Engine ====
+        function checkOTAUpdates() {
+            fetch('/api/check_update')
+                .then(r => r.json())
+                .then(data => {
+                    const badge = document.getElementById('ota-badge');
+                    if (data.has_update) {
+                        badge.style.display = 'block';
+                        badge.title = data.message + ` (${data.local_hash} -> ${data.remote_hash})`;
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                });
+        }
+
+        function triggerOTAUpdate() {
+            if (!confirm("Are you sure you want to pull the latest GitHub update? The daemon will restart.")) return;
+
+            const badge = document.getElementById('ota-badge');
+            badge.innerText = "Installing... Please wait.";
+            badge.style.background = "var(--accent)";
+            badge.style.animation = "none";
+
+            fetch('/api/trigger_update', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        badge.style.background = "#10b981";
+                        badge.innerText = "Update successful! Restarting daemon...";
+                        setTimeout(() => window.location.reload(), 3000); // Reload page after daemon restarts
+                    } else {
+                        badge.style.background = "#ef4444";
+                        badge.innerText = "Update Failed: " + data.message;
+                    }
+                });
+        }
+
+        // Check for updates every 10 minutes
+        setInterval(checkOTAUpdates, 600000);
+
         // ==== Skills Engine ====
         function loadSkills() {
             fetch('/api/skills').then(r => r.json()).then(data => {
@@ -1055,6 +1118,9 @@
             lastMemoryCount = m.short_term ? m.short_term.length : 0;
             appendMessage('bot', "Connection established. ViClaw Intelligence active.");
         });
+
+        // Check for OTA payload on startup
+        checkOTAUpdates();
     </script>
 </body>
 

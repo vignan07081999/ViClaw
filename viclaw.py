@@ -18,9 +18,10 @@ def main():
         console.print("[6] ⚙️  Update Configuration")
         console.print("[7] 🔄 Reinstall ViClaw")
         console.print("[8] 🗑️  Uninstall ViClaw")
+        console.print("[9] ☁️  Check for Github OTA Updates")
         console.print("[0] 🚪 Exit")
         
-        choice = Prompt.ask("\nSelect an option", choices=["0", "1", "2", "3", "4", "5", "6", "7", "8"], default="1")
+        choice = Prompt.ask("\nSelect an option", choices=["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"], default="1")
         
         if choice == "0":
             break
@@ -44,6 +45,28 @@ def main():
             subprocess.run(["bash", "scripts/uninstall.sh"])
             if not os.path.exists("data/config.json"):
                 break
+        elif choice == "9":
+            import sys
+            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+            from core.updater import UpdaterEngine
+            console.print("\n[yellow]Checking Github for new OpenClawClone patches...[/yellow]")
+            try:
+                updater = UpdaterEngine()
+                has_update, loc_hash, rem_hash, msg = updater.check_for_updates()
+                if has_update:
+                    console.print(Panel(f"[bold cyan]Update Available![/bold cyan]\nLocal: {loc_hash}\nRemote: {rem_hash}\n\n[dim]Newest Patch:[/dim] {msg}", border_style="cyan"))
+                    if Prompt.ask("Do you want to pull and install this update now?", choices=["y", "n"], default="y") == "y":
+                        success, log = updater.trigger_pull()
+                        if success:
+                            console.print(f"[bold green]✓ {log}[/bold green]")
+                            console.print("Please restart the background daemon to apply code changes.")
+                        else:
+                            console.print(f"[bold red]✗ {log}[/bold red]")
+                else:
+                    console.print(f"[bold green]✓ You are running the latest version.[/bold green] ({loc_hash})\n[dim]{msg}[/dim]")
+            except Exception as e:
+                console.print(f"[red]Updater error: {e}[/red]")
+            Prompt.ask("\nPress Enter to return to menu...")
 
 if __name__ == "__main__":
     main()

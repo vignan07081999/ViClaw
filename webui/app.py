@@ -253,6 +253,31 @@ def get_memory():
         return {"short_term": agent_instance.memory.get_short_term_context()}
     return {"short_term": []}
 
+@app.get("/api/check_update")
+def check_update():
+    from core.updater import UpdaterEngine
+    try:
+        updater = UpdaterEngine()
+        has_update, loc, rem, msg = updater.check_for_updates()
+        return {
+            "has_update": has_update,
+            "local_hash": loc,
+            "remote_hash": rem,
+            "message": msg
+        }
+    except Exception as e:
+        return {"has_update": False, "message": str(e)}
+
+@app.post("/api/trigger_update")
+def trigger_update():
+    from core.updater import UpdaterEngine
+    try:
+        updater = UpdaterEngine()
+        success, log = updater.trigger_pull()
+        return {"success": success, "message": log}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
 @app.get("/api/diagnostics")
 def get_diagnostics():
     import os

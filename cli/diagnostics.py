@@ -13,6 +13,7 @@ from rich import print as rprint
 # Ensure we're running from the root of OpenClawClone
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.config import get_config
+from core.updater import UpdaterEngine
 
 console = Console()
 
@@ -89,6 +90,18 @@ def master_menu():
             
         table.add_row("Memory DB Footprint", get_db_size())
         
+        # Update Check
+        try:
+            updater = UpdaterEngine()
+            table.add_row("Codebase Repository", updater.repo_url)
+            has_update, loc_hash, rem_hash, msg = updater.check_for_updates()
+            if has_update:
+                table.add_row("OTA Update Status", f"[bold yellow]Update Available[/bold yellow] ({loc_hash} -> {rem_hash})\n[dim]{msg}[/dim]")
+            else:
+                table.add_row("OTA Update Status", f"[bold green]Up to date[/bold green] ({loc_hash})")
+        except Exception as e:
+            table.add_row("OTA Update Status", f"[red]Check Failed: {e}[/red]")
+            
         console.print(table)
         
         console.print("\n[bold yellow]Diagnostics & Lifecycle Menu[/bold yellow]")

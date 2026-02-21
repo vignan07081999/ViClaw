@@ -196,6 +196,23 @@ def main():
             except Exception as e:
                 console.print(f"[red]Error during AI analysis: {e}[/red]")
                 
+    # 7. Over-The-Air (OTA) Updates
+    console.print("\n[bold yellow]7. Over-The-Air (OTA) Updates[/bold yellow]")
+    console.print("ViClaw can automatically fetch and install updates from GitHub without wiping your setup.")
+    config["updater"] = {}
+    
+    repo_url = questionary.text("What is the Git repository URL for this agent?", default="https://github.com/vignan07081999/ViClaw.git").ask()
+    config["updater"]["repo_url"] = repo_url
+    
+    auto_update = questionary.confirm("Do you want ViClaw to automatically download and install updates in the background?", default=False).ask()
+    config["updater"]["auto_update"] = auto_update
+    
+    if auto_update:
+        freq = questionary.select("How often should the background daemon check for updates?", choices=["Every hour", "Daily", "Weekly"]).ask()
+        config["updater"]["frequency"] = freq
+    else:
+        console.print("[dim]You will be notified in the WebUI and CLI when manual updates are available.[/dim]")
+
     console.print("\n[bold cyan]Configuration Summary[/bold cyan]")
     console.print(Panel(json.dumps(config, indent=2), border_style="cyan"))
     
