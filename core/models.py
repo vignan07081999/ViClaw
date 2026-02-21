@@ -4,20 +4,14 @@ import os
 from litellm import completion
 import ollama
 
-from core.config import get_provider, get_model, get_api_key_env, get_ollama_url
+from core.config import get_models
 
 class LLMRouter:
     def __init__(self):
-        self.provider = get_provider()
-        self.default_model = get_model()
-        self.api_key = os.environ.get(get_api_key_env())
-        self.ollama_url = get_ollama_url()
-        
-        # Optional fallback model (could be configured, hardcoding for clone demo)
-        self.fallback_model = "gpt-4o-mini"
-        
-        if self.provider == "litellm" and not self.api_key:
-            logging.warning(f"LiteLLM Provider chosen but API Key environment variable {get_api_key_env()} is not set.")
+        self.models = get_models()
+        self.fast_model = next((m for m in self.models if m.get("role") == "fast"), None)
+        self.complex_model = next((m for m in self.models if m.get("role") == "complex"), None)
+        self.default_model = next((m for m in self.models if m.get("role") == "default"), self.models[0])
 
     def evaluate_complexity(self, prompt, context=None):
         """
@@ -46,38 +40,45 @@ class LLMRouter:
         """
         is_complex = self.evaluate_complexity(prompt, context)
         
+        selected_model = self.default_model
+        if is_complex and self.complex_model:
+            selected_model = self.complex_model
+        elif not is_complex and self.fast_model:
+            selected_model = self.fast_model
+            
+        logging.info(f"Smart Routing -> Task Complexity: {'High' if is_complex else 'Low'} -> Selected Model: {selected_model['model']} ({selected_model['provider']})")
+        
         # Build messages payload
         messages = [{"role": "system", "content": system_prompt}]
         
         if context:
-            # Assuming context is a list of dicts [{"role": "user"/"assistant", "content": "..."}]
             messages.extend(context)
             
         messages.append({"role": "user", "content": prompt})
 
         # Route to provider
-        if self.provider == "ollama":
-            # If it's a complex task but they strictly want local, we still use Ollama, but maybe a larger local model if configured.
-            # For simplicity, stick to the configured model.
-            return self._call_ollama(messages, tools=tools)
+        if selected_model["provider"] == "ollama":
+            url = selected_model.get("ollama_url", "http://localhost:11434")
+            return self._call_ollama(messages, selected_model["model"], url, tools=tools)
         
-        elif self.provider == "litellm":
-            use_model = self.fallback_model if is_complex else self.default_model
-            return self._call_litellm(messages, model=use_model, tools=tools)
+        elif selected_model["provider"] == "litellm":
+            env_key = selected_model.get("api_key_env", "OPENAI_API_KEY")
+            api_key = os.environ.get(env_key)
+            return self._call_litellm(messages, selected_model["model"], api_key, tools=tools)
 
         else:
-            raise ValueError(f"Unknown provider: {self.provider}")
+            raise ValueError(f"Unknown provider: {selected_model['provider']}")
 
-    def _call_ollama(self, messages, tools=None):
-        logging.info(f"Routing to Ollama (Model: {self.default_model}) at {self.ollama_url}")
+    def _call_ollama(self, messages, model_name, url, tools=None):
+        logging.info(f"Routing to Ollama (Model: {model_name}) at {url}")
         try:
-            client = ollama.Client(host=self.ollama_url)
+            client = ollama.Client(host=url)
             
             options = {}
             if tools:
                 options['tools'] = tools
                 
-            response = client.chat(model=self.default_model, messages=messages, **options)
+            response = client.chat(model=model_name, messages=messages, **options)
             
             message = response.get('message', {})
             content = message.get('content', '')
@@ -122,7 +123,7 @@ class LLMRouter:
             logging.error(f"Ollama inference failed: {e}")
             return {"content": "I encountered an error connecting to my local model.", "tool_calls": []}
 
-    def _call_litellm(self, messages, model, tools=None):
+    def _call_litellm(self, messages, model, api_key, tools=None):
         logging.info(f"Routing to LiteLLM (Model: {model})")
         try:
             kwargs = {}
@@ -132,7 +133,7 @@ class LLMRouter:
             response = completion(
                 model=model,
                 messages=messages,
-                api_key=self.api_key,
+                api_key=api_key,
                 **kwargs
             )
             

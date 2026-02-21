@@ -8,3 +8,4 @@ discord.py>=2.3.0
 requests>=2.31.0
 sqlite3-api>=0.0.1
 rich>=13.0.0
+questionary>=2.0.0

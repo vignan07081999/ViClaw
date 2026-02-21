@@ -33,6 +33,23 @@ def load_config():
 # Singleton instance
 APP_CONFIG = load_config()
 
+def get_config():
+    return APP_CONFIG
+
+def get_models():
+    # Backwards compatibility check
+    if "models" in APP_CONFIG:
+        return APP_CONFIG["models"]
+    
+    # Legacy fallback format
+    return [{
+        "provider": APP_CONFIG.get("provider", "ollama"),
+        "model": APP_CONFIG.get("model", "qwen2.5:3b"),
+        "ollama_url": APP_CONFIG.get("ollama_url", "http://localhost:11434"),
+        "api_key_env": APP_CONFIG.get("api_key_env", "OPENAI_API_KEY"),
+        "role": "default"
+    }]
+
 def get_provider():
     return APP_CONFIG.get("provider", "ollama")
 
