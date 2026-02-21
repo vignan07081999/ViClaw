@@ -1,7 +1,7 @@
 import logging
-from skills.manager import AgentSkill
+from skills.manager import BaseSkill
 
-class SessionsSkill(AgentSkill):
+class SessionsSkill(BaseSkill):
     name = "sessions"
     description = "Delegate complex sub-tasks to a parallel Agent LLM session. Use this to break down large problems into smaller chunks without clogging your own memory."
     

@@ -86,7 +86,7 @@ class SystemInfoSkill(BaseSkill):
             }
         }]
 
-    def get_system_info(self):
+    def get_system_info(self, **kwargs):
         return f"OS: {platform.system()} {platform.release()}, Arch: {platform.machine()}"
 ''')
         logging.info("Default skills installed successfully.")

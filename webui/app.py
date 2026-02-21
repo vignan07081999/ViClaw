@@ -1,7 +1,7 @@
 import logging
 from fastapi import FastAPI
 from pydantic import BaseModel
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
 import uvicorn
 import threading
 
@@ -292,11 +292,32 @@ def get_diagnostics():
 @app.get("/api/logs")
 def get_logs():
     import subprocess
+    import os
+    
+    # Try fetching from systemd first
     try:
-        res = subprocess.run(["journalctl", "-u", "viclaw", "-n", "20", "--no-pager"], capture_output=True, text=True)
-        return {"logs": res.stdout}
+        res = subprocess.run(["journalctl", "-u", "viclaw", "-n", "30", "--no-pager"], capture_output=True, text=True)
+        if res.stdout.strip():
+            return {"logs": res.stdout}
+    except Exception:
+        pass
+        
+    # Fallback to local file if systemd journal is empty or errors
+    try:
+        if os.path.exists("data/viclaw.log"):
+            with open("data/viclaw.log", "r") as f:
+                lines = f.readlines()
+                return {"logs": "".join(lines[-30:])}
+        return {"logs": "Log file not found."}
     except Exception as e:
         return {"logs": f"Error fetching logs: {str(e)}"}
+
+@app.get("/api/download_logs", response_class=FileResponse)
+def download_logs():
+    import os
+    if os.path.exists("data/viclaw.log"):
+        return FileResponse("data/viclaw.log", filename="viclaw_system.log")
+    return HTMLResponse("No log file generated yet. Check if daemon is running.", status_code=404)
 
 def start_webui(agent):
     global agent_instance

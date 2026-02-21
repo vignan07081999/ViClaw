@@ -14,7 +14,7 @@ COMMON_PORTS = {
     8501: "Streamlit / ViClaw Dashboard"
 }
 
-def scan_port(ip, port, timeout=0.1):
+def scan_port(ip, port, timeout=1.0):
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(timeout)

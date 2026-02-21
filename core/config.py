@@ -1,6 +1,30 @@
 import os
 import json
 import logging
+from logging.handlers import RotatingFileHandler
+
+def setup_logging():
+    os.makedirs("data", exist_ok=True)
+    log_file = "data/viclaw.log"
+    
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    
+    # Remove existing handlers if called multiple times
+    if logger.hasHandlers():
+        logger.handlers.clear()
+        
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    
+    # Console Handler
+    ch = logging.StreamHandler()
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+    
+    # File Handler
+    fh = RotatingFileHandler(log_file, maxBytes=5 * 1024 * 1024, backupCount=2)
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
 
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "config.json")
 

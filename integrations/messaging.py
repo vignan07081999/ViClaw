@@ -145,13 +145,16 @@ class WhatsAppConnector(BaseConnector):
 
 # Central Platform Manager
 class PlatformManager:
-    def __init__(self):
+    def __init__(self, is_daemon=False):
         self.connectors = {
-            "cli": CLIConnector(),
             "telegram": TelegramConnector(),
             "discord": DiscordConnector(),
             "whatsapp": WhatsAppConnector()
         }
+        
+        # Only attach interactive CLI connector if running attached to a terminal
+        if not is_daemon:
+            self.connectors["cli"] = CLIConnector()
 
     def start_all(self, message_callback):
         for name, connector in self.connectors.items():

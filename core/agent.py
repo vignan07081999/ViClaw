@@ -119,13 +119,13 @@ class OpenClawAgent:
         
         response = self.router.generate(message_text, system_prompt=system_prompt, context=context, tools=tools)
         
-        final_reply = response["content"]
+        final_reply = response.get("content", "") or ""
         raw_tools = []
         
-        if response["content"]:
+        if response.get("content"):
             self.memory.add_short_term("assistant", response["content"])
             
-        if response["tool_calls"]:
+        if response.get("tool_calls"):
             raw_tools = response["tool_calls"]
             for tc in response["tool_calls"]:
                 tool_name = tc.get("function", {}).get("name")
@@ -137,7 +137,7 @@ class OpenClawAgent:
                     sys_prompt_pass2 = "You just executed a tool. Finalize your answer based on the result. Do not reiterate the user's prompt. Be concise."
                     final_res = self.router.generate("Review the tool results and provide the final answer.", system_prompt=sys_prompt_pass2, context=self.memory.get_short_term_context())
                     
-                    if final_res["content"]:
+                    if final_res.get("content"):
                         final_reply += f"\n\n{final_res['content']}"
                         self.memory.add_short_term("assistant", final_res["content"])
                 except Exception as e:

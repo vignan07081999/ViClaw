@@ -3,6 +3,12 @@ import json
 import requests
 import time
 import socket
+from core.models import LLMRouter
+from webui.app import start_webui
+from core.agent import OpenClawAgent
+from core.config import setup_logging
+
+setup_logging()
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn

@@ -1,7 +1,7 @@
 import subprocess
-from skills.manager import AgentSkill
+from skills.manager import BaseSkill
 
-class ShellEngineSkill(AgentSkill):
+class ShellEngineSkill(BaseSkill):
     name = "shell_engine"
     description = "Execute local bash commands directly on the host machine. Gives the agent full MCP control over the OS."
     

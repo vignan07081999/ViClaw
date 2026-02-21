@@ -41,14 +41,14 @@ def start_daemon():
             CREATE_NEW_PROCESS_GROUP = 0x00000200
             DETACHED_PROCESS = 0x00000008
             proc = subprocess.Popen(
-                [sys.executable, "main.py"],
+                [sys.executable, "main.py", "--daemon"],
                 stdout=log,
                 stderr=log,
                 creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
             )
         else:
             proc = subprocess.Popen(
-                [sys.executable, "main.py"],
+                [sys.executable, "main.py", "--daemon"],
                 stdout=log,
                 stderr=log,
                 preexec_fn=os.setpgrp

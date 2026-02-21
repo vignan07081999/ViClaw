@@ -1,8 +1,8 @@
 import os
 import json
-from skills.manager import AgentSkill
+from skills.manager import BaseSkill
 
-class RemindersSkill(AgentSkill):
+class RemindersSkill(BaseSkill):
     name = "reminders"
     description = "Set reminders or background tasks that the agent should proactively evaluate during its heartbeat."
     

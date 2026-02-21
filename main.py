@@ -9,9 +9,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from core.agent import OpenClawAgent
 from integrations.messaging import PlatformManager
 from webui.app import start_webui
-from core.config import APP_CONFIG
+from core.config import APP_CONFIG, setup_logging
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+setup_logging()
 
 def main():
     print("==================================================")
@@ -22,7 +22,8 @@ def main():
         logging.warning("App config is empty. Please run install.sh or install.py first.")
 
     # Initialize Managers
-    platform_manager = PlatformManager()
+    is_daemon = "--daemon" in sys.argv
+    platform_manager = PlatformManager(is_daemon=is_daemon)
     
     # Initialize Core Agent
     agent = OpenClawAgent(platform_manager)
