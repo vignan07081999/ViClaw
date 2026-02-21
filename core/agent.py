@@ -90,11 +90,11 @@ class OpenClawAgent:
                 
                 try:
                     tool_result = self.skill_manager.execute_tool(tool_name, tool_args)
-                    self.memory.add_short_term("system", f"Tool {tool_name} returned: {tool_result}")
+                    self.memory.add_short_term("user", f"[TOOL EXECUTION RESULT: {tool_name}]\n{tool_result}")
                     
                     # Optionally, do a second reasoning pass with the tool result (if the issue is complex)
-                    sys_prompt_pass2 = "You just executed a tool. Finalize your answer based on the result. Be concise."
-                    final_res = self.router.generate("Review the tool results and answer.", system_prompt=sys_prompt_pass2, context=self.memory.get_short_term_context())
+                    sys_prompt_pass2 = "You just executed a tool. Finalize your answer based on the result. Do not repeat the user's prompt. Be concise."
+                    final_res = self.router.generate("Review the tool results and provide the final answer.", system_prompt=sys_prompt_pass2, context=self.memory.get_short_term_context())
                     if final_res["content"]:
                         self.platform_manager.send(platform_name, user_id, final_res["content"])
                         self.memory.add_short_term("assistant", final_res["content"])
@@ -130,10 +130,10 @@ class OpenClawAgent:
                 tool_args = tc.get("function", {}).get("arguments", {})
                 try:
                     tool_result = self.skill_manager.execute_tool(tool_name, tool_args)
-                    self.memory.add_short_term("system", f"Tool {tool_name} returned: {tool_result}")
+                    self.memory.add_short_term("user", f"[TOOL EXECUTION RESULT: {tool_name}]\n{tool_result}")
                     
-                    sys_prompt_pass2 = "You just executed a tool. Finalize your answer based on the result. Be concise."
-                    final_res = self.router.generate("Review the tool results and answer.", system_prompt=sys_prompt_pass2, context=self.memory.get_short_term_context())
+                    sys_prompt_pass2 = "You just executed a tool. Finalize your answer based on the result. Do not reiterate the user's prompt. Be concise."
+                    final_res = self.router.generate("Review the tool results and provide the final answer.", system_prompt=sys_prompt_pass2, context=self.memory.get_short_term_context())
                     
                     if final_res["content"]:
                         final_reply += f"\n\n{final_res['content']}"

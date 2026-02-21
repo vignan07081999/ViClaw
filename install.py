@@ -8,6 +8,12 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich import print as rprint
 import questionary
+import sys
+
+# Ensure we can import core
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from core.scanner import quick_scan
+from core.models import LLMRouter
 
 CONFIG_FILE = "data/config.json"
 console = Console()
@@ -83,13 +89,15 @@ def main():
         # Ask what this model should be used for
         role = questionary.select(
             f"What role should '{model_name}' play?",
-            choices=["Fast/Local (Simple Tasks & Routing)", "Capable/Complex (Heavy Reasoning)", "Default/General Purpose"]
+            choices=["Fast/Local (Simple Tasks & Routing)", "Capable/Complex (Heavy Reasoning)", "Coding (Software Dev & Scripting)", "Default/General Purpose"]
         ).ask()
         
         if "Fast" in role:
             model_entry["role"] = "fast"
         elif "Capable" in role:
             model_entry["role"] = "complex"
+        elif "Coding" in role:
+            model_entry["role"] = "coding"
         else:
             model_entry["role"] = "default"
 
@@ -130,6 +138,45 @@ def main():
     install_defaults = questionary.confirm("Install default community agent skills (Shell Engine, Reminders, SysInfo)?", default=True).ask()
     config["skills"] = {"install_defaults": install_defaults}
 
+    # 6. AI Network Discovery
+    console.print("\n[bold yellow]6. AI Local Network Discovery[/bold yellow]")
+    if questionary.confirm("Would you like ViClaw to scan your local network for discoverable smart devices and servers (e.g., Home Assistant, Proxmox, 3D Printers)?", default=True).ask():
+        with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), transient=True) as progress:
+            progress.add_task(description="Scanning local subnet for common service signatures...", total=None)
+            discovered_devices = quick_scan()
+            
+        if not discovered_devices:
+            console.print("[dim]No recognizable smart devices or servers found on this subnet.[/dim]")
+        else:
+            console.print(f"[bold green]Discovered {len(discovered_devices)} active hosts![/bold green]")
+            
+            # Temporarily save the config so the LLMRouter can load it
+            os.makedirs("data", exist_ok=True)
+            with open(CONFIG_FILE, "w") as f:
+                json.dump(config, f)
+                
+            try:
+                # Use the AI to generate a dynamic prompt
+                with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), transient=True) as progress:
+                    progress.add_task(description="Asking AI to analyze scan results...", total=None)
+                    router = LLMRouter()
+                    
+                    sys_prompt = "You are an installation wizard assistant. You just finished scanning the user's local network."
+                    prompt = f"The scanner found these devices running on specific IPs: {json.dumps(discovered_devices)}. Write a short, friendly message identifying the most interesting devices (like Home Assistant or Proxmox or Printers). End by asking the user if they want you to automatically install the ClawHub skills required to integrate with them."
+                    
+                    response = router.generate(prompt, system_prompt=sys_prompt)
+                    ai_message = response.get("content", "").strip()
+                    
+                if ai_message:
+                    console.print(Panel(ai_message, title="[bold magenta]ViClaw Discovery Engine[/bold magenta]", border_style="magenta"))
+                    
+                    want_integration = questionary.confirm("Integrate discovered devices?", default=True).ask()
+                    if want_integration:
+                        config["skills"]["auto_integrations"] = discovered_devices
+                        console.print("[green]Awesome! I'll auto-configure the connection parameters for these endpoints on your first boot.[/green]")
+            except Exception as e:
+                console.print(f"[red]Error during AI analysis: {e}[/red]")
+                
     console.print("\n[bold cyan]Configuration Summary[/bold cyan]")
     console.print(Panel(json.dumps(config, indent=2), border_style="cyan"))
     
@@ -142,7 +189,26 @@ def main():
         if os.path.exists("install.sh"):
             os.chmod("install.sh", 0o755)
             
-        console.print(Panel.fit("[bold green]Setup complete![/bold green]\nThe systemd service has been configured. The agent will start in the background.", border_style="green"))
+        console.print(Panel.fit("[bold green]Setup complete![/bold green]\nThe background daemon will now process this configuration.", border_style="green"))
+        
+        if config.get("webui", {}).get("enabled"):
+            with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), transient=True) as progress:
+                progress.add_task(description="Waiting for WebUI daemon to initialize...", total=None)
+                ready = False
+                for _ in range(30):
+                    try:
+                        res = requests.get(f"http://127.0.0.1:{config['webui']['port']}/", timeout=1)
+                        if res.status_code == 200:
+                            ready = True
+                            break
+                    except Exception:
+                        pass
+                    time.sleep(1)
+                
+            if ready:
+                console.print("[bold green]✓ WebUI Dashboard is online and ready![/bold green]")
+            else:
+                console.print("[yellow]WebUI took too long to respond. It may still be starting up in the background.[/yellow]")
         
         # CHEAT SHEET
         try:

@@ -11,6 +11,7 @@ class LLMRouter:
         self.models = get_models()
         self.fast_model = next((m for m in self.models if m.get("role") == "fast"), None)
         self.complex_model = next((m for m in self.models if m.get("role") == "complex"), None)
+        self.coding_model = next((m for m in self.models if m.get("role") == "coding"), None)
         self.default_model = next((m for m in self.models if m.get("role") == "default"), self.models[0])
 
     def evaluate_complexity(self, prompt, context=None):
@@ -24,7 +25,7 @@ class LLMRouter:
         if len(prompt) > 500:
             complexity_score += 1
         
-        complex_keywords = ["analyze", "summarize", "code", "multi-step", "reasoning", "extract"]
+        complex_keywords = ["analyze", "summarize", "multi-step", "reasoning", "extract"]
         for word in complex_keywords:
             if word in prompt.lower():
                 complexity_score += 1
@@ -34,19 +35,28 @@ class LLMRouter:
 
         return complexity_score >= 2
 
+    def is_coding_task(self, prompt):
+        coding_keywords = ["code", "script", "python", "bash", "javascript", "function", "debug", "html", "css", "docker", "api"]
+        return any(word in prompt.lower() for word in coding_keywords)
+
     def generate(self, prompt, system_prompt="You are a helpful AI assistant.", context=None, tools=None):
         """
         Main generation entrypoint. Uses Ollama or LiteLLM based on config and complexity.
         """
         is_complex = self.evaluate_complexity(prompt, context)
+        is_code = self.is_coding_task(prompt)
         
         selected_model = self.default_model
-        if is_complex and self.complex_model:
+        
+        if is_code and self.coding_model:
+            selected_model = self.coding_model
+        elif is_complex and self.complex_model:
             selected_model = self.complex_model
-        elif not is_complex and self.fast_model:
+        elif not is_complex and not is_code and self.fast_model:
             selected_model = self.fast_model
             
-        logging.info(f"Smart Routing -> Task Complexity: {'High' if is_complex else 'Low'} -> Selected Model: {selected_model['model']} ({selected_model['provider']})")
+        role_printed = selected_model.get('role', 'default')
+        logging.info(f"Smart Routing -> Task: {'Coding' if is_code else ('Complex' if is_complex else 'Simple')} -> Selected Model: {selected_model['model']} ({selected_model['provider']} - {role_printed})")
         
         # Build messages payload
         messages = [{"role": "system", "content": system_prompt}]

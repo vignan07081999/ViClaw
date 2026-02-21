@@ -8,7 +8,7 @@ from rich.prompt import Prompt
 from rich.markdown import Markdown
 
 # Ensure we're running from the root of OpenClawClone
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.config import get_webui_port
 
 console = Console()

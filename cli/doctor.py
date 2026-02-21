@@ -2,10 +2,10 @@ import subprocess
 from rich.console import Console
 from rich.markdown import Markdown
 
-# Ensure we can import core components
+# Ensure we're running from the root of OpenClawClone
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.models import LLMRouter
 from core.config import get_config
 
