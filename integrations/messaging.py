@@ -62,18 +62,60 @@ class CLIConnector(BaseConnector):
 class TelegramConnector(BaseConnector):
     def __init__(self):
         super().__init__("telegram")
+        self.app = None
+        self.bot = None
+        self.loop = None
 
     def _start_listening(self, message_callback):
         if not self.token:
             logging.error("Telegram token not configured.")
             return
-        logging.info("Telegram integration initialized. (Placeholder implementation for OpenClaw Clone)")
-        # Actual implementation would initialize python-telegram-bot Application
-        # and start polling or webhooks.
+
+        import threading
+        import asyncio
+        from telegram import Update
+        from telegram.ext import Application, MessageHandler, filters, ContextTypes
+
+        logging.info("Initializing Telegram bot...")
+
+        def _run_bot():
+            self.loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self.loop)
+            
+            self.app = Application.builder().token(self.token).build()
+            self.bot = self.app.bot
+
+            async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
+                if not update.message or not update.message.text:
+                    return
+                user_id = str(update.effective_user.id)
+                text = update.message.text
+                message_callback("telegram", user_id, text)
+
+            self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_msg))
+            # Also catch commands as text
+            self.app.add_handler(MessageHandler(filters.COMMAND, handle_msg))
+
+            logging.info("Telegram polling started.")
+            self.app.run_polling(drop_pending_updates=True)
+
+        t = threading.Thread(target=_run_bot, daemon=True)
+        t.start()
 
     def send_message(self, user_id, message_text):
-        logging.info(f"[Telegram] Sending to {user_id}: {message_text}")
-        # Actual implementation: await bot.send_message(chat_id=user_id, text=message_text)
+        if not self.bot or not self.loop:
+            return
+        
+        import asyncio
+        
+        async def _send():
+            try:
+                await self.bot.send_message(chat_id=int(user_id), text=message_text)
+            except Exception as e:
+                logging.error(f"Failed to send Telegram message: {e}")
+                
+        # Fire and forget threadsafe
+        asyncio.run_coroutine_threadsafe(_send(), self.loop)
 
 class DiscordConnector(BaseConnector):
     def __init__(self):

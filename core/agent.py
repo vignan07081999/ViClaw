@@ -26,12 +26,43 @@ class OpenClawAgent:
 
         self.running = False
 
+    def _process_slash_command(self, command_text):
+        cmd = command_text.strip().lower()
+        parts = cmd.split()
+        base_cmd = parts[0]
+        
+        if base_cmd in ["/reset", "/new"]:
+            self.memory.short_term = []
+            return "Session reset. Short-term memory cleared."
+        elif base_cmd == "/status":
+            num_msgs = len(self.memory.short_term)
+            fast_mod = getattr(self.router, 'fast_model', None)
+            comp_mod = getattr(self.router, 'complex_model', None)
+            fm_name = fast_mod['model'] if fast_mod else 'None'
+            cm_name = comp_mod['model'] if comp_mod else 'None'
+            return f"🟢 Agent Online\n- Fast Model: {fm_name}\n- Complex Model: {cm_name}\n- Short-term messages: {num_msgs}"
+        elif base_cmd == "/think":
+            level = parts[1] if len(parts) > 1 else "default"
+            self.memory.add_short_term("system", f"Reasoning level set to {level}")
+            return f"Reasoning level set to {level}."
+        elif base_cmd == "/compact":
+            self.memory.summarize_and_compress()
+            return "Context compacted."
+        else:
+            return f"Unknown command: {base_cmd}"
+
     def handle_message(self, platform_name, user_id, message_text):
         """
         Callback invoked by the messaging platforms when a user sends a message.
         """
         logging.info(f"Received from {platform_name} user {user_id}: {message_text}")
         
+        # Intercept commands
+        if message_text.strip().startswith("/"):
+            response_text = self._process_slash_command(message_text)
+            self.platform_manager.send(platform_name, user_id, response_text)
+            return
+            
         # Add to short term memory
         self.memory.add_short_term("user", message_text)
         
@@ -78,6 +109,9 @@ class OpenClawAgent:
         """
         logging.info(f"Sync Request from {platform_name} user {user_id}: {message_text}")
         
+        if message_text.strip().startswith("/"):
+            return self._process_slash_command(message_text)
+            
         self.memory.add_short_term("user", message_text)
         system_prompt = self.personality.construct_system_prompt(current_query=message_text)
         context = self.memory.get_short_term_context()[:-1] 
