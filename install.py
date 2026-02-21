@@ -61,39 +61,103 @@ def main():
     }
 
     # 2. Model Provider Configuration
-    console.print("\n[bold yellow]2. Model Setup[/bold yellow]")
+    console.print("\n[bold yellow]2. Complete AI Model Setup[/bold yellow]")
     config["models"] = []
+    
+    # Auto-Install Ollama Path
+    import subprocess
+    has_ollama = subprocess.run(["command", "-v", "ollama"], shell=True, capture_output=True).returncode == 0
+    
+    opt_install_ollama = False
+    if not has_ollama:
+        console.print("[dim]Ollama engine is not installed on this system.[/dim]")
+        if questionary.confirm("Would you like ViClaw to automatically download and install Ollama as your default AI engine now?", default=True).ask():
+            opt_install_ollama = True
+            console.print("[yellow]Deploying Ollama Native Runtime...[/yellow]")
+            try:
+                subprocess.run("curl -fsSL https://ollama.com/install.sh | sh", shell=True, check=True)
+                has_ollama = True
+                console.print("[bold green]✓ Ollama natively installed.[/bold green]")
+                time.sleep(2)  # Give daemon time to start
+            except Exception as e:
+                console.print(f"[bold red]Failed to deploy Ollama: {e}[/bold red]")
     
     adding_models = True
     while adding_models:
+        provider_choices = ["Ollama (Local/Self-hosted)", "LiteLLM (API-based)"]
+        if has_ollama:
+            provider_choices.insert(0, "ViClaw Native (Local Ollama Turnkey)")
+            
         provider_choice = questionary.select(
-            "Which provider do you want to use for this LLM?",
-            choices=["Ollama (Local/Self-hosted)", "LiteLLM (API-based)"]
+            "Which AI provider architecture do you want to configure?",
+            choices=provider_choices
         ).ask()
         
         model_entry = {}
-        if "Ollama" in provider_choice:
+        if "Native" in provider_choice or "Ollama" in provider_choice:
             model_entry["provider"] = "ollama"
-            model_name = questionary.text("Enter the Ollama model name (e.g. qwen2.5:3b, llama3.2:3b)", default="qwen2.5:3b").ask()
-            model_entry["model"] = model_name
             
-            ollama_url = questionary.text("Enter the Ollama host URL", default="http://localhost:11434").ask()
-            model_entry["ollama_url"] = ollama_url
-            
-            console.print(f"[green]Testing connection to {ollama_url}...[/green]")
-            with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), transient=True) as progress:
-                progress.add_task(description="Pinging Ollama server...", total=None)
-                success, msg = test_ollama_connection(ollama_url, model_name)
-                time.sleep(1)
+            if "Native" in provider_choice:
+                model_entry["ollama_url"] = "http://localhost:11434"
                 
-            if success:
-                console.print(f"[bold green]✓[/bold green] {msg}")
-            else:
-                console.print(f"[bold red]✗ Connection Failed:[/bold red] {msg}")
-                if not questionary.confirm("Do you want to proceed and add it anyway?", default=False).ask():
-                    continue
+                # Guided Model Selection
+                preset_models = {
+                    "General/Fast (qwen2.5:3b)": "qwen2.5:3b",
+                    "Advanced Reasoning (llama3.2:3b)": "llama3.2:3b",
+                    "Heavy Reasoning (llama3.1:8b)": "llama3.1:8b",
+                    "Coding / DevOps (qwen2.5-coder)": "qwen2.5-coder",
+                    "Custom Model Name": "custom"
+                }
+                
+                selection = questionary.select(
+                    "Select a curated local model payload to pull:",
+                    choices=list(preset_models.keys())
+                ).ask()
+                
+                if selection == "Custom Model Name":
+                    model_name = questionary.text("Enter the exact Ollama registry tag (e.g. deepseek-r1:7b):").ask()
+                else:
+                    model_name = preset_models[selection]
+                
+                # Auto-Pull with progress bar
+                console.print(f"\n[cyan]Downloading and initializing {model_name} (This may take several minutes)...[/cyan]")
+                try:
+                    # Using subprocess Popen to stream output to console if we want, or just wait
+                    subprocess.run(["ollama", "pull", model_name], check=True)
+                    console.print(f"[bold green]✓ {model_name} successfully provisioned into local registry![/bold green]")
+                    
+                    # Test connection locally just to verify daemon is answering
+                    success, msg = test_ollama_connection(model_entry["ollama_url"], model_name)
+                    if not success:
+                        console.print(f"[bold red]Warning: {msg}[/bold red]")
+                        
+                except subprocess.CalledProcessError as e:
+                    console.print(f"[bold red]Failed to pull {model_name}: {e}[/bold red]")
+                    if not questionary.confirm("Do you want to proceed anyway?", default=False).ask():
+                        continue
+                        
+                model_entry["model"] = model_name
+                
+            else: # Standard Remote Ollama config
+                model_name = questionary.text("Enter the Ollama model name (e.g. qwen2.5:3b):", default="qwen2.5:3b").ask()
+                model_entry["model"] = model_name
+                ollama_url = questionary.text("Enter the external Ollama host URL:", default="http://192.168.1.100:11434").ask()
+                model_entry["ollama_url"] = ollama_url
+                
+                console.print(f"[green]Testing connection to {ollama_url}...[/green]")
+                with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), transient=True) as progress:
+                    progress.add_task(description="Pinging remote Ollama server...", total=None)
+                    success, msg = test_ollama_connection(ollama_url, model_name)
+                    time.sleep(1)
+                    
+                if success:
+                    console.print(f"[bold green]✓[/bold green] {msg}")
+                else:
+                    console.print(f"[bold red]✗ Connection Failed:[/bold red] {msg}")
+                    if not questionary.confirm("Do you want to proceed and add it anyway?", default=False).ask():
+                        continue
 
-        else:
+        else: # LiteLLM
             model_entry["provider"] = "litellm"
             model_name = questionary.text("Enter the LiteLLM model name (e.g. gpt-4o-mini)", default="gpt-4o-mini").ask()
             model_entry["model"] = model_name
@@ -102,7 +166,7 @@ def main():
             
         # Ask what this model should be used for
         role = questionary.select(
-            f"What role should '{model_name}' play?",
+            f"What capability role should '{model_entry['model']}' handle within the Agent framework?",
             choices=["Fast/Local (Simple Tasks & Routing)", "Capable/Complex (Heavy Reasoning)", "Coding (Software Dev & Scripting)", "Default/General Purpose"]
         ).ask()
         
@@ -117,7 +181,7 @@ def main():
 
         config["models"].append(model_entry)
         
-        adding_models = questionary.confirm("Would you like to add another AI model? (The agent will smart-switch between them)", default=False).ask()
+        adding_models = questionary.confirm("Would you like to provision another AI model for a different role? (ViClaw automatically routes to the best model)", default=False).ask()
 
     # Fallback if somehow empty
     if not config["models"]:

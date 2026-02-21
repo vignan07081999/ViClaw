@@ -8,6 +8,20 @@ echo "========================================================"
 echo "          ViClaw (OpenClaw Clone) Installer             "
 echo "========================================================"
 
+echo "Checking for base OS dependencies..."
+if ! command -v curl &> /dev/null || ! command -v lshw &> /dev/null; then
+    echo "Attempting to install curl and lshw..."
+    if command -v apt-get &> /dev/null; then
+        sudo apt-get update && sudo apt-get install -y curl lshw
+    elif command -v dnf &> /dev/null; then
+        sudo dnf install -y curl lshw
+    elif command -v pacman &> /dev/null; then
+        sudo pacman -Sy --noconfirm curl lshw
+    else
+        echo "Could not find a supported package manager. Please install 'curl' and 'lshw' manually."
+    fi
+fi
+
 if ! command -v python3 &> /dev/null; then
     echo "Python 3 is not installed. Please install Python 3.9+ first."
     exit 1
