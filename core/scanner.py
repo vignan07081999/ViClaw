@@ -50,7 +50,12 @@ def quick_scan():
             if scan_port(ip, port):
                 services.append(COMMON_PORTS[port])
         if services:
-            return (ip, services)
+            hostname = ip
+            try:
+                hostname = socket.gethostbyaddr(ip)[0]
+            except Exception:
+                pass
+            return (ip, hostname, services)
         return None
 
     # parallelize the sweep
@@ -59,6 +64,6 @@ def quick_scan():
         
     for res in results:
         if res:
-            discovered[res[0]] = res[1]
+            discovered[res[0]] = {"hostname": res[1], "services": res[2]}
             
     return discovered

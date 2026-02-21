@@ -1,8 +1,16 @@
 import os
+import sys
 import json
 import requests
 import time
 import socket
+
+# Auto-enforce virtual environment
+if sys.prefix == sys.base_prefix:
+    venv_python = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".venv", "bin", "python")
+    if os.path.exists(venv_python):
+        os.execv(venv_python, [venv_python] + sys.argv)
+
 from core.models import LLMRouter
 from webui.app import start_webui
 from core.agent import OpenClawAgent
@@ -187,12 +195,26 @@ def main():
                         # Add SSH Setup
                         config["ssh_hosts"] = {}
                         console.print("\n[bold yellow]SSH Setup for Local Control[/bold yellow]")
-                        for ip, services in discovered_devices.items():
-                            svc_str = ", ".join(services)
-                            if questionary.confirm(f"Do you want to setup remote SSH access for {ip} ({svc_str})?", default=False).ask():
+                        for ip, info in discovered_devices.items():
+                            svc_str = ", ".join(info["services"])
+                            hostname = info.get("hostname", ip)
+                            if questionary.confirm(f"Do you want to setup remote SSH access for {ip} '{hostname}' ({svc_str})?", default=False).ask():
                                 username = questionary.text(f"SSH Username for {ip}:", default="root").ask()
                                 password = questionary.password(f"SSH Password (stored locally in config.json):").ask()
-                                config["ssh_hosts"][ip] = {"username": username, "password": password}
+                                
+                                console.print(f"[yellow]Testing SSH connection to {ip}...[/yellow]")
+                                import paramiko
+                                try:
+                                    client = paramiko.SSHClient()
+                                    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                                    client.connect(hostname=ip, username=username, password=password, timeout=5)
+                                    client.close()
+                                    console.print("[bold green]✓ SSH connection successful![/bold green]")
+                                    config["ssh_hosts"][ip] = {"username": username, "password": password}
+                                except Exception as e:
+                                    console.print(f"[bold red]✗ SSH connection failed: {e}[/bold red]")
+                                    if questionary.confirm("Do you still want to save these credentials?", default=False).ask():
+                                        config["ssh_hosts"][ip] = {"username": username, "password": password}
             except Exception as e:
                 console.print(f"[red]Error during AI analysis: {e}[/red]")
                 

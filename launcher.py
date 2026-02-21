@@ -1,5 +1,12 @@
 import os
 import sys
+
+# Auto-enforce virtual environment
+if sys.prefix == sys.base_prefix:
+    venv_python = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".venv", "bin", "python")
+    if os.path.exists(venv_python):
+        os.execv(venv_python, [venv_python] + sys.argv)
+
 import subprocess
 import time
 import signal

@@ -1,5 +1,13 @@
 import os
 import sys
+
+# Auto-enforce virtual environment from subdirectory
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if sys.prefix == sys.base_prefix:
+    venv_python = os.path.join(root_dir, ".venv", "bin", "python")
+    if os.path.exists(venv_python):
+        os.execv(venv_python, [venv_python] + sys.argv)
+
 import json
 import sqlite3
 import requests
