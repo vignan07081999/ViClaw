@@ -96,7 +96,7 @@ class ViClawAgent:
             system_prompt += clawhub_context
 
         # Inject RAG Vector Memory Context
-        related_memories = self.memory.search_long_term(message_text, top_k=3)
+        related_memories = self.memory.search_long_term(message_text, top_k=3, router=self.router)
         if related_memories:
             system_prompt += "\n\n[RELEVANT LONG-TERM MEMORIES (RAG)]:\n"
             for i, r in enumerate(related_memories):
@@ -239,7 +239,7 @@ class ViClawAgent:
             system_prompt += clawhub_context
 
         # Inject RAG Vector Memory Context
-        related_memories = self.memory.search_long_term(message_text, top_k=3)
+        related_memories = self.memory.search_long_term(message_text, top_k=3, router=self.router)
         if related_memories:
             system_prompt += "\n\n[RELEVANT LONG-TERM MEMORIES (RAG)]:\n"
             for i, r in enumerate(related_memories):

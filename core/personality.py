@@ -29,7 +29,7 @@ class PersonalityProfile:
 
         # Inject Long-Term Memories relevant to the query
         if current_query:
-            relevant_memories = self.memory.search_long_term(current_query)
+            relevant_memories = self.memory.search_long_term(current_query, router=None)
             if relevant_memories:
                 prompt += "Relevant Historical Context from Long-Term Memory:\n"
                 for mem in relevant_memories:

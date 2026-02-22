@@ -359,9 +359,39 @@ def run_installation_core(config):
     
     if os.path.exists("install.sh"):
         os.chmod("install.sh", 0o755)
-        
-    console.print(Panel.fit("[bold green]Setup finalized![/bold green]\nStarting background daemon to digest the structural mapping...", border_style="green"))
-    
+
+    # ── Pull nomic-embed-text embedding model (required for Vector Memory) ──
+    ollama_url = config.get("ollama_url", "http://localhost:11434")
+    console.print("[bold cyan]Checking for nomic-embed-text embedding model...[/bold cyan]")
+    try:
+        res = requests.get(f"{ollama_url.rstrip('/')}/api/tags", timeout=5)
+        models = [m["name"] for m in res.json().get("models", [])] if res.status_code == 200 else []
+        if not any("nomic-embed-text" in m for m in models):
+            pull_choice = questionary.confirm(
+                "nomic-embed-text is required for vector memory search. Pull it now (~270MB)?",
+                default=True
+            ).ask()
+            if pull_choice:
+                console.print("[yellow]Pulling nomic-embed-text... (this may take a few minutes)[/yellow]")
+                try:
+                    pull_res = requests.post(
+                        f"{ollama_url.rstrip('/')}/api/pull",
+                        json={"name": "nomic-embed-text", "stream": False},
+                        timeout=300
+                    )
+                    if pull_res.status_code == 200:
+                        console.print("[bold green]✓ nomic-embed-text pulled successfully![/bold green]")
+                    else:
+                        console.print(f"[yellow]Pull returned status {pull_res.status_code}. You can pull manually: ollama pull nomic-embed-text[/yellow]")
+                except Exception as e:
+                    console.print(f"[yellow]Could not pull model: {e}. Run 'ollama pull nomic-embed-text' manually.[/yellow]")
+            else:
+                console.print("[dim]Skipping nomic-embed-text. Vector memory will fall back to keyword search.[/dim]")
+        else:
+            console.print("[bold green]✓ nomic-embed-text already available.[/bold green]")
+    except Exception:
+        console.print("[dim]Could not check Ollama for embedding model. Run 'ollama pull nomic-embed-text' after setup.[/dim]")
+
     try:
         subprocess.Popen([sys.executable, "launcher.py", "restart"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         time.sleep(3)
