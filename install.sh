@@ -11,12 +11,23 @@ echo "========================================================"
 echo "Checking for base OS dependencies..."
 if ! command -v curl &> /dev/null || ! command -v lshw &> /dev/null || ! dpkg -l | grep -q python3-venv; then
     echo "Attempting to install curl, lshw, and python3-venv..."
+    
+    SUDO=""
+    if [ "$EUID" -ne 0 ]; then
+        if command -v sudo &> /dev/null; then
+            SUDO="sudo"
+        else
+            echo "You are not root and sudo is not installed. Please run this script as root."
+            exit 1
+        fi
+    fi
+
     if command -v apt-get &> /dev/null; then
-        sudo apt-get update && sudo apt-get install -y curl lshw python3-venv
+        $SUDO apt-get update && $SUDO apt-get install -y curl lshw python3-venv
     elif command -v dnf &> /dev/null; then
-        sudo dnf install -y curl lshw python3
+        $SUDO dnf install -y curl lshw python3
     elif command -v pacman &> /dev/null; then
-        sudo pacman -Sy --noconfirm curl lshw python
+        $SUDO pacman -Sy --noconfirm curl lshw python
     else
         echo "Could not find a supported package manager. Please install 'curl', 'lshw', and 'python3-venv' manually."
     fi

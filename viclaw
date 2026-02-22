@@ -1,34 +1,46 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env python3
+import os
+import sys
 
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-VENV_PYTHON="$DIR/.venv/bin/python3"
+def main():
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    venv_python = os.path.join(dir_path, ".venv", "bin", "python3")
+    
+    if not os.path.exists(venv_python):
+        print(f"Error: Virtual environment not found at {venv_python}")
+        print("Please run ./install.sh first to build the environment.")
+        sys.exit(1)
+        
+    cmd = "viclaw"
+    args = []
+    
+    if len(sys.argv) > 1:
+        cmd = sys.argv[1]
+        args = sys.argv[2:]
+        
+    script_map = {
+        "chat": "cli/chat.py",
+        "diagnostics": "cli/diagnostics.py",
+        "doctor": "cli/doctor.py",
+        "main": "main.py",
+        "launcher": "launcher.py",
+        "viclaw": "viclaw.py"
+    }
+    
+    target_script = script_map.get(cmd)
+    
+    if not target_script:
+        # Fallback to viclaw.py if the command is unrecognizable (like an argument)
+        target_script = "viclaw.py"
+        args = [cmd] + args
+        
+    target_path = os.path.join(dir_path, target_script)
+    
+    if not os.path.exists(target_path):
+        print(f"Error: Target script {target_path} does not exist.")
+        sys.exit(1)
+        
+    os.execv(venv_python, [venv_python, target_path] + args)
 
-if [ ! -f "$VENV_PYTHON" ]; then
-    echo "Error: Virtual environment not found at $VENV_PYTHON"
-    echo "Please run ./install.sh first to build the environment."
-    exit 1
-fi
-
-COMMAND="${1:-viclaw}"
-
-case "$COMMAND" in
-    "chat")
-        exec "$VENV_PYTHON" "$DIR/cli/chat.py" "${@:2}"
-        ;;
-    "diagnostics")
-        exec "$VENV_PYTHON" "$DIR/cli/diagnostics.py" "${@:2}"
-        ;;
-    "doctor")
-        exec "$VENV_PYTHON" "$DIR/cli/doctor.py" "${@:2}"
-        ;;
-    "main")
-        exec "$VENV_PYTHON" "$DIR/main.py" "${@:2}"
-        ;;
-    "launcher")
-        exec "$VENV_PYTHON" "$DIR/launcher.py" "${@:2}"
-        ;;
-    "viclaw"|*)
-        exec "$VENV_PYTHON" "$DIR/viclaw.py" "$@"
-        ;;
-esac
+if __name__ == "__main__":
+    main()

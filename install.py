@@ -119,13 +119,26 @@ def main():
             if "Local AI Models" in provider_choice:
                 model_entry["ollama_url"] = "http://localhost:11434"
                 
+                # Hardware context
+                ram_gb = 8.0
+                try:
+                    ram_gb = (os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')) / (1024.**3)
+                except:
+                    pass
+                    
                 # Guided Model Selection
-                preset_models = {
-                    "General/Fast (qwen2.5:3b)": "qwen2.5:3b",
-                    "Advanced Reasoning (llama3.2:3b)": "llama3.2:3b",
-                    "Heavy Reasoning (llama3.1:8b)": "llama3.1:8b",
-                    "Coding / DevOps (qwen2.5-coder)": "qwen2.5-coder"
-                }
+                preset_models = {}
+                preset_models["General/Fast (qwen2.5:3b) - Recommended for any system"] = "qwen2.5:3b"
+                
+                # Check for 8B model requirements (At least 6-8GB RAM)
+                if ram_gb < 7.0:
+                    console.print(f"\n[bold yellow]Hardware Alert:[/bold yellow] Your system has {ram_gb:.1f}GB of total RAM. Running 8B parameter models may cause out-of-memory crashes or severe swapping.")
+                    preset_models["Heavy Reasoning (llama3.1:8b) ⚠️ CAUTION: Requires 8GB+ RAM"] = "llama3.1:8b"
+                else:
+                    preset_models["Heavy Reasoning (llama3.1:8b) - Safe for your hardware"] = "llama3.1:8b"
+                    
+                preset_models["Advanced Reasoning (llama3.2:3b) - Safe for your hardware"] = "llama3.2:3b"
+                preset_models["Coding / DevOps (qwen2.5-coder) - Recommended for scripting"] = "qwen2.5-coder"
                 
                 choices = []
                 if existing_models:
@@ -386,11 +399,17 @@ def main():
         if os.path.exists("install.sh"):
             os.chmod("install.sh", 0o755)
             
-        console.print(Panel.fit("[bold green]Setup complete![/bold green]\nThe background daemon will now process this configuration.", border_style="green"))
+        console.print(Panel.fit("[bold green]Setup complete![/bold green]\nStarting background daemon to process this configuration...", border_style="green"))
         
+        try:
+            subprocess.Popen([sys.executable, "launcher.py", "restart"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            time.sleep(3)
+        except Exception as e:
+            console.print(f"[red]Failed to auto-start daemon: {e}[/red]")
+            
         if config.get("webui", {}).get("enabled"):
             with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), transient=True) as progress:
-                progress.add_task(description="Waiting for WebUI daemon to initialize...", total=None)
+                progress.add_task(description="Waiting for WebUI daemon to initialize (this checks locally at 127.0.0.1)...", total=None)
                 ready = False
                 for _ in range(30):
                     try:
@@ -405,7 +424,7 @@ def main():
             if ready:
                 console.print("[bold green]✓ WebUI Dashboard is online and ready![/bold green]")
             else:
-                console.print("[yellow]WebUI took too long to respond. It may still be starting up in the background.[/yellow]")
+                console.print("[yellow]WebUI took too long to respond. It may still be starting up in the background. Note: To browse from another computer, go to the IP address listed below.[/yellow]")
         
         # CHEAT SHEET
         try:
