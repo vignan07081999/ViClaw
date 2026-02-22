@@ -14,7 +14,7 @@ import threading
 # Ensure project root is on the path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from core.agent import OpenClawAgent
+from core.agent import ViClawAgent
 from integrations.messaging import PlatformManager
 from core.updater import UpdaterEngine
 from core.config import APP_CONFIG, setup_logging, get_config
@@ -72,7 +72,7 @@ def main():
     platform_manager = PlatformManager(is_daemon=is_daemon)
 
     # Initialize Core Agent
-    agent = OpenClawAgent(platform_manager)
+    agent = ViClawAgent(platform_manager)
 
     # Start the WebUI (if enabled in config)
     start_webui(agent)

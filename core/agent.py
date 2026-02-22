@@ -15,7 +15,7 @@ from skills.manager import SkillManager
 from skills.clawhub_client import ClawHubClient
 from core.config import APP_CONFIG
 
-class OpenClawAgent:
+class ViClawAgent:
     def __init__(self, platform_manager):
         self.platform_manager = platform_manager
         self.router = LLMRouter()

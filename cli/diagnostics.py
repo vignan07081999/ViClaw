@@ -16,7 +16,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.prompt import Prompt
 
-# Ensure we're running from the root of OpenClawClone
+# Ensure we're running from the root of ViClaw
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.config import get_config
 from core.updater import UpdaterEngine

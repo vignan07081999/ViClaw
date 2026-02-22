@@ -85,7 +85,7 @@ def main():
         elif choice == "10":
             sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
             from core.updater import UpdaterEngine
-            console.print("\n[yellow]Checking Github for new OpenClawClone patches...[/yellow]")
+            console.print("\n[yellow]Checking Github for new ViClaw patches...[/yellow]")
             try:
                 updater = UpdaterEngine()
                 has_update, loc_hash, rem_hash, msg = updater.check_for_updates()

@@ -57,7 +57,7 @@ class CLIConnector(BaseConnector):
         t.start()
 
     def send_message(self, user_id, message_text):
-        print(f"\nOpenClaw: {message_text}\nUser: ", end="", flush=True)
+        print(f"\nViClaw: {message_text}\nUser: ", end="", flush=True)
 
 class TelegramConnector(BaseConnector):
     def __init__(self):
@@ -125,7 +125,7 @@ class DiscordConnector(BaseConnector):
         if not self.token:
             logging.error("Discord token not configured.")
             return
-        logging.info("Discord integration initialized. (Placeholder implementation for OpenClaw Clone)")
+        logging.info("Discord integration initialized. (Placeholder implementation for ViClaw)")
         # Actual implementation: bot.run(self.token) in an asyncio task
 
     def send_message(self, user_id, message_text):

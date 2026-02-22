@@ -17,7 +17,7 @@ def main():
     
     if len(sys.argv) > 1:
         if sys.argv[1] in ["--help", "-h", "help"]:
-            print("ViClaw (OpenClaw Clone) CLI Wrapper")
+            print("ViClaw CLI Wrapper")
             print("\nUsage:")
             print("  viclaw chat          - Interactive chat with the agent")
             print("  viclaw diagnostics   - Check system status and logs")

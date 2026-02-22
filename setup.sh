@@ -2,7 +2,7 @@
 set -e
 
 echo "========================================================"
-echo "          ViClaw (OpenClaw Clone) Setup Script          "
+echo "          ViClaw Setup Script          "
 echo "========================================================"
 
 if ! command -v git &> /dev/null; then

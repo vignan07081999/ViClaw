@@ -21,7 +21,7 @@ else
 fi
 
 echo "========================================================"
-echo "          ViClaw (OpenClaw Clone) Uninstaller           "
+echo "          ViClaw Uninstaller           "
 echo "========================================================"
 echo "Warning: This action is destructive and will remove ViClaw from your system."
 echo
