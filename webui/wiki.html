@@ -5,54 +5,110 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ViClaw Technical Wiki & Manual</title>
+    <meta name="description"
+        content="Complete technical documentation for ViClaw — an autonomous, local-first AI agent for Linux HomeLab engineers.">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --primary: #2563eb;
+            --accent: #0ea5e9;
+            --header-bg: #0f172a;
+            --text: #334155;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --code-bg: #f1f5f9;
+            --tag-bg: #dbeafe;
+            --tag-text: #1d4ed8;
+            --warn-bg: #fef3c7;
+            --warn-border: #f59e0b;
+            --success-bg: #dcfce7;
+            --success-border: #16a34a;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f8fafc;
-            color: #334155;
-            line-height: 1.6;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
             margin: 0;
             padding: 0;
         }
 
         header {
-            background-color: #1e293b;
+            background: linear-gradient(135deg, var(--header-bg) 0%, #1e293b 100%);
             color: white;
-            padding: 40px 20px;
+            padding: 50px 20px 40px;
             text-align: center;
+            border-bottom: 3px solid var(--primary);
         }
 
         header h1 {
             margin: 0;
-            font-size: 2.5em;
-            letter-spacing: -0.5px;
+            font-size: 2.6em;
+            letter-spacing: -1px;
+        }
+
+        header .ver {
+            font-size: 0.85em;
+            opacity: 0.5;
+            margin-top: 4px;
         }
 
         header p {
-            opacity: 0.8;
-            font-size: 1.1em;
-            max-width: 600px;
-            margin: 10px auto 0;
+            opacity: 0.75;
+            font-size: 1.05em;
+            max-width: 620px;
+            margin: 12px auto 0;
+        }
+
+        .badges {
+            margin-top: 16px;
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 4px 12px;
+            font-size: 0.82em;
         }
 
         .container {
-            max-width: 1000px;
+            max-width: 1100px;
             margin: 40px auto;
             padding: 0 20px;
             display: grid;
-            grid-template-columns: 250px 1fr;
-            gap: 40px;
+            grid-template-columns: 260px 1fr;
+            gap: 36px;
         }
 
         nav {
             position: sticky;
-            top: 40px;
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            top: 24px;
+            background: var(--surface);
+            padding: 22px;
+            border-radius: 14px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
             height: fit-content;
+            border: 1px solid var(--border);
+        }
+
+        nav h3 {
+            margin: 0 0 14px;
+            font-size: 0.8em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
         }
 
         nav ul {
@@ -62,79 +118,201 @@
         }
 
         nav li {
-            margin-bottom: 10px;
+            margin-bottom: 6px;
         }
 
         nav a {
             text-decoration: none;
-            color: #475569;
-            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 0.9em;
+            font-weight: 500;
             transition: color 0.2s;
+            display: block;
+            padding: 4px 8px;
+            border-radius: 6px;
         }
 
         nav a:hover {
-            color: #2563eb;
+            color: var(--primary);
+            background: var(--tag-bg);
+        }
+
+        nav .section-header {
+            font-size: 0.75em;
+            font-weight: 700;
+            color: var(--text);
+            margin: 14px 0 4px 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         main {
-            background: white;
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            background: var(--surface);
+            padding: 44px;
+            border-radius: 14px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+            border: 1px solid var(--border);
         }
 
         h2 {
             color: #0f172a;
-            border-bottom: 2px solid #e2e8f0;
+            border-bottom: 2px solid var(--border);
             padding-bottom: 10px;
+            margin-top: 48px;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            scroll-margin-top: 24px;
+        }
+
+        h2:first-child {
             margin-top: 0;
         }
 
         h3 {
             color: #1e293b;
-            margin-top: 30px;
+            margin-top: 28px;
+            font-size: 1.1em;
         }
 
         .cmd-box {
-            background: #f1f5f9;
-            border-left: 4px solid #3b82f6;
-            padding: 15px;
+            background: var(--code-bg);
+            border-left: 4px solid var(--primary);
+            padding: 14px 18px;
             border-radius: 0 8px 8px 0;
-            margin-bottom: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.88em;
+            margin: 14px 0;
+            overflow-x: auto;
         }
 
-        .cmd-code {
-            font-family: monospace;
-            background: #e2e8f0;
-            padding: 2px 6px;
+        code {
+            background: var(--code-bg);
+            padding: 2px 7px;
             border-radius: 4px;
-            color: #ef4444;
-            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            font-size: 0.87em;
+            color: #0f172a;
         }
 
-        .feature-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-top: 20px;
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+            font-size: 0.9em;
         }
 
-        .feature-card {
+        th {
+            background: #f1f5f9;
+            color: #0f172a;
+            font-weight: 700;
+            text-align: left;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+        }
+
+        td {
+            padding: 9px 14px;
+            border: 1px solid var(--border);
+            vertical-align: top;
+        }
+
+        tr:nth-child(even) td {
             background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            padding: 20px;
-            border-radius: 8px;
         }
 
         .tag {
             display: inline-block;
-            background: #dbeafe;
-            color: #1d4ed8;
-            padding: 4px 8px;
-            border-radius: 999px;
-            font-size: 0.8em;
-            font-weight: 600;
-            margin-bottom: 10px;
+            background: var(--tag-bg);
+            color: var(--tag-text);
+            font-size: 0.75em;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 12px;
+            margin-left: 8px;
+        }
+
+        .tag.new {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .tag.security {
+            background: #fde8e8;
+            color: #b91c1c;
+        }
+
+        .alert {
+            border-radius: 10px;
+            padding: 14px 18px;
+            margin: 18px 0;
+            font-size: 0.93em;
+            border-left: 4px solid;
+        }
+
+        .alert.warn {
+            background: var(--warn-bg);
+            border-color: var(--warn-border);
+        }
+
+        .alert.success {
+            background: var(--success-bg);
+            border-color: var(--success-border);
+        }
+
+        .alert.info {
+            background: var(--tag-bg);
+            border-color: var(--primary);
+        }
+
+        .arch-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 16px 0;
+        }
+
+        .arch-box {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 16px;
+            font-size: 0.85em;
+        }
+
+        .arch-box h4 {
+            margin: 0 0 8px;
+            font-size: 0.9em;
+            color: var(--primary);
+        }
+
+        .arch-box ul {
+            margin: 0;
+            padding-left: 18px;
+        }
+
+        footer {
+            text-align: center;
+            padding: 30px 20px;
+            color: var(--text-muted);
+            font-size: 0.85em;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+
+            nav {
+                position: static;
+            }
+
+            main {
+                padding: 24px;
+            }
+
+            .arch-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -142,176 +320,498 @@
 <body>
 
     <header>
-        <h1>ViClaw Technical Wiki</h1>
-        <p>The definitive guide to the OpenClaw Clone architecture, including slash commands, tool usage, and network
-            discovery.</p>
+        <h1>📖 ViClaw Technical Wiki</h1>
+        <div class="ver">Phase 30 — February 2026</div>
+        <p>The definitive guide for installing, configuring, and extending the ViClaw autonomous AI agent.</p>
+        <div class="badges">
+            <span class="badge">🐧 Linux / CasaOS / Proxmox</span>
+            <span class="badge">🤖 Local-First AI</span>
+            <span class="badge">🏠 HomeLab Native</span>
+            <span class="badge">🔐 Secure Auth</span>
+            <span class="badge">♾️ Context Persistence</span>
+        </div>
     </header>
 
     <div class="container">
         <nav>
-            <h2>Contents</h2>
+            <h3>Contents</h3>
             <ul>
-                <li><a href="#cli-menu">The Terminal Super Menu</a></li>
-                <li><a href="#slash-commands">Interactive Slash Commands</a></li>
-                <li><a href="#skills-clawhub">Skills & ClawHub</a></li>
-                <li><a href="#auto-healing">Auto-Dependency Healing</a></li>
-                <li><a href="#network-scanner">Network Discovery Scanner</a></li>
-                <li><a href="#webui-dashboards">Dashboards (3D & Kiosk)</a></li>
-                <li><a href="#voice-vision">Voice, Vision & Webhooks</a></li>
-                <li><a href="#rag-memory">RAG Memory & Time Scheduling</a></li>
-                <li><a href="#swarm-auth">Swarm Architecture & Authentication</a></li>
+                <li class="section-header">Getting Started</li>
+                <li><a href="#installation">Installation</a></li>
+                <li><a href="#usage">Usage & Super Menu</a></li>
+                <li><a href="#dashboard">Web Dashboard</a></li>
+
+                <li class="section-header">Core Concepts</li>
+                <li><a href="#slash">Slash Commands</a></li>
+                <li><a href="#skills">Skills & ClawHub</a></li>
+                <li><a href="#memory">Memory Architecture</a></li>
+                <li><a href="#routing">AI Model Routing</a></li>
+                <li><a href="#scanner">Network Scanner</a></li>
+
+                <li class="section-header">Architecture</li>
+                <li><a href="#security">Security Model</a></li>
+                <li><a href="#config">Config Manager</a></li>
+                <li><a href="#heartbeat">Heartbeat & Swarm</a></li>
+                <li><a href="#ota">OTA Updates</a></li>
+
+                <li class="section-header">Reference</li>
+                <li><a href="#uninstall">Uninstallation</a></li>
+                <li><a href="#developer">Developer Notes</a></li>
             </ul>
-            <a href="/"
-                style="display: block; margin-top: 30px; text-align: center; background: #3b82f6; color: white; padding: 10px; border-radius: 6px;">←
-                Back to Home</a>
         </nav>
 
         <main>
-            <section id="cli-menu">
-                <h2>The Terminal Super Menu</h2>
-                <p>Running <code>./viclaw</code> from the installation directory opens the Master Interface. From here,
-                    you can manage the absolute core of the agent.</p>
 
-                <div class="cmd-box">
-                    <strong>[1] Interactive CLI Chat:</strong> Drops you directly into a terminal conversation with the
-                    agent. Uses raw text streams.<br>
-                    <strong>[2] Start/Restart Background Daemon:</strong> Binds the AI logic to an infinite loop,
-                    exposing the WebUI on Port 8501 and allowing Telegram/Discord polling.<br>
-                    <strong>[4] System Diagnostics:</strong> Polls the CPU, RAM, Network, and Ollama registry for
-                    latency constraints.<br>
-                    <strong>[5] Agent Doctor:</strong> An autonomous script that reads the crash logs of ViClaw and
-                    attempts to self-heal the python environment or kill rogue locking processes.<br>
-                    <strong>[7] View Chat History & Action Logs:</strong> Dumps the SQLite <code>memory.db</code>
-                    directly to the console so you can read what the agent is "thinking" without a web browser.<br>
-                    <strong>[10] OTA Updates:</strong> Checks the connected GitHub repository (vignan07081999/ViClaw)
-                    for code changes and hot-swaps them locally.
+            <!-- ============================================================ -->
+            <h2 id="installation">🚀 Installation</h2>
+
+            <h3>Requirements</h3>
+            <p>Python 3.9+, <code>git</code>, and <code>curl</code> are all you need.</p>
+            <div class="cmd-box">sudo apt update && sudo apt install -y python3 python3-venv git curl</div>
+
+            <h3>One-Line Auto Deploy</h3>
+            <div class="cmd-box">bash &lt;(curl -fsSL
+                https://raw.githubusercontent.com/vignan07081999/ViClaw/main/setup.sh)</div>
+            <p>This command clones the repository, installs OS deps, builds the <code>.venv</code> sandbox, and boots
+                the interactive Setup Wizard — which installs Ollama and pulls your selected models automatically.</p>
+
+            <h3>Manual Clone</h3>
+            <div class="cmd-box">git clone https://github.com/vignan07081999/ViClaw.git<br>cd ViClaw &amp;&amp; chmod +x
+                install.sh &amp;&amp; ./install.sh</div>
+
+            <!-- ============================================================ -->
+            <h2 id="usage">🎛️ Usage & Super Menu</h2>
+
+            <p>Once installed, <code>viclaw</code> is available globally. You never need to touch the virtual
+                environment manually.</p>
+            <div class="cmd-box">viclaw # Opens Super Master Menu<br>viclaw chat # Direct terminal chat<br>viclaw
+                diagnostics # System health check<br>viclaw doctor # AI-powered self-healing</div>
+
+            <table>
+                <tr>
+                    <th>Option</th>
+                    <th>Action</th>
+                </tr>
+                <tr>
+                    <td>[1] 💬 CLI Chat</td>
+                    <td>Terminal conversation with the agent</td>
+                </tr>
+                <tr>
+                    <td>[2] 🚀 Start Daemon</td>
+                    <td>Launches background agent + WebUI</td>
+                </tr>
+                <tr>
+                    <td>[3] 🛑 Stop Daemon</td>
+                    <td>Gracefully kills background process</td>
+                </tr>
+                <tr>
+                    <td>[4] 📊 Diagnostics</td>
+                    <td>Polls CPU, RAM, Ollama, DB health</td>
+                </tr>
+                <tr>
+                    <td>[5] 🩺 Doctor</td>
+                    <td>AI reads crash logs, self-heals environment</td>
+                </tr>
+                <tr>
+                    <td>[6] ⚙️ Config</td>
+                    <td>Re-launches setup wizard (updates credentials, models, etc.)</td>
+                </tr>
+                <tr>
+                    <td>[7] 📜 Chat History <span class="tag new">Updated</span></td>
+                    <td>Live query of running daemon's <code>/api/history</code> endpoint</td>
+                </tr>
+                <tr>
+                    <td>[8] 🔄 Reinstall</td>
+                    <td>Full reinstall, memory preserved</td>
+                </tr>
+                <tr>
+                    <td>[9] 🗑️ Uninstall</td>
+                    <td>Wipes daemon, venv, and all data</td>
+                </tr>
+                <tr>
+                    <td>[10] ☁️ OTA Updates</td>
+                    <td>Pulls latest GitHub patches, hot-swaps</td>
+                </tr>
+                <tr>
+                    <td>[11] 📖 Wiki</td>
+                    <td>Opens this manual in terminal</td>
+                </tr>
+            </table>
+
+            <!-- ============================================================ -->
+            <h2 id="dashboard">🌐 Web Dashboard</h2>
+
+            <p>ViClaw auto-detects port conflicts during install and binds to the nearest open port (default
+                <strong>8501</strong>).</p>
+            <table>
+                <tr>
+                    <th>URL</th>
+                    <th>What</th>
+                </tr>
+                <tr>
+                    <td><code>/</code></td>
+                    <td>Secure login gateway</td>
+                </tr>
+                <tr>
+                    <td><code>/dashboard</code></td>
+                    <td>3D animated premium monitoring dashboard</td>
+                </tr>
+                <tr>
+                    <td><code>/kiosk</code></td>
+                    <td>Tablet Stream Deck layout (voice avatar + iFrames)</td>
+                </tr>
+                <tr>
+                    <td><code>/wiki</code></td>
+                    <td>This documentation</td>
+                </tr>
+            </table>
+
+            <!-- ============================================================ -->
+            <h2 id="slash">⚡ Slash Commands</h2>
+
+            <p>Type these directly in the chat (CLI or WebUI) to bypass normal inference:</p>
+            <table>
+                <tr>
+                    <th>Command</th>
+                    <th>Effect</th>
+                </tr>
+                <tr>
+                    <td><code>/reset</code> or <code>/new</code></td>
+                    <td>Clears short-term memory + SQLite checkpoint <span class="tag new">Fixed</span></td>
+                </tr>
+                <tr>
+                    <td><code>/status</code></td>
+                    <td>Shows active models, message count <span class="tag new">Fixed</span></td>
+                </tr>
+                <tr>
+                    <td><code>/think [level]</code></td>
+                    <td>Sets reasoning verbosity for next response</td>
+                </tr>
+                <tr>
+                    <td><code>/compact</code></td>
+                    <td>Drops oldest half of context to save tokens</td>
+                </tr>
+                <tr>
+                    <td><code>/skills</code></td>
+                    <td>Lists all loaded tool schemas</td>
+                </tr>
+                <tr>
+                    <td><code>/update</code></td>
+                    <td>Triggers OTA updater inline</td>
+                </tr>
+            </table>
+
+            <!-- ============================================================ -->
+            <h2 id="skills">🛠️ Skills & ClawHub Marketplace</h2>
+
+            <p>ViClaw uses <strong>Skills (Tools)</strong> for all external actions. Skills are Python files in the
+                <code>skills/</code> directory that extend <code>BaseSkill</code>.</p>
+
+            <table>
+                <tr>
+                    <th>Skill</th>
+                    <th>What It Does</th>
+                </tr>
+                <tr>
+                    <td><code>shell_engine</code></td>
+                    <td>Execute shell commands safely (MCP pattern)</td>
+                </tr>
+                <tr>
+                    <td><code>file_io</code></td>
+                    <td>Read, write, and build files on disk</td>
+                </tr>
+                <tr>
+                    <td><code>remote_ssh</code></td>
+                    <td>Run commands on remote servers via Paramiko</td>
+                </tr>
+                <tr>
+                    <td><code>web_search</code></td>
+                    <td>DuckDuckGo scraper returning ranked results</td>
+                </tr>
+                <tr>
+                    <td><code>homelab</code></td>
+                    <td>REST connector for HA, Sonarr, Radarr, Proxmox, etc.</td>
+                </tr>
+                <tr>
+                    <td><code>reminders</code></td>
+                    <td>Persistent scheduled task memory</td>
+                </tr>
+                <tr>
+                    <td><code>system_info</code></td>
+                    <td>CPU, RAM, disk, and uptime introspection</td>
+                </tr>
+                <tr>
+                    <td><code>sessions</code></td>
+                    <td>Agent-to-agent delegation (Swarm)</td>
+                </tr>
+            </table>
+
+            <h3>Dynamic Skill Resolver</h3>
+            <p>If ViClaw has no tool for a task, it pauses and queries ClawHub. You approve — it's injected live without
+                a restart.</p>
+
+            <h3>Hot Installs <span class="tag new">Phase 30</span></h3>
+            <p>Skills installed via ClawHub at runtime now use <strong>delta loading</strong> — only the new file is
+                imported. Existing skills keep their in-RAM runtime state untouched.</p>
+
+            <h3>Auto-Dependency Healing</h3>
+            <p>If a skill crashes from a missing Python package, ViClaw intercepts the stack trace, identifies the
+                dependency, and asks your permission to <code>pip install</code> or <code>apt-get install</code>
+                automatically.</p>
+
+            <!-- ============================================================ -->
+            <h2 id="memory">🧠 Memory Architecture <span class="tag new">Phase 30</span></h2>
+
+            <table>
+                <tr>
+                    <th>Layer</th>
+                    <th>Storage</th>
+                    <th>Behaviour</th>
+                </tr>
+                <tr>
+                    <td><strong>Short-term</strong></td>
+                    <td>RAM + SQLite <code>short_term_checkpoint</code></td>
+                    <td>Restored on daemon restart; isolated per session_id</td>
+                </tr>
+                <tr>
+                    <td><strong>Long-term</strong></td>
+                    <td>SQLite <code>memories</code> table</td>
+                    <td>Cosine similarity via <code>nomic-embed-text</code> embeddings</td>
+                </tr>
+                <tr>
+                    <td><strong>RAG Vault</strong></td>
+                    <td>SQLite + Ollama embeddings</td>
+                    <td>PDF/TXT chunks ingested via WebUI Document Vault</td>
+                </tr>
+            </table>
+
+            <div class="alert success">
+                💾 <strong>Context Persistence:</strong> Your conversation survives daemon restarts. The short-term
+                checkpoint is written to SQLite on every message and restored automatically on startup. Use
+                <code>/reset</code> to clear it.
+            </div>
+
+            <!-- ============================================================ -->
+            <h2 id="routing">🤖 AI Model Routing</h2>
+
+            <p><code>LLMRouter</code> in <code>core/models.py</code> analyses every prompt and routes silently:</p>
+            <table>
+                <tr>
+                    <th>Role</th>
+                    <th>Trigger</th>
+                    <th>Example Model</th>
+                </tr>
+                <tr>
+                    <td><code>fast</code></td>
+                    <td>Simple questions, classification</td>
+                    <td><code>qwen2.5:3b</code></td>
+                </tr>
+                <tr>
+                    <td><code>complex</code></td>
+                    <td>Long reasoning, planning, analysis</td>
+                    <td><code>llama3.2:8b</code></td>
+                </tr>
+                <tr>
+                    <td><code>coding</code></td>
+                    <td>Code generation, debugging</td>
+                    <td><code>qwen2.5-coder</code></td>
+                </tr>
+                <tr>
+                    <td><code>vision</code></td>
+                    <td>Base64 image inputs</td>
+                    <td><code>llava:latest</code></td>
+                </tr>
+            </table>
+
+            <!-- ============================================================ -->
+            <h2 id="scanner">📡 Network Scanner (50+ Services)</h2>
+
+            <p>During installation, ViClaw maps your local subnet for tier-one HomeLab signatures:</p>
+            <div class="arch-grid">
+                <div class="arch-box">
+                    <h4>Hypervisors & Storage</h4>
+                    <ul>
+                        <li>Proxmox (8006)</li>
+                        <li>TrueNAS (80/443)</li>
+                        <li>Portainer (9000)</li>
+                    </ul>
                 </div>
-            </section>
-
-            <section id="slash-commands">
-                <h2>Interactive Chat Slash Commands</h2>
-                <p>When typing to ViClaw (either in the WebUI or CLI), you can bypass the LLM and issue direct system
-                    commands using the <code>/</code> prefix.</p>
-
-                <div class="feature-grid">
-                    <div class="feature-card">
-                        <span class="tag">/clear</span>
-                        <p>Instantly wipes the agent's short-term memory array. This resets the conversational context,
-                            essentially acting as an amnesia pill to stop hallucinations from looping.</p>
-                    </div>
-                    <div class="feature-card">
-                        <span class="tag">/status</span>
-                        <p>Returns the diagnostic state of the Agent, including active backend Model (e.g., Qwen 2.5),
-                            API connection latency, and the number of loaded Skills.</p>
-                    </div>
-                    <div class="feature-card">
-                        <span class="tag">/skills</span>
-                        <p>Prints an exhaustive list of every Python skill currently loaded into the Agent's tool
-                            execution framework, along with their JSON schema parameters.</p>
-                    </div>
-                    <div class="feature-card">
-                        <span class="tag">/update</span>
-                        <p>Triggers the OTA Updater Engine from within a chat natively, allowing you to patch the bot
-                            from a Telegram message.</p>
-                    </div>
+                <div class="arch-box">
+                    <h4>Media</h4>
+                    <ul>
+                        <li>Plex (32400)</li>
+                        <li>Jellyfin (8096)</li>
+                        <li>Sonarr (8989), Radarr (7878)</li>
+                        <li>Prowlarr (9696)</li>
+                    </ul>
                 </div>
-            </section>
-
-            <section id="skills-clawhub">
-                <h2>Skills & ClawHub Marketplace</h2>
-                <p>ViClaw operates heavily on <strong>Tools (Skills)</strong>. By default, it cannot scrape websites or
-                    control Linux until it is given a Skill. Skills are python files stored in the <code>/skills/</code>
-                    directory.</p>
-                <h3>Dynamic Skill Resolver</h3>
-                <p>If you ask ViClaw to do something it lacks the tool for, it will natively pause inference and ask
-                    you:<br>
-                    <em>"To accomplish this, I need the `Web Scraper` skill from ClawHub. May I dynamically download and
-                        install it now?"</em><br>
-                    If you reply "yes", the agent pulls the python file directly from GitHub and injects it into its
-                    live execution cycle without restarting.
-                </p>
-            </section>
-
-            <section id="auto-healing">
-                <h2>Auto-Dependency Healing</h2>
-                <p>In Phase 18, ViClaw gained the ability to fix itself.</p>
-                <div class="cmd-box">
-                    If the agent attempts to run a Python Skill, but it crashes because <code>requests</code> or
-                    <code>bs4</code> isn't installed in the environment, the <strong>Agent loops the Python Stack Trace
-                        back into its reasoning engine</strong>. It will then pause and ask you for explicit permission
-                    to run <code>pip install [package]</code> or <code>apt-get install [package]</code>.
+                <div class="arch-box">
+                    <h4>Smart Home</h4>
+                    <ul>
+                        <li>Home Assistant (8123)</li>
+                        <li>Node-RED (1880)</li>
+                        <li>Homebridge (8581)</li>
+                    </ul>
                 </div>
-            </section>
-
-            <section id="network-scanner">
-                <h2>Network Discovery Scanner 50+</h2>
-                <p>During installation, ViClaw maps the subnet (e.g., <code>192.168.1.*</code>) via highly threaded
-                    port-sweeps looking for the Top 50 HomeLab infrastructure signatures. It maps IPs natively for:</p>
-                <ul>
-                    <li><strong>Virtualization:</strong> Proxmox VE, TrueNAS, Portainer</li>
-                    <li><strong>Media & Arr-Stack:</strong> Plex, Jellyfin, Sonarr, Radarr, Prowlarr</li>
-                    <li><strong>Home Automation:</strong> Home Assistant, Scrypted, Homebridge, Node-RED</li>
-                    <li><strong>Monitoring & DNS:</strong> Grafana, Prometheus, Pi-Hole, AdGuard Home</li>
-                    <li><strong>3D Printing:</strong> Octoprint, Moonraker (Klipper)</li>
-                </ul>
-            </section>
-
-            <section id="webui-dashboards">
-                <h2>Dashboards (3D & Tablet Kiosk)</h2>
-                <p>The Web UI exposed on <strong>Port 8501</strong> provides two distinct visual ways to monitor the
-                    agent.</p>
-                <h3>The 3D Dashboard (/dashboard)</h3>
-                <p>A monitoring-focused UI containing a ClawHub installation input form, System Log trailing, and an
-                    interactive Chat Box. It allows downloading forensic ZIP archives of the AI's internal actions.</p>
-                <h3>The Stream Deck Kiosk (/kiosk)</h3>
-                <p>A revolutionary, fullscreen, glassmorphic layout created specifically for iPads or Android tablets
-                    docked next to a PC. It features an animated WebGL 3D Robot that speaks agent statuses dynamically,
-                    backed by a changing CSS gradient bound to the actual atmospheric time of day. It contains
-                    interactive Pomodoro timers, clocks, and live iFrames.</p>
-            </section>
-
-            <section id="voice-vision">
-                <h2>Voice, Vision & Webhooks (Phase 21)</h2>
-                <p>ViClaw now sees, hears, and speaks.</p>
-                <ul>
-                    <li><strong>Continuous Ambient Voice:</strong> The 3D Kiosk utilizes the native Web Speech API to
-                        continuously transcribe your speech bridging local audio to Ollama, and utilizes text-to-speech
-                        to make the WebGL avatar talk.</li>
-                    <li><strong>Vision:</strong> Images attached to the CLI or the Dashboard's chat UI are locally
-                        Base64 string encoded and beamed to multimodal models (e.g. <code>llava</code>) bypassing data
-                        extraction layers.</li>
-                    <li><strong>Webhooks:</strong> Remote triggers and IoT devices (like Home Assistant) can POST raw
-                        JSON events to <code>/api/webhook</code>, violently forcing the AI into a "System Event"
-                        inference pass.</li>
-                </ul>
-            </section>
-
-            <section id="rag-memory">
-                <h2>RAG Memory & Time Scheduling (Phase 22)</h2>
-                <div class="cmd-box">
-                    <strong>Memory Vault:</strong> Instead of forgetting you on reboot, ViClaw now extracts facts and
-                    auto-commits them to an internal SQLite Vector DB using the <code>nomic-embed-text</code> model. It
-                    performs mathematical <code>numpy</code> Cosine Similarity lookups prior to generating any response.
+                <div class="arch-box">
+                    <h4>Monitoring & Network</h4>
+                    <ul>
+                        <li>Grafana (3000)</li>
+                        <li>Pi-Hole (80)</li>
+                        <li>Netdata (19999)</li>
+                        <li>Nginx PM (81)</li>
+                    </ul>
                 </div>
-                <h3>Natural Language Cron Engine</h3>
-                <p>Tell the AI, "Every 15 minutes, scrape Google News and tell me the summary." A detached Python
-                    multithreading logic bomb (<code>core/scheduler.py</code>) tracks UTC timestamps and natively
-                    schedules Swarm generations independent of human triggering.</p>
-            </section>
+            </div>
+            <p>Discovered services have API tokens captured during the wizard. ViClaw can administer them autonomously
+                from that point forward.</p>
 
-            <section id="swarm-auth">
-                <h2>Swarm Architecture & Secure Auth (Phase 23)</h2>
-                <p>ViClaw supports <strong>Login Context</strong>. The WebUI dashboard operates behind an encrypted
-                    <code>HTTPOnly Cookie / JWT</code> authentication gate mapping directly to your User Identifier.</p>
-                <h3>Child Generative Agency</h3>
-                <p>The core `OpenClawAgent` contains a massive feature allowed via <code>core/swarm.py</code>
-                    orchestrator. Depending on task complexity, the parent node can programmatically spawn highly
-                    localized <strong>Sub-Agents</strong> containing their own restricted tool access schemas and nested
-                    inference loops, and then natively merge those results!</p>
-            </section>
+            <!-- ============================================================ -->
+            <h2 id="security">🔐 Security Model <span class="tag security">Phase 30</span></h2>
+
+            <div class="alert warn">
+                ⚠️ <strong>Breaking Change:</strong> Hardcoded <code>admin/claw</code> credentials have been completely
+                removed. You must run the install wizard to set credentials before the WebUI login will work.
+            </div>
+
+            <table>
+                <tr>
+                    <th>What</th>
+                    <th>How</th>
+                </tr>
+                <tr>
+                    <td>Credentials</td>
+                    <td>Set during <code>conf_webui()</code> wizard step — never hardcoded</td>
+                </tr>
+                <tr>
+                    <td>Storage</td>
+                    <td><code>data/config.json → webui.credentials</code> (gitignored)</td>
+                </tr>
+                <tr>
+                    <td>Session cookies</td>
+                    <td><code>httponly=True</code>, <code>samesite=lax</code>, 24h expiry</td>
+                </tr>
+                <tr>
+                    <td>Session cleanup</td>
+                    <td>Expired sessions evicted hourly by background thread</td>
+                </tr>
+                <tr>
+                    <td>Login audit</td>
+                    <td>All auth attempts logged with username and outcome</td>
+                </tr>
+                <tr>
+                    <td>venv enforcement</td>
+                    <td>All entry points <code>os.execv</code> into <code>.venv/bin/python3</code></td>
+                </tr>
+            </table>
+
+            <p>To rotate credentials: run <code>viclaw</code> → <strong>[6] Update Configuration</strong>.</p>
+
+            <!-- ============================================================ -->
+            <h2 id="config">⚙️ Config Manager <span class="tag new">Phase 30</span></h2>
+
+            <p><code>core/config.py</code> now has a thread-safe <strong>ConfigManager</strong> class with live reload:
+            </p>
+
+            <div class="cmd-box">from core.config import reload_config<br>reload_config() # re-reads config.json from
+                disk — no daemon restart needed</div>
+
+            <p>All accessor functions (<code>is_webui_enabled()</code>, <code>get_webui_port()</code>, etc.) and the
+                <code>APP_CONFIG</code> alias are preserved for full backward compatibility.</p>
+
+            <!-- ============================================================ -->
+            <h2 id="heartbeat">💓 Proactive Heartbeat & Swarm <span class="tag new">Phase 30</span></h2>
+
+            <p>The heartbeat loop wakes the LLM every idle ~5 minutes. It can:</p>
+            <ul>
+                <li>Send spontaneous reminders if pending reminders exist</li>
+                <li>Execute proactive tool calls (check server health, etc.)</li>
+                <li>Broadcast to <strong>all enabled platform connectors</strong> — not just CLI (fixed in Phase 30)
+                </li>
+            </ul>
+
+            <p>The <strong>Swarm Orchestrator</strong> (<code>core/swarm.py</code>) deploys constrained child agents
+                that run sub-tasks with isolated memory and permissions, then report back to the primary agent.</p>
+
+            <!-- ============================================================ -->
+            <h2 id="ota">☁️ OTA Updates</h2>
+
+            <p>ViClaw includes a background update engine (<code>core/updater.py</code>):</p>
+            <ul>
+                <li>Compares local vs remote Git HEAD SHA</li>
+                <li>Stashes local changes before pulling</li>
+                <li>Updates pip dependencies if <code>requirements.txt</code> changed</li>
+                <li>Configured frequency: hourly / daily / weekly / manual</li>
+            </ul>
+
+            <p>Trigger manually: <code>viclaw</code> → <strong>[10] OTA Updates</strong>.</p>
+
+            <!-- ============================================================ -->
+            <h2 id="uninstall">🗑️ Uninstallation</h2>
+
+            <h3>Via Launcher</h3>
+            <div class="cmd-box">viclaw # → Option [9] Uninstall</div>
+
+            <h3>Via Systemd</h3>
+            <div class="cmd-box">sudo systemctl stop viclaw && sudo systemctl disable viclaw<br>sudo rm
+                /etc/systemd/system/viclaw.service && sudo systemctl daemon-reload</div>
+
+            <h3>Full Wipe</h3>
+            <div class="cmd-box">rm -rf ~/ViClaw</div>
+
+            <h3>Remove Ollama Models (get disk space back)</h3>
+            <div class="cmd-box">ollama rm qwen2.5:3b<br>ollama rm qwen2.5-coder:latest<br>ollama rm nomic-embed-text
+            </div>
+
+            <!-- ============================================================ -->
+            <h2 id="developer">🧑‍💻 Developer Notes</h2>
+
+            <table>
+                <tr>
+                    <th>Topic</th>
+                    <th>Detail</th>
+                </tr>
+                <tr>
+                    <td>Live config reload</td>
+                    <td><code>from core.config import reload_config; reload_config()</code></td>
+                </tr>
+                <tr>
+                    <td>Thread-safe config</td>
+                    <td><code>ConfigManager</code> uses <code>threading.RLock</code></td>
+                </tr>
+                <tr>
+                    <td>Delta skill loading</td>
+                    <td><code>skill_manager._load_new_skills()</code> — only imports new files</td>
+                </tr>
+                <tr>
+                    <td>Context persistence</td>
+                    <td>Every <code>add_short_term()</code> writes to <code>short_term_checkpoint</code> SQLite table
+                    </td>
+                </tr>
+                <tr>
+                    <td>Session isolation</td>
+                    <td><code>AgentMemory(session_id="...")</code> — each user gets their own checkpoint</td>
+                </tr>
+                <tr>
+                    <td>All data sandboxed</td>
+                    <td><code>/data/</code> directory — gitignored; delete only <code>config.json</code> to reset config
+                    </td>
+                </tr>
+            </table>
+
+            <div class="alert info">
+                💡 <strong>Tip:</strong> You can safely delete <code>data/config.json</code> and re-run the wizard
+                without losing your agent's long-term memory. The <code>memory.db</code> is independent.
+            </div>
 
         </main>
     </div>
+
+    <footer>
+        <p>ViClaw — Phase 30 • <a href="https://github.com/vignan07081999/ViClaw" target="_blank">GitHub</a> • MIT
+            License</p>
+        <p>Built with ❤️ for HomeLab engineers. For terminal wiki: <code>viclaw</code> → [11]</p>
+    </footer>
 
 </body>
 

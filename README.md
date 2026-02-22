@@ -1,61 +1,58 @@
-# ViClaw (OpenClaw Python Clone) 🐾
+# ViClaw 🐾 — Autonomous AI Agent for Linux & HomeLab
 
-ViClaw is an immensely powerful, local-first, autonomous AI agent framework designed specifically for Linux hackers, HomeLab engineers, and self-hosted ecosystem integrators. 
+ViClaw is a powerful, **local-first, autonomous AI agent framework** built for Linux power users, HomeLab engineers, and self-hosted ecosystem builders.
 
-It acts as an intelligent, proactive daemon running invisibly on your server—capable of managing Docker containers, executing SSH commands globally across your subnet, probing APIs (Home Assistant, Proxmox, Radarr, etc.), and remembering everything you talk about via long-term persistent memory banks.
+It runs as an invisible background daemon on your server — managing Docker containers, running SSH commands across your subnet, querying APIs (Home Assistant, Proxmox, Radarr, Jellyfin, etc.), and maintaining a persistent, vector-embedded memory bank of everything you speak about.
 
-## 🔥 Core Features
+---
 
-- **Zero-Touch Local AI**: The wizard natively detects and installs the `ollama` inferencing engine if you don't have it. ViClaw will completely autonomously pull curated models (like `qwen2.5` and `llama3.2`) and serve them itself.
-- **Autonomous Complexity Routing**: You don't need to manually switch AI models. `LLMRouter` analyzes every prompt you send. Need to write a script? ViClaw silently connects to `qwen2.5-coder`. Need a quick server ping? It routes to a blazing fast 3-billion-parameter model to save RAM.
-- **HomeLab Network Scanner**: ViClaw actively maps your `192.168.x.x` subnet during installation, hunting for Proxmox, TrueNAS, Sonarr, Radarr, Jellyfin, and SSH nodes. It prompts you for their API Tokens and stores them securely so the AI can administer your entire infrastructure organically.
-- **Proactive Heartbeat**: ViClaw doesn't just respond mechanically—it thinks. A background heartbeat occasionally wakes the LLM up, allowing it to spontaneously message you on Telegram/Discord if a server goes down or if it has an idle thought.
-- **Over-The-Air Git Updates**: Built-in OTA functionality safely checks Github for pushes, downloads new skills, and restarts the daemon automatically without wiping your private `data/config.json`.
-- **Dynamic 3D Web Dashboard**: Access a stunning 3D Glassmorphism UI hosted locally to chat with the agent, view diagnostic metrics, and read the raw JSON reasoning logs parsing in real-time.
-- **Swarm Sub-agents**: Deploy dynamic, persona-driven child agents to run sub-tasks natively with constrained permissions.
-- **RAG Memory Vault**: ViClaw remembers. It commits facts to an internal SQLite vector graph via `nomic-embed-text` and performs Cosine Similarity lookups.
-- **Natural Language Cron**: "Remind me to check the oven in 15 minutes". A background python daemon natively tracks and schedules future LLM generations.
-- **Multimodal Vision & Voice**: The Kiosk supports native Text-to-Speech avatars, and the web app accepts Base64 image drops seamlessly piped into models like `llava`.
+## 🔥 Feature Highlights
 
-## 🚀 Installation & Setup
+| Feature | Description |
+|---|---|
+| **Zero-Touch Ollama Installer** | Wizard detects, installs, and pulls AI models automatically |
+| **Multi-Model Complexity Router** | Routes prompts to fast/complex/coding models automatically |
+| **HomeLab Network Scanner** | Discovers 50+ services (Proxmox, TrueNAS, HA, Sonarr, etc.) on install |
+| **Proactive Heartbeat** | Agent spontaneously messages you on Telegram/Discord if idle |
+| **OTA Git Updates** | Safely pulls GitHub patches and hot-swaps them without wiping your config |
+| **3D Web Dashboard** | Premium Glassmorphism UI on port 8501 with 3D animated bot head |
+| **Stream Deck Kiosk** | Tablet-optimized UI with timers, calendar, and iFrames |
+| **RAG Memory Vault** | SQLite + Ollama `nomic-embed-text` cosine-similarity long-term memory |
+| **Natural Language Cron** | "Remind me in 15 minutes" — a scheduler tracks this natively |
+| **Multimodal Vision & Voice** | Image drops piped into `llava`, and Web Speech API TTS avatar |
+| **Swarm Sub-Agents** | Deploy persona-constrained child agents for parallel sub-tasks |
+| **Multi-User WebUI Auth** | Per-session authentication with config-stored credentials |
+| **Hot ClawHub Installs** | Install skills at runtime without restarting the daemon |
+| **Context Persistence** | Short-term memory checkpointed to SQLite — survives daemon restarts |
+| **Live Config Reload** | Change settings without restarting — `reload_config()` re-reads disk |
 
-ViClaw is designed to be installed on headless Debian/Ubuntu Linux distributions, lightweight containers (like CasaOS or Proxmox CTs), or Raspberry Pis.
+---
 
-### 1. Requirements
+## 🚀 Installation
 
-You must have **Python 3.9+** and `git` installed.
+ViClaw targets headless **Debian/Ubuntu**, CasaOS, Proxmox CTs, or Raspberry Pis with Python 3.9+.
+
+### Requirements
 
 ```bash
-# On Debian / Ubuntu
 sudo apt update && sudo apt install -y python3 python3-venv git curl
 ```
 
-### 2. Global Installation Snippet
-
-You can completely auto-deploy the Github repository and trigger the Setup Wizard seamlessly via this single line snippet from any working directory:
+### One-Line Auto Deploy
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/vignan07081999/ViClaw/main/setup.sh)
 ```
 
-**What this snippet does natively:**
-1. Verifies `git` exists and clones the agent into a `./ViClaw/` directory safely.
-2. Changes permissions and automatically boots `./install.sh`.
-3. Downloads OS dependencies (`curl`, `lshw`, `python3-venv`) via apt/pacman contextually.
-4. Builds an isolated `.venv` Python sandbox array natively avoiding global overlaps.
-5. Boots the Setup Wizard. If Ollama is missing, the wizard injects it naturally.
+This single command:
+1. Clones the repo into `./ViClaw/`
+2. Installs OS deps (`curl`, `lshw`, `python3-venv`) via apt
+3. Builds an isolated `.venv` Python sandbox
+4. Boots the interactive Setup Wizard
+5. Detects and installs Ollama + pulls your selected models
+6. Creates a `/usr/local/bin/viclaw` global command
 
-### 3. Global Uninstaller Snippet
-
-If you want to completely wipe ViClaw, its virtual environment, the systemd daemon, and all User Data Memory databases interactively, run:
-
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/vignan07081999/ViClaw/main/uninstall.sh)
-```
-
-### 4. Manual Clone & Execute
-
-If you prefer to review the source code manually before executing scripts, bypass the global setup snippet and clone manually:
+### Manual Clone
 
 ```bash
 git clone https://github.com/vignan07081999/ViClaw.git
@@ -64,57 +61,152 @@ chmod +x install.sh
 ./install.sh
 ```
 
-### 5. Usage & Interacting
+---
 
-Once installed, we created a global wrapper script so you never have to mess with Python virtual environments manually. Everything is executed through `./viclaw`.
+## 🛠️ Usage
 
-- `./viclaw` - Opens the Super Master Control Menu.
-- `./viclaw chat` - Drop directly into the local terminal chat interface.
-- `./viclaw diagnostics` - Check connection latency, database health, and memory buffer states.
-- `./viclaw doctor` - Automatically reads system crash logs and uses the LLM to recursively debug the Python codebase.
+Once installed, `viclaw` is available globally. You never need to touch the Python virtual environment manually.
 
-### The Web Dashboard 🌐
+```
+viclaw              → Opens the Super Master Menu
+viclaw chat         → Drop directly into terminal chat
+viclaw diagnostics  → Health check: Ollama ping, DB size, sys logs
+viclaw doctor       → AI-powered self-healing diagnostics
+```
 
-ViClaw dynamically spins up a beautiful UI. CasaOS usually blocks port `8501`. ViClaw will **auto-detect collisions** and bind to the nearest open port (e.g., `8502`).
+### Super Menu Options
 
-Access it on your local network:
-`http://<SERVER_IP>:8501/dashboard` (check terminal output for exact port).
+| Option | Action |
+|---|---|
+| `[1]` 💬 Interactive CLI Chat | Talk to the agent in your terminal |
+| `[2]` 🚀 Start/Restart Daemon | Launches background agent + WebUI |
+| `[3]` 🛑 Stop Daemon | Gracefully kills the background process |
+| `[4]` 📊 Diagnostics | Polls CPU, RAM, Ollama, DB health |
+| `[5]` 🩺 Doctor | Self-heals Python environment issues |
+| `[6]` ⚙️ Update Configuration | Re-runs the wizard to change settings |
+| `[7]` 📜 Chat History | Queries running daemon's `/api/history` live |
+| `[8]` 🔄 Reinstall | Full reinstall without wiping memory |
+| `[9]` 🗑️ Uninstall | Wipes daemon, venv, and data |
+| `[10]` ☁️ OTA Updates | Pulls latest patches from GitHub |
+| `[11]` 📖 ViClaw Wiki | Opens this manual in terminal |
+
+### Slash Commands (in chat)
+
+| Command | Effect |
+|---|---|
+| `/reset` or `/new` | Clears short-term memory + SQLite checkpoint |
+| `/status` | Shows active models and message count |
+| `/think [level]` | Adjusts reasoning verbosity |
+| `/compact` | Compresses context to save memory |
+| `/skills` | Lists all loaded tools |
 
 ---
 
-## 🗑️ Uninstallation 
+## 🌐 Web Dashboard
 
-If you want to completely scrub ViClaw from your host node:
+ViClaw auto-detects port collisions and binds to the nearest open port (default: **8501**).
 
-### 1. Kill the Daemon
-
-If you used the Systemd daemon wrapper:
-```bash
-sudo systemctl stop viclaw
-sudo systemctl disable viclaw
-sudo rm /etc/systemd/system/viclaw.service
-sudo systemctl daemon-reload
+```
+http://<SERVER_IP>:8501          → Login gateway
+http://<SERVER_IP>:8501/dashboard → 3D animated dashboard
+http://<SERVER_IP>:8501/kiosk     → Tablet Kiosk (Stream Deck mode)
+http://<SERVER_IP>:8501/wiki      → This wiki in browser
 ```
 
-If you used the cross-platform launcher:
-```bash
-cd ViClaw
-./viclaw launcher stop
+### Security
+
+- Credentials are set **during the install wizard** (`conf_webui` step)
+- Stored in `data/config.json` under `webui.credentials` — never hardcoded
+- Session cookies use `httponly=True`, `samesite=lax`
+- Expired sessions are evicted automatically each hour
+- Use `viclaw config` or re-run `./install.sh` to rotate credentials
+
+---
+
+## 🏗️ Architecture Overview
+
+```
+main.py            — Daemon entrypoint: OTA thread, platform manager, WebUI
+launcher.py        — Cross-platform PID management (start/stop/restart)
+install.py         — Interactive setup wizard (Rich + questionary TUI)
+viclaw.py          — Super Menu CLI
+viclaw             — Global wrapper (os.execv → .venv/bin/python3)
+
+core/
+  agent.py         — Main agentic loop: XML tool calls, heartbeat, swarm
+  config.py        — Thread-safe ConfigManager with live reload()
+  memory.py        — Short-term (SQLite checkpoint) + long-term (RAG/cosine)
+  models.py        — LLMRouter: Ollama + LiteLLM, complexity routing, XML extraction
+  updater.py       — OTA git pull engine
+  scanner.py       — Subnet port scanner (50+ HomeLab signatures)
+  scheduler.py     — Natural language cron (background thread)
+  rag.py           — Document ingestion + vector search
+  swarm.py         — Sub-agent delegation
+
+skills/
+  manager.py       — BaseSkill + SkillManager (delta hot-load on ClawHub install)
+  shell_engine.py  — MCP shell execution
+  file_io.py       — File read/write/build
+  remote_ssh.py    — Paramiko remote server commands
+  web_search.py    — DuckDuckGo scraper
+  homelab.py       — REST API connector (HA, Sonarr, Radarr, Proxmox, etc.)
+  reminders.py     — Persistent scheduled reminders
+  system_info.py   — CPU/RAM/disk introspection
+  sessions.py      — Agent-to-agent delegation
+  clawhub_client.py— ClawHub marketplace downloader
+
+integrations/
+  messaging.py     — PlatformManager: Telegram, Discord, WhatsApp, CLI
+
+webui/
+  app.py           — FastAPI server (auth, chat, diagnostics, RAG, history)
+  dashboard.html   — 3D animated premium dashboard
+  kiosk.html       — Stream Deck tablet layout
+  wiki.html        — This manual
 ```
 
-### 2. Nuke the Directory
+---
+
+## 🔒 Security Model
+
+- **No hardcoded defaults**: Credentials are generated during wizard setup, never shipped in code
+- **Config isolation**: `data/config.json` is in `.gitignore` — it never gets committed
+- **Memory isolation**: `data/memory.db` is also gitignored — your conversations stay private
+- **venv enforcement**: All entry points auto-exec into `.venv/bin/python3` to prevent system Python contamination
+- **Session expiry**: WebUI sessions expire after 24h and are cleaned up hourly
+
+---
+
+## ♻️ Uninstallation
+
+### Kill the Daemon
+
+```bash
+# Via launcher (recommended)
+viclaw              # → Option [3] Stop Daemon
+
+# Via systemd (if using systemd service)
+sudo systemctl stop viclaw && sudo systemctl disable viclaw
+sudo rm /etc/systemd/system/viclaw.service && sudo systemctl daemon-reload
+```
+
+### Full Wipe
+
 ```bash
 rm -rf ~/ViClaw
 ```
 
-### 3. Uninstall Ollama Models (Optional)
-If you told ViClaw to automatically download massive 3B and 8B parameter Local LLM weights and you want your SSD space back:
+### Remove Ollama Models (Optional — get disk space back)
+
 ```bash
 ollama rm qwen2.5:3b
-ollama rm qwen2.5-coder
+ollama rm qwen2.5-coder:latest
 ollama rm llama3.2:3b
+ollama rm nomic-embed-text  # RAG embedding model
 ```
-If you want to completely uninstall the Ollama daemon:
+
+### Uninstall Ollama Engine Completely
+
 ```bash
 sudo systemctl stop ollama
 sudo rm -rf /usr/local/bin/ollama /usr/share/ollama /etc/ollama
@@ -122,47 +214,16 @@ sudo rm -rf /usr/local/bin/ollama /usr/share/ollama /etc/ollama
 
 ---
 
-## 🛠️ Modding & Architecture
+## 🛠️ Developer Notes
 
-All persistent data, memory databases, and configuration settings are securely sandboxed inside the `/data` folder. If you screw up the installation, you don't need to reinstall the python modules. Just delete `data/config.json` and type `./viclaw` to trigger the setup wizard organically again!
+- **Config changes take effect live**: `from core.config import reload_config; reload_config()` — no restart needed
+- **New skills hot-load**: `skill_manager._load_new_skills()` only imports new files, existing skills keep their runtime state
+- **Context is persistent**: short-term context survives daemon restarts via `short_term_checkpoint` SQLite table
+- **Heartbeat routes everywhere**: Proactive messages are sent to all enabled platform connectors, not just CLI
+- All persistent data lives in `/data` — delete only `data/config.json` to reset config while keeping memory
 
 ---
 
-# 📖 ViClaw Technical Wiki & Manual
+## 📖 Full Wiki
 
-Welcome to the definitive guide for ViClaw (OpenClaw Clone).
-
-## 1. The Terminal Super Menu
-Running `./viclaw` opens the Master Interface:
-- **[1] Interactive CLI Chat:** Raw text stream conversation with the agent.
-- **[2] Start/Restart Background Daemon:** Binds AI logic to background loop, exposing WebUI on Port 8501.
-- **[4] System Diagnostics:** Polls CPU, RAM, Network, and Ollama registry.
-- **[5] Agent Doctor:** Autonomous script to self-heal Python environment or kill rogue locks.
-- **[7] View Chat History & Action Logs:** Dumps the SQLite `memory.db` directly to console.
-- **[10] OTA Updates:** Pulls latest patches from GitHub (vignan07081999/ViClaw) and hot-swaps them.
-
-## 2. Interactive Chat Slash Commands
-Bypass normal LLM reasoning by typing these prefixed commands:
-- `/clear` - Instantly wipes short-term memory array to clear hallucinations.
-- `/status` - Returns diagnostic state of Agent (active model, loaded skills).
-- `/skills` - Prints exhaustive list of loaded Python tools and JSON schemas.
-- `/update` - Triggers the OTA Updater Engine directly from chat.
-
-## 3. Skills & ClawHub Marketplace
-ViClaw uses **Tools (Skills)** for external actions (web scraping, shell execution, etc.).
-- **Dynamic Skill Resolver:** If ViClaw lacks a tool, it pauses and queries ClawHub. If approved by you, it downloads the script natively and injects it live.
-
-## 4. Auto-Dependency Healing
-If a script crashes because of missing packages (e.g. `requests`), ViClaw intercepts the stack trace and asks for permission to run `pip install` or `apt-get install` to auto-heal its own environment.
-
-## 5. Network Discovery Scanner 50+
-On installation, ViClaw maps the subnet for 50+ tier-one HomeLab signatures:
-- Proxmox, TrueNAS, Portainer
-- Plex, Jellyfin, Sonarr, Radarr
-- Home Assistant, Homebridge, Node-RED
-- Grafana, Pi-Hole, OctoPrint
-
-## 6. Dashboards (3D & Tablet Kiosk)
-Access Web UI on **Port 8501**:
-- **3D Dashboard (`/dashboard`)**: Monitoring-focused UI for debugging, logging, and skill installation.
-- **Stream Deck Kiosk (`/kiosk`)**: Glassmorphic layout for tablets. Features a 3D animated robot, atmospheric CSS mapping time of day, Pomodoro timers, and customizable iFrames for Home Assistant.
+See the in-app wiki at `http://<SERVER_IP>:8501/wiki` or run `viclaw` → `[11]`.
