@@ -55,7 +55,18 @@ pip install --upgrade pip
 pip install -r requirements.txt
 
 echo "Starting Guided Configuration Wizard..."
-python install.py
+.venv/bin/python3 install.py
+
+# Map global CLI wrapper
+echo "Setting up global 'viclaw' command..."
+if [ -d "/usr/local/bin" ]; then
+    if [ "$EUID" -eq 0 ]; then
+        ln -sf "$DIR/viclaw" /usr/local/bin/viclaw
+    elif command -v sudo &> /dev/null && [ -n "$SUDO_USER" ] || sudo -n true 2>/dev/null; then
+        sudo ln -sf "$DIR/viclaw" /usr/local/bin/viclaw
+    fi
+    echo "✓ Global command configured. You can now type 'viclaw' from anywhere."
+fi
 
 # Setup Systemd Service if root/sudo is available, else provide manual instructions
 echo "Setting up systemd service to run ViClaw automatically..."
@@ -71,7 +82,7 @@ After=network.target
 Type=simple
 User=$USER
 WorkingDirectory=$DIR
-ExecStart=$DIR/.venv/bin/python $DIR/main.py
+ExecStart=$DIR/.venv/bin/python3 $DIR/main.py
 Restart=always
 RestartSec=10
 

@@ -36,17 +36,17 @@ def main():
         if choice == "0":
             break
         elif choice == "1":
-            subprocess.run(["python", "cli/chat.py"])
+            subprocess.run([sys.executable, "cli/chat.py"])
         elif choice == "2":
-            subprocess.run(["python", "launcher.py", "restart"])
+            subprocess.run([sys.executable, "launcher.py", "restart"])
             Prompt.ask("\nPress Enter to continue...")
         elif choice == "3":
-            subprocess.run(["python", "launcher.py", "stop"])
+            subprocess.run([sys.executable, "launcher.py", "stop"])
             Prompt.ask("\nPress Enter to continue...")
         elif choice == "4":
-            subprocess.run(["python", "cli/diagnostics.py"])
+            subprocess.run([sys.executable, "cli/diagnostics.py"])
         elif choice == "5":
-            subprocess.run(["python", "cli/doctor.py"])
+            subprocess.run([sys.executable, "cli/doctor.py"])
         elif choice == "6":
             subprocess.run(["bash", "scripts/update_config.sh"])
         elif choice == "7":
@@ -94,7 +94,7 @@ def main():
                 console.print(f"[red]Updater error: {e}[/red]")
             Prompt.ask("\nPress Enter to return to menu...")
         elif choice == "11":
-            subprocess.run(["python", "cli/wiki.py"])
+            subprocess.run([sys.executable, "cli/wiki.py"])
             Prompt.ask("\nPress Enter to return to menu...")
 
 if __name__ == "__main__":

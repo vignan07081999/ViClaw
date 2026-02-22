@@ -4,6 +4,7 @@ import json
 import requests
 import time
 import socket
+import subprocess
 
 # Auto-enforce virtual environment
 if sys.prefix == sys.base_prefix:
@@ -11,29 +12,20 @@ if sys.prefix == sys.base_prefix:
     if os.path.exists(venv_python):
         os.execv(venv_python, [venv_python] + sys.argv)
 
-from core.models import LLMRouter
-from webui.app import start_webui
-from core.agent import OpenClawAgent
+# Ensure we can import core modules
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from core.config import setup_logging
-
 setup_logging()
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
-from rich import print as rprint
 import questionary
-import sys
-
-# Ensure we can import core
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from core.scanner import quick_scan
-from core.models import LLMRouter
 
 CONFIG_FILE = "data/config.json"
 console = Console()
 
 def test_ollama_connection(url, model):
-    """Pings the Ollama API to ensure it's reachable and the model exists."""
     try:
         response = requests.get(f"{url.rstrip('/')}/api/tags", timeout=5)
         if response.status_code == 200:
@@ -46,29 +38,35 @@ def test_ollama_connection(url, model):
     except Exception as e:
         return False, str(e)
 
-def main():
-    console.clear()
-    console.print(Panel.fit("[bold cyan]Welcome to ViClaw (OpenClaw Clone) Setup Wizard[/bold cyan]", border_style="cyan"))
-    config = {}
+def load_config():
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
 
-    # 1. Agent Identity
-    console.print("\n[bold yellow]1. Agent Identity[/bold yellow]")
-    agent_name = questionary.text("What would you like to name your AI agent?", default="ViClaw").ask()
-    agent_personality = questionary.text("Describe its personality (e.g. 'sarcastic, helpful')", default="helpful, direct, and concise").ask()
-    config["identity"] = {
-        "name": agent_name,
-        "personality": agent_personality
-    }
+def save_config(config):
+    os.makedirs("data", exist_ok=True)
+    with open(CONFIG_FILE, "w") as f:
+        json.dump(config, f, indent=2)
 
-    # 2. Model Provider Configuration
-    console.print("\n[bold yellow]2. Complete AI Model Setup[/bold yellow]")
-    config["models"] = []
-    
+def conf_identity(config):
+    console.print("\n[bold yellow]--- 1. Agent Identity ---[/bold yellow]")
+    current = config.get("identity", {})
+    name = questionary.text("What would you like to name your AI agent?", default=current.get("name", "ViClaw")).ask()
+    personality = questionary.text("Describe its personality:", default=current.get("personality", "helpful, direct, and concise")).ask()
+    config["identity"] = {"name": name, "personality": personality}
+
+def conf_models(config):
+    console.print("\n[bold yellow]--- 2. Complete AI Model Setup ---[/bold yellow]")
+    if "models" not in config:
+        config["models"] = []
+        
     # Auto-Install Ollama Path
-    import subprocess
     has_ollama = subprocess.run(["command", "-v", "ollama"], shell=True, capture_output=True).returncode == 0
     
-    # Check if daemon is running and try to start
     if has_ollama:
         try:
             requests.get("http://localhost:11434", timeout=2)
@@ -77,7 +75,6 @@ def main():
             subprocess.Popen(["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             time.sleep(3)
             
-    # Fetch existing models
     existing_models = []
     if has_ollama:
         try:
@@ -87,56 +84,47 @@ def main():
         except:
             pass
             
-    opt_install_ollama = False
     if not has_ollama:
         console.print("[dim]Ollama engine is not installed on this system.[/dim]")
-        if questionary.confirm("Would you like ViClaw to automatically download and install Ollama as your default AI engine now?", default=True).ask():
-            opt_install_ollama = True
+        if questionary.confirm("Would you like ViClaw to automatically download and install Ollama natively now?", default=True).ask():
             console.print("[yellow]Deploying Ollama Native Runtime...[/yellow]")
             try:
                 subprocess.run("curl -fsSL https://ollama.com/install.sh | sh", shell=True, check=True)
                 has_ollama = True
                 console.print("[bold green]✓ Ollama natively installed.[/bold green]")
-                time.sleep(2)  # Give daemon time to start
+                time.sleep(2)
             except Exception as e:
                 console.print(f"[bold red]Failed to deploy Ollama: {e}[/bold red]")
-    
+                
+    config["models"] = [] # Reset models on reconfiguration to avoid clutter
     adding_models = True
     while adding_models:
         provider_choices = ["External Ollama (Remote API)", "LiteLLM (OpenAI API/Anthropic)"]
         if has_ollama:
             provider_choices.insert(0, "Local AI Models (Requires Local Ollama)")
             
-        provider_choice = questionary.select(
-            "Which AI provider architecture do you want to configure?",
-            choices=provider_choices
-        ).ask()
-        
+        provider_choice = questionary.select("Which AI provider architecture do you want to configure?", choices=provider_choices).ask()
         model_entry = {}
+        
         if "Local AI Models" in provider_choice or "External Ollama" in provider_choice:
             model_entry["provider"] = "ollama"
-            
             if "Local AI Models" in provider_choice:
                 model_entry["ollama_url"] = "http://localhost:11434"
                 
-                # Hardware context
                 ram_gb = 8.0
                 try:
                     ram_gb = (os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')) / (1024.**3)
                 except:
                     pass
                     
-                # Guided Model Selection
                 preset_models = {}
                 preset_models["General/Fast (qwen2.5:3b) - Recommended for any system"] = "qwen2.5:3b"
-                
-                # Check for 8B model requirements (At least 6-8GB RAM)
                 if ram_gb < 7.0:
-                    console.print(f"\n[bold yellow]Hardware Alert:[/bold yellow] Your system has {ram_gb:.1f}GB of total RAM. Running 8B parameter models may cause out-of-memory crashes or severe swapping.")
+                    console.print(f"\n[bold yellow]Hardware Alert:[/bold yellow] Your system has {ram_gb:.1f}GB of total RAM. Running 8B parameter models may cause out-of-memory crashes.")
                     preset_models["Heavy Reasoning (llama3.1:8b) ⚠️ CAUTION: Requires 8GB+ RAM"] = "llama3.1:8b"
                 else:
                     preset_models["Heavy Reasoning (llama3.1:8b) - Safe for your hardware"] = "llama3.1:8b"
-                    
+                
                 preset_models["Advanced Reasoning (llama3.2:3b) - Safe for your hardware"] = "llama3.2:3b"
                 preset_models["Coding / DevOps (qwen2.5-coder) - Recommended for scripting"] = "qwen2.5-coder"
                 
@@ -145,14 +133,10 @@ def main():
                     choices.append(questionary.Separator("--- Already Installed Models ---"))
                     choices.extend([f"Use Installed: {m}" for m in existing_models])
                     choices.append(questionary.Separator("--- Download New Models ---"))
-                    
                 choices.extend(list(preset_models.keys()))
                 choices.append("Custom Model Name")
                 
-                selection = questionary.select(
-                    "Select an AI model to use for this role (we'll download it if you don't have it):",
-                    choices=choices
-                ).ask()
+                selection = questionary.select("Select an AI model to use for this role:", choices=choices).ask()
                 
                 if not selection or str(selection).startswith("---"):
                     selection = "Custom Model Name"
@@ -160,107 +144,87 @@ def main():
                 if str(selection).startswith("Use Installed: "):
                     model_name = str(selection).replace("Use Installed: ", "")
                 elif selection == "Custom Model Name":
-                    model_name = questionary.text("Enter the exact Ollama registry tag (e.g. deepseek-r1:7b):").ask()
+                    model_name = questionary.text("Enter exact Ollama registry tag (e.g. deepseek-r1:7b):").ask()
                 else:
                     model_name = preset_models[selection]
                 
-                # Check if we need to pull
                 if model_name not in existing_models:
-                    console.print(f"\n[cyan]Downloading and initializing {model_name} (This may take several minutes)...[/cyan]")
+                    console.print(f"\n[cyan]Downloading and initializing {model_name}...[/cyan]")
                     try:
-                        # Using subprocess Popen to stream output to console if we want, or just wait
                         subprocess.run(["ollama", "pull", model_name], check=True)
-                        console.print(f"[bold green]✓ {model_name} successfully provisioned into local registry![/bold green]")
+                        console.print(f"[bold green]✓ {model_name} successfully provisioned![/bold green]")
                         existing_models.append(model_name)
                     except subprocess.CalledProcessError as e:
-                        console.print(f"[bold red]Failed to pull {model_name}. The Ollama daemon may have crashed: {e}[/bold red]")
-                        if not questionary.confirm("Do you want to proceed anyway?", default=False).ask():
+                        console.print(f"[bold red]Failed to pull {model_name}: {e}[/bold red]")
+                        if not questionary.confirm("Proceed anyway?", default=False).ask():
                             continue
                             
-                # Test connection locally just to verify daemon is answering
                 success, msg = test_ollama_connection(model_entry["ollama_url"], model_name)
                 if not success:
                     console.print(f"[bold red]Warning: {msg}[/bold red]")
-                        
                 model_entry["model"] = model_name
                 
-            else: # Standard Remote Ollama config
-                model_name = questionary.text("Enter the Ollama model name (e.g. qwen2.5:3b):", default="qwen2.5:3b").ask()
+            else:
+                model_name = questionary.text("Enter Ollama model name (e.g. qwen2.5:3b):", default="qwen2.5:3b").ask()
                 model_entry["model"] = model_name
-                ollama_url = questionary.text("Enter the external Ollama host URL:", default="http://192.168.1.100:11434").ask()
+                ollama_url = questionary.text("Enter external Ollama host URL:", default="http://192.168.1.100:11434").ask()
                 model_entry["ollama_url"] = ollama_url
                 
-                console.print(f"[green]Testing connection to {ollama_url}...[/green]")
-                with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), transient=True) as progress:
-                    progress.add_task(description="Pinging remote Ollama server...", total=None)
-                    success, msg = test_ollama_connection(ollama_url, model_name)
-                    time.sleep(1)
-                    
+                console.print(f"[green]Testing connection...[/green]")
+                success, msg = test_ollama_connection(ollama_url, model_name)
                 if success:
                     console.print(f"[bold green]✓[/bold green] {msg}")
                 else:
                     console.print(f"[bold red]✗ Connection Failed:[/bold red] {msg}")
-                    if not questionary.confirm("Do you want to proceed and add it anyway?", default=False).ask():
+                    if not questionary.confirm("Proceed anyway?", default=False).ask():
                         continue
-
-        else: # LiteLLM
+        else:
             model_entry["provider"] = "litellm"
-            model_name = questionary.text("Enter the LiteLLM model name (e.g. gpt-4o-mini)", default="gpt-4o-mini").ask()
-            model_entry["model"] = model_name
-            api_key_env = questionary.text("What environment variable holds this API key?", default="OPENAI_API_KEY").ask()
-            model_entry["api_key_env"] = api_key_env
+            model_entry["model"] = questionary.text("LiteLLM model name (e.g. gpt-4o-mini):").ask()
+            model_entry["api_key_env"] = questionary.text("Environment variable holding API key:", default="OPENAI_API_KEY").ask()
             
-        # Ask what this model should be used for
         role = questionary.select(
-            f"What capability role should '{model_entry['model']}' handle within the Agent framework?",
+            f"What role should '{model_entry['model']}' handle?",
             choices=["Fast/Local (Simple Tasks & Routing)", "Capable/Complex (Heavy Reasoning)", "Coding (Software Dev & Scripting)", "Default/General Purpose"]
         ).ask()
         
-        if "Fast" in role:
-            model_entry["role"] = "fast"
-        elif "Capable" in role:
-            model_entry["role"] = "complex"
-        elif "Coding" in role:
-            model_entry["role"] = "coding"
-        else:
-            model_entry["role"] = "default"
+        if "Fast" in role: model_entry["role"] = "fast"
+        elif "Capable" in role: model_entry["role"] = "complex"
+        elif "Coding" in role: model_entry["role"] = "coding"
+        else: model_entry["role"] = "default"
 
         config["models"].append(model_entry)
+        adding_models = questionary.confirm("Add another AI model? (ViClaw routes between them)", default=False).ask()
+
+def conf_platforms(config):
+    console.print("\n[bold yellow]--- 3. Messaging Integration Setup ---[/bold yellow]")
+    if "platforms" not in config: config["platforms"] = {}
+    
+    config["platforms"]["cli"] = {"enabled": questionary.confirm("Enable CLI Terminal interaction?", default=True).ask()}
+    
+    if questionary.confirm("Enable Telegram?", default=False).ask():
+        config["platforms"]["telegram"] = {"enabled": True, "token": questionary.password("Telegram Bot Token:").ask()}
+    else:
+        config["platforms"].pop("telegram", None)
         
-        console.print("[dim]Note: ViClaw automatically parses your input and will autonomously route your prompts to the right model (e.g., using the Coding model for Python, or the Fast model for simple tasks) behind the scenes.[/dim]")
-        adding_models = questionary.confirm("Would you like to provision another AI model for a different capability? (ViClaw automatically routes between them)", default=False).ask()
+    if questionary.confirm("Enable WhatsApp?", default=False).ask():
+        config["platforms"]["whatsapp"] = {"enabled": True, "token": questionary.password("Meta App Token:").ask()}
+    else:
+        config["platforms"].pop("whatsapp", None)
+        
+    if questionary.confirm("Enable Discord?", default=False).ask():
+        config["platforms"]["discord"] = {"enabled": True, "token": questionary.password("Discord Bot Token:").ask()}
+    else:
+         config["platforms"].pop("discord", None)
 
-    # Fallback if somehow empty
-    if not config["models"]:
-        config["models"].append({"provider": "ollama", "model": "qwen2.5:3b", "role": "default", "ollama_url": "http://localhost:11434"})
-
-    # 3. Messaging Platforms Configuration
-    console.print("\n[bold yellow]3. Messaging Platform Integrations[/bold yellow]")
-    config["platforms"] = {}
+def conf_webui(config):
+    console.print("\n[bold yellow]--- 4. WebUI & Kiosk Dashboard ---[/bold yellow]")
     
-    if questionary.confirm("Enable CLI / Terminal interaction?", default=True).ask():
-        config["platforms"]["cli"] = {"enabled": True}
-
-    if questionary.confirm("Enable Telegram integration?", default=False).ask():
-        token = questionary.password("Enter Telegram Bot Token").ask()
-        config["platforms"]["telegram"] = {"enabled": True, "token": token}
-
-    if questionary.confirm("Enable WhatsApp integration?", default=False).ask():
-        token = questionary.password("Enter Meta App Token").ask()
-        config["platforms"]["whatsapp"] = {"enabled": True, "token": token}
-
-    if questionary.confirm("Enable Discord integration?", default=False).ask():
-        token = questionary.password("Enter Discord Bot Token").ask()
-        config["platforms"]["discord"] = {"enabled": True, "token": token}
-
-    # 4. WebUI Configuration
-    console.print("\n[bold yellow]4. WebUI Setup[/bold yellow]")
     enable_webui = questionary.confirm("Enable local WebUI for 3D Dashboard & monitoring?", default=True).ask()
+    webui_port = config.get("webui", {}).get("port", 8501)
     
-    webui_port = 8501
     if enable_webui:
-        # Detect open port to prevent CasaOS / Proxmox collisions (which often hog 8501 or 8006)
-        console.print("[dim]Scanning for an available port for the WebUI dashboard...[/dim]")
+        console.print("[dim]Scanning for an available port to prevent collisions...[/dim]")
         for port in range(8501, 8550):
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 if s.connect_ex(("127.0.0.1", port)) != 0:
@@ -270,262 +234,225 @@ def main():
         
     config["webui"] = {"enabled": enable_webui, "port": webui_port}
     
-    # 4.b Kiosk Dashboard
-    console.print("\n[bold yellow]4.b Stream Deck Kiosk Desktop[/bold yellow]")
-    console.print("[dim]The Kiosk Dashboard transforms a tablet or external monitor into a glassmorphic dashboard with widgets, HomeAssistant iframes, and an animated 3D Deskbot.[/dim]")
-    config["kiosk"] = {"enabled": questionary.confirm("Enable the Stream Deck Kiosk interface?", default=True).ask()}
-    
-    # 5. Agent Skills
-    console.print("\n[bold yellow]5. Skills & ClawHub[/bold yellow]")
-    install_defaults = questionary.confirm("Install default community agent skills (Shell Engine, Reminders, SysInfo)?", default=True).ask()
-    config["skills"] = {"install_defaults": install_defaults}
+    console.print("\n[bold yellow]Stream Deck Kiosk Desktop[/bold yellow]")
+    console.print("[dim]Glassmorphic dashboard with HomeAssistant iframes and an animated 3D Deskbot.[/dim]")
+    config["kiosk"] = {"enabled": questionary.confirm("Enable Kiosk Interface?", default=True).ask()}
 
-    # 6. AI Network Discovery
-    console.print("\n[bold yellow]6. AI Local Network Discovery[/bold yellow]")
-    if questionary.confirm("Would you like ViClaw to scan your local network for discoverable smart devices and servers (e.g., Home Assistant, Proxmox, 3D Printers)?", default=True).ask():
+def conf_skills(config):
+    console.print("\n[bold yellow]--- 5. Skills & Network Discovery ---[/bold yellow]")
+    if "skills" not in config: config["skills"] = {}
+    config["skills"]["install_defaults"] = questionary.confirm("Install default community agent skills (SysInfo, Reminders)?", default=True).ask()
+    
+    console.print("\n[bold yellow]AI Local Network Discovery[/bold yellow]")
+    if questionary.confirm("Scan local network for smart devices (e.g. Home Assistant, Proxmox)?", default=True).ask():
+        from core.scanner import quick_scan
         with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), transient=True) as progress:
-            progress.add_task(description="Scanning local subnet for common service signatures...", total=None)
+            progress.add_task(description="Scanning local subnet...", total=None)
             discovered_devices = quick_scan()
             
         if not discovered_devices:
-            console.print("[dim]No recognizable smart devices or servers found on this subnet.[/dim]")
+            console.print("[dim]No recognizable smart devices or servers found.[/dim]")
         else:
             console.print(f"[bold green]Discovered {len(discovered_devices)} active hosts![/bold green]")
-            
-            # Temporarily save the config so the LLMRouter can load it
-            os.makedirs("data", exist_ok=True)
-            with open(CONFIG_FILE, "w") as f:
-                json.dump(config, f)
+            if questionary.confirm("Integrate discovered devices?", default=True).ask():
+                config["skills"]["auto_integrations"] = discovered_devices
+                if "api_keys" not in config: config["api_keys"] = {}
+                if "ssh_hosts" not in config: config["ssh_hosts"] = {}
                 
-            try:
-                # Use the AI to generate a dynamic prompt
-                with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), transient=True) as progress:
-                    progress.add_task(description="Asking AI to analyze scan results...", total=None)
-                    import core.config
-                    core.config.APP_CONFIG.clear()
-                    core.config.APP_CONFIG.update(config)
-                    router = LLMRouter()
-                    
-                    sys_prompt = "You are an installation wizard assistant. You just finished scanning the user's local network."
-                    prompt = f"The scanner found these devices running on specific IPs: {json.dumps(discovered_devices)}. Write a short, friendly message identifying the most interesting devices (like Home Assistant or Proxmox or Printers). End by asking the user if they want you to automatically install the ClawHub skills required to integrate with them."
-                    
-                    response = router.generate(prompt, system_prompt=sys_prompt)
-                    ai_message = response.get("content", "").strip()
-                    
-                if ai_message:
-                    console.print(Panel(ai_message, title="[bold magenta]ViClaw Discovery Engine[/bold magenta]", border_style="magenta"))
-                    
-                    want_integration = questionary.confirm("Integrate discovered devices?", default=True).ask()
-                    if want_integration:
-                        config["skills"]["auto_integrations"] = discovered_devices
-                        console.print("[green]Awesome! I'll auto-configure the connection parameters for these endpoints on your first boot.[/green]")
-                        
-                        # Add SSH Setup & API Token Interception
-                        config["ssh_hosts"] = {}
-                        config["api_keys"] = {}
-                        
-                        console.print("\n[bold yellow]Authentication & Token Setup for Local Control[/bold yellow]")
-                        for ip, info in discovered_devices.items():
-                            svc_str = ", ".join(info["services"])
-                            hostname = info.get("hostname", ip)
-                            
-                            # API Key Interception for HomeLab Software
-                            if "Home Assistant" in info["services"]:
-                                if questionary.confirm(f"Do you want to provide a Home Assistant Long-Lived API Token for {ip} '{hostname}'?", default=False).ask():
-                                    token = questionary.password(f"HA Token for {ip}:").ask()
-                                    config["api_keys"]["home_assistant"] = {"ip": ip, "token": token}
-                                    console.print("[green]Saved Home Assistant API context![/green]")
-                            
-                            if "Proxmox VE" in info["services"]:
-                                if questionary.confirm(f"Do you want to provide a Proxmox API Token ID/Secret for {ip} '{hostname}'?", default=False).ask():
-                                    token_id = questionary.text(f"Token ID for {ip} (e.g. root@pam!viclaw):").ask()
-                                    secret = questionary.password(f"Secret UUID for {ip}:").ask()
-                                    config["api_keys"]["proxmox"] = {"ip": ip, "token_id": token_id, "secret": secret}
-                                    console.print("[green]Saved Proxmox VE API context![/green]")
-                                    
-                            if any(svc in svc_str for svc in ["Radarr", "Sonarr", "Prowlarr", "Jellyfin"]):
-                                console.print(f"[cyan]Detected media servers on {ip}! ViClaw can integrate via API.[/cyan]")
-                                if "Radarr" in svc_str:
-                                    config["api_keys"]["radarr"] = {"ip": ip, "token": questionary.password(f"Radarr API Key for {ip}:").ask()}
-                                if "Sonarr" in svc_str:
-                                    config["api_keys"]["sonarr"] = {"ip": ip, "token": questionary.password(f"Sonarr API Key for {ip}:").ask()}
-                                if "Prowlarr" in svc_str:
-                                    config["api_keys"]["prowlarr"] = {"ip": ip, "token": questionary.password(f"Prowlarr API Key for {ip}:").ask()}
-                                if "Jellyfin" in svc_str:
-                                    config["api_keys"]["jellyfin"] = {"ip": ip, "token": questionary.password(f"Jellyfin API Key for {ip}:").ask()}
-                            
-                            # Fallback to SSH for OS-level control
-                            if questionary.confirm(f"Do you want to setup fallback OS-level SSH access for {ip} '{hostname}' ({svc_str})?", default=False).ask():
-                                username = questionary.text(f"SSH Username for {ip}:", default="root").ask()
-                                password = questionary.password(f"SSH Password (stored locally in config.json):").ask()
-                                
-                                console.print(f"[yellow]Testing SSH connection to {ip}...[/yellow]")
-                                import paramiko
-                                try:
-                                    client = paramiko.SSHClient()
-                                    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                                    client.connect(hostname=ip, username=username, password=password, timeout=5)
-                                    client.close()
-                                    console.print("[bold green]✓ SSH connection successful![/bold green]")
-                                    config["ssh_hosts"][ip] = {"username": username, "password": password}
-                                except Exception as e:
-                                    console.print(f"[bold red]✗ SSH connection failed: {e}[/bold red]")
-                                    if questionary.confirm("Do you still want to save these SSH credentials?", default=False).ask():
-                                        config["ssh_hosts"][ip] = {"username": username, "password": password}
-            except Exception as e:
-                console.print(f"[red]Error during AI analysis: {e}[/red]")
-                
-    # 7. Over-The-Air (OTA) Updates
-    console.print("\n[bold yellow]7. Over-The-Air (OTA) Updates[/bold yellow]")
-    console.print("ViClaw can automatically fetch and install updates from GitHub without wiping your setup.")
-    config["updater"] = {}
-    
-    repo_url = questionary.text("What is the Git repository URL for this agent?", default="https://github.com/vignan07081999/ViClaw.git").ask()
-    config["updater"]["repo_url"] = repo_url
-    
-    auto_update = questionary.confirm("Do you want ViClaw to automatically download and install updates in the background?", default=False).ask()
+                for ip, info in discovered_devices.items():
+                    svc_str = ", ".join(info["services"])
+                    hostname = info.get("hostname", ip)
+                    if "Home Assistant" in info["services"] and questionary.confirm(f"Provide Home Assistant API Token for {ip} '{hostname}'?", default=False).ask():
+                        config["api_keys"]["home_assistant"] = {"ip": ip, "token": questionary.password("HA Token:").ask()}
+                    if "Proxmox VE" in info["services"] and questionary.confirm(f"Provide Proxmox API Token for {ip} '{hostname}'?", default=False).ask():
+                        config["api_keys"]["proxmox"] = {
+                            "ip": ip, 
+                            "token_id": questionary.text("Token ID (root@pam!viclaw):").ask(), 
+                            "secret": questionary.password("Secret UUID:").ask()
+                        }
+                    if questionary.confirm(f"Setup SSH access for {ip} ({svc_str})?", default=False).ask():
+                        config["ssh_hosts"][ip] = {
+                            "username": questionary.text(f"SSH Username for {ip}:", default="root").ask(),
+                            "password": questionary.password("SSH Password:").ask()
+                        }
+
+def conf_advanced(config):
+    console.print("\n[bold yellow]--- 6. Advanced AGI Modules ---[/bold yellow]")
+    if "updater" not in config: config["updater"] = {}
+    config["updater"]["repo_url"] = questionary.text("Git repository URL:", default=config.get("updater", {}).get("repo_url", "https://github.com/vignan07081999/ViClaw.git")).ask()
+    auto_update = questionary.confirm("Enable background OTA Auto-Updates?", default=config.get("updater", {}).get("auto_update", False)).ask()
     config["updater"]["auto_update"] = auto_update
-    
     if auto_update:
-        freq = questionary.select("How often should the background daemon check for updates?", choices=["Every hour", "Daily", "Weekly"]).ask()
-        config["updater"]["frequency"] = freq
-    else:
-        console.print("[dim]You will be notified in the WebUI and CLI when manual updates are available.[/dim]")
+        config["updater"]["frequency"] = questionary.select("Frequency:", choices=["Every hour", "Daily", "Weekly"]).ask()
 
-    # 8. Advanced AGI Modules (Resource Intensive)
-    console.print("\n[bold yellow]8. Advanced AGI Modules (Resource Intensive)[/bold yellow]")
-    console.print("[dim]ViClaw supports highly complex cognitive routines that require significant RAM/VRAM. The system has analyzed your hardware.[/dim]")
+    console.print("\n[bold yellow]Hardware-Intensive Feature Gates[/bold yellow]")
     
-    config["advanced_modules"] = {}
-    
-    # Calculate RAM again just in case
+    if "advanced_modules" not in config: config["advanced_modules"] = {}
     ram_gb = 8.0
-    try:
-        ram_gb = (os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')) / (1024.**3)
-    except:
-        pass
-
-    console.print(f"\n[cyan]Detected System RAM:[/cyan] [bold]{ram_gb:.1f} GB[/bold]")
+    try: ram_gb = (os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')) / (1024.**3)
+    except: pass
+    
+    console.print(f"[cyan]Detected System RAM:[/cyan] [bold]{ram_gb:.1f} GB[/bold]")
     
     # Vision Module
     if ram_gb < 7.0:
-        console.print("[bold yellow]Hardware Alert:[/bold yellow] Your system has <8GB RAM. Loading multimodal vision models (like llava) requires roughly 4GB-6GB just for image tensors and may cause OOM crashes.")
-        enable_vision = questionary.confirm("Enable Vision/Image Attachment capabilities anyway?", default=False).ask()
+        console.print("[bold yellow]Hardware Alert:[/bold yellow] Your system has <8GB RAM. Loading multimodal vision models causes heavy VRAM usage.")
+        config["advanced_modules"]["vision"] = questionary.confirm("Enable Vision capabilities anyway?", default=config.get("advanced_modules", {}).get("vision", False)).ask()
     else:
-        enable_vision = questionary.confirm("Enable Vision/Image Attachment capabilities? (Safe for your hardware)", default=True).ask()
-    config["advanced_modules"]["vision"] = enable_vision
-    
+        config["advanced_modules"]["vision"] = questionary.confirm("Enable Vision/Image Attachment capabilities?", default=True).ask()
+        
     # Swarm Orchestrator
     if ram_gb < 7.0:
-        console.print("[bold yellow]Hardware Alert:[/bold yellow] Spawning parallel Swarm Sub-Agents bloats the LLM context window massively. On <8GB arrays, this can lock up the system.")
-        enable_swarm = questionary.confirm("Enable Multi-Agent Swarm Orchestrator anyway?", default=False).ask()
+        console.print("[bold yellow]Hardware Alert:[/bold yellow] Spawning parallel Swarm Sub-Agents bloats the context window natively.")
+        config["advanced_modules"]["swarm"] = questionary.confirm("Enable Multi-Agent Swarm Orchestrator anyway?", default=config.get("advanced_modules", {}).get("swarm", False)).ask()
     else:
-        enable_swarm = questionary.confirm("Enable Multi-Agent Swarm Orchestrator? (Safe for your hardware)", default=True).ask()
-    config["advanced_modules"]["swarm"] = enable_swarm
-    
-    # Roadmap Features
-    console.print("\n[dim]--- Roadmap Pre-configurations ---[/dim]")
-    
-    if ram_gb < 15.0:
-        console.print("[bold yellow]Hardware Alert:[/bold yellow] Your system has <16GB RAM. Future features like Local Edge Audio (Whisper) or Custom Emotive TTS (Kokoro/Coqui) require massive CPU multithreading and tensor manipulation.")
-        enable_audio = questionary.confirm("Pre-configure for Local Edge Audio transcription/generation anyway?", default=False).ask()
-    else:
-        enable_audio = questionary.confirm("Pre-configure for Local Edge Audio transcription/generation? (Roadmap Feature)", default=True).ask()
-    config["advanced_modules"]["local_edge_audio"] = enable_audio
+        config["advanced_modules"]["swarm"] = questionary.confirm("Enable Multi-Agent Swarm Orchestrator?", default=True).ask()
         
-    if ram_gb < 7.0:
-        console.print("[bold yellow]Hardware Alert:[/bold yellow] Playwright Computer-Use agents spawn headless Chromium tabs, drawing 500MB-1GB of RAM per tab.")
-        enable_playwright = questionary.confirm("Pre-configure Playwright Browser Automation agents anyway?", default=False).ask()
+    console.print("\n[dim]--- Roadmap Pre-configurations ---[/dim]")
+    if ram_gb < 15.0:
+        console.print("[bold yellow]Hardware Alert:[/bold yellow] <16GB RAM. Local Edge Audio (Whisper/Speech) requires massive multithreading.")
+        config["advanced_modules"]["local_edge_audio"] = questionary.confirm("Pre-configure for Local Edge Audio anyway?", default=False).ask()
     else:
-        enable_playwright = questionary.confirm("Pre-configure Playwright Browser Automation agents? (Roadmap Feature)", default=True).ask()
-    config["advanced_modules"]["playwright_agents"] = enable_playwright
+        config["advanced_modules"]["local_edge_audio"] = questionary.confirm("Pre-configure for Local Edge Audio?", default=True).ask()
 
-    console.print("\n[bold cyan]Detailed Setup Summary[/bold cyan]")
-    
+    if ram_gb < 7.0:
+        console.print("[bold yellow]Hardware Alert:[/bold yellow] Playwright headless tabs draw 500MB-1GB of RAM each.")
+        config["advanced_modules"]["playwright_agents"] = questionary.confirm("Pre-configure Playwright Computer-Use agents anyway?", default=False).ask()
+    else:
+         config["advanced_modules"]["playwright_agents"] = questionary.confirm("Pre-configure Playwright Computer-Use agents?", default=True).ask()
+
+def print_summary(config):
     summary_text = f"⚙️  [bold yellow]Agent Identity:[/bold yellow]\n"
-    summary_text += f" - Name: {config.get('identity', {}).get('name')}\n"
-    summary_text += f" - Personality: {config.get('identity', {}).get('personality')}\n\n"
+    summary_text += f" - Name: {config.get('identity', {}).get('name', 'Unset')}\n"
+    summary_text += f" - Personality: {config.get('identity', {}).get('personality', 'Unset')}\n\n"
     
     summary_text += f"🧠 [bold yellow]AI Resource Allocation:[/bold yellow]\n"
-    for m in config.get("models", []):
-        summary_text += f" - Provider: [{m.get('provider').upper()}] | Model: {m.get('model')} | Role: {m.get('role')}\n"
+    if "models" in config and config["models"]:
+        for m in config.get("models", []):
+            summary_text += f" - Provider: [{m.get('provider').upper()}] | Model: {m.get('model')} | Role: {m.get('role')}\n"
+    else:
+        summary_text += f" - [red]No models configured![/red]\n"
         
     summary_text += f"\n📡 [bold yellow]Platform I/O:[/bold yellow]\n"
     summary_text += f" - CLI Terminal: {'Running' if config.get('platforms', {}).get('cli', {}).get('enabled', False) else 'Disabled'}\n"
     summary_text += f" - Telegram: {'Online' if config.get('platforms', {}).get('telegram', {}).get('enabled', False) else 'Disabled'}\n"
-    summary_text += f" - Discord: {'Online' if config.get('platforms', {}).get('discord', {}).get('enabled', False) else 'Disabled'}\n"
     
     summary_text += f"\n🌐 [bold yellow]WebUI & Desktop Kiosk:[/bold yellow]\n"
-    summary_text += f" - Port: {config.get('webui', {}).get('port', 8501)} ({'Enabled' if config.get('webui', {}).get('enabled', False) else 'Disabled'})\n"
-    summary_text += f" - 3D Stream Deck Kiosk: {'Enabled' if config.get('kiosk', {}).get('enabled', False) else 'Disabled'}\n"
+    summary_text += f" - Port: {config.get('webui', {}).get('port', 'Unset')} ({'Enabled' if config.get('webui', {}).get('enabled', False) else 'Disabled'})\n"
     
-    summary_text += f"\n⚙️  [bold yellow]Advanced AGI System Toggles:[/bold yellow]\n"
-    summary_text += f" - Multimodal Hardware Vision API: {'Enabled' if config.get('advanced_modules', {}).get('vision', False) else 'Opt-Out'}\n"
-    summary_text += f" - Multi-Agent Swarm Logic: {'Enabled' if config.get('advanced_modules', {}).get('swarm', False) else 'Opt-Out'}\n"
-    summary_text += f" - Auto-Updater (OTA): {'Enabled (' + config.get('updater', {}).get('frequency', '') + ')' if config.get('updater', {}).get('auto_update', False) else 'Manual Mode'}\n"
+    summary_text += f"\n⚙️  [bold yellow]Advanced Toggles:[/bold yellow]\n"
+    summary_text += f" - Vision API: {'Enabled' if config.get('advanced_modules', {}).get('vision', False) else 'Opt-Out'}\n"
+    summary_text += f" - Multi-Agent Swarm: {'Enabled' if config.get('advanced_modules', {}).get('swarm', False) else 'Opt-Out'}\n"
     
-    console.print(Panel(summary_text, title="[bold cyan]Final Agent Blueprint Output[/bold cyan]", border_style="cyan"))
-    
-    if questionary.confirm("Save and proceed?", default=True).ask():
-        os.makedirs("data", exist_ok=True)
-        with open(CONFIG_FILE, "w") as f:
-            json.dump(config, f, indent=2)
-        console.print(f"[bold green]✓ Configuration saved to {CONFIG_FILE}.[/bold green]")
-        
-        if os.path.exists("install.sh"):
-            os.chmod("install.sh", 0o755)
-            
-        console.print(Panel.fit("[bold green]Setup complete![/bold green]\nStarting background daemon to process this configuration...", border_style="green"))
-        
-        try:
-            subprocess.Popen([sys.executable, "launcher.py", "restart"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            time.sleep(3)
-        except Exception as e:
-            console.print(f"[red]Failed to auto-start daemon: {e}[/red]")
-            
-        if config.get("webui", {}).get("enabled"):
-            with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), transient=True) as progress:
-                progress.add_task(description="Waiting for WebUI daemon to initialize (this checks locally at 127.0.0.1)...", total=None)
-                ready = False
-                for _ in range(30):
-                    try:
-                        res = requests.get(f"http://127.0.0.1:{config['webui']['port']}/", timeout=1)
-                        if res.status_code == 200:
-                            ready = True
-                            break
-                    except Exception:
-                        pass
-                    time.sleep(1)
-                
-            if ready:
-                console.print("[bold green]✓ WebUI Dashboard is online and ready![/bold green]")
-            else:
-                console.print("[yellow]WebUI took too long to respond. It may still be starting up in the background. Note: To browse from another computer, go to the IP address listed below.[/yellow]")
-        
-        # CHEAT SHEET
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            s.connect(("8.8.8.8", 80))
-            local_ip = s.getsockname()[0]
-            s.close()
-        except:
-            local_ip = "127.0.0.1"
+    console.print(Panel(summary_text, title="[bold cyan]Current Blueprint[/bold cyan]", border_style="cyan"))
 
-        cheat_sheet = f"""
+def run_installation_core(config):
+    save_config(config)
+    console.print(f"[bold green]✓ Configuration saved recursively![/bold green]")
+    
+    if os.path.exists("install.sh"):
+        os.chmod("install.sh", 0o755)
+        
+    console.print(Panel.fit("[bold green]Setup finalized![/bold green]\nStarting background daemon to digest the structural mapping...", border_style="green"))
+    
+    try:
+        subprocess.Popen([sys.executable, "launcher.py", "restart"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        time.sleep(3)
+    except Exception as e:
+        console.print(f"[red]Failed to auto-start daemon: {e}[/red]")
+        
+    if config.get("webui", {}).get("enabled"):
+        with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), transient=True) as progress:
+            progress.add_task(description="Waiting for WebUI daemon mapping on 0.0.0.0...", total=None)
+            ready = False
+            for _ in range(30):
+                try:
+                    res = requests.get(f"http://127.0.0.1:{config['webui']['port']}/", timeout=1)
+                    if res.status_code == 200:
+                        ready = True
+                        break
+                except Exception:
+                    pass
+                time.sleep(1)
+            
+        if ready:
+            console.print("[bold green]✓ WebUI Dashboard is online and binding to IP arrays![/bold green]")
+        else:
+            console.print("[yellow]WebUI took too long to respond. The system daemon may be compiling models.[/yellow]")
+    
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+    except:
+        local_ip = "127.0.0.1"
+
+    cheat_sheet = f"""
 [bold cyan]Useful Commands:[/bold cyan]
-- [bold]./viclaw[/bold]             : Open the Super Master Menu (Chat, Diagnostics, Doctor)
-- [bold]./viclaw chat[/bold]        : Drop right into the CLI conversation
-- [bold]./viclaw diagnostics[/bold] : Run health checks
-- [bold]./viclaw doctor[/bold]      : Analyze daemon logs and fix crashes automatically
+- [bold]viclaw[/bold]             : Open the Super Master Menu (Interactive Hub)
+- [bold]viclaw chat[/bold]        : Drop right into the CLI conversation
+- [bold]viclaw diagnostics[/bold] : Run health checks & system debuggers
+- [bold]viclaw restart[/bold]     : Reboots the underlying systemd background service
 
 [bold cyan]WebUI & 3D Dashboard:[/bold cyan]
-Access your agent remotely from any browser on your network at:
-[bold yellow]http://{local_ip}:{config['webui']['port']}/dashboard[/bold yellow]
+Access your agent remotely from any browser natively attached to this Subnet:
+[bold yellow]http://{local_ip}:{config.get('webui', {}).get('port', 8501)}/dashboard[/bold yellow]
 """
-        console.print(Panel(cheat_sheet, title="ViClaw Cheat Sheet", border_style="cyan"))
+    console.print(Panel(cheat_sheet, title="ViClaw System Array Activated", border_style="cyan"))
 
-    else:
-        console.print("[red]Setup aborted.[/red]")
+def main():
+    console.clear()
+    console.print(Panel.fit("[bold cyan]ViClaw Autonomous Engine Setup[/bold cyan]\n[dim]Interactive Configuration UI[/dim]", border_style="cyan"))
+    config = load_config()
+    
+    # If starting fresh, force them to set up at least identity & models
+    if "identity" not in config:
+        conf_identity(config)
+    if "models" not in config:
+        conf_models(config)
+        conf_platforms(config)
+        conf_webui(config)
+        
+    while True:
+        console.clear()
+        print_summary(config)
+        
+        choice = questionary.select(
+            "ViClaw Configuration Hub - Select a module to configure:",
+            choices=[
+                "1. Agent Identity",
+                "2. AI Models & Providers",
+                "3. Messaging Integrations (CLI/Telegram)",
+                "4. WebUI & Port Mapping",
+                "5. Skill Injection & Subnet Discovery",
+                "6. Advanced (Hardware Limiters & OTA Swarms)",
+                "---",
+                "Review & Finalize Deployment",
+                "Exit without saving"
+            ]
+        ).ask()
+        
+        if not choice:
+            break
+        elif "Agent Identity" in choice:
+            conf_identity(config)
+        elif "AI Models" in choice:
+            conf_models(config)
+        elif "Messaging Integrations" in choice:
+            conf_platforms(config)
+        elif "WebUI" in choice:
+            conf_webui(config)
+        elif "Skill Injection" in choice:
+            conf_skills(config)
+        elif "Advanced" in choice:
+            conf_advanced(config)
+        elif "Review & Finalize" in choice:
+            run_installation_core(config)
+            break
+        elif "Exit" in choice:
+            console.print("[dim]Aborted.[/dim]")
+            sys.exit(0)
 
 if __name__ == "__main__":
     main()
