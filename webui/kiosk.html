@@ -246,14 +246,15 @@
         }
 
         #bot-canvas {
-            width: 100%;
-            height: 100%;
+            width: 100% !important;
+            height: 100% !important;
+            display: block;
             transition: opacity 1s ease;
             opacity: 0;
         }
 
-        #bot-canvas.ready {
-            opacity: 1;
+        .bot-canvas-ready {
+            opacity: 1 !important;
         }
 
         .bot-loader {
@@ -444,13 +445,32 @@
             const container = document.getElementById(containerId);
             if (!container) return;
 
+            // Ensure the container has real dimensions before creating the renderer.
+            // If clientHeight is 0 try to inherit from the closest widget-body ancestor.
+            let w = container.clientWidth || 300;
+            let h = container.clientHeight;
+            if (h === 0) {
+                const body = container.closest('.widget-body');
+                h = body ? body.clientHeight : 300;
+                container.style.height = h + 'px';
+            }
+            if (w === 0) w = 300;
+
             const scene = new THREE.Scene();
-            const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
+            const camera = new THREE.PerspectiveCamera(50, w / h, 0.1, 1000);
+            let renderer;
             try {
-                const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-                renderer.setSize(container.clientWidth, container.clientHeight);
-                renderer.domElement.id = 'bot-canvas';
-                container.appendChild(renderer.domElement);
+                renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                renderer.setSize(w, h);
+                renderer.setPixelRatio(window.devicePixelRatio);
+                const canvasEl = renderer.domElement;
+                canvasEl.id = `bot-canvas-${widgetId}`;
+                canvasEl.style.width = '100%';
+                canvasEl.style.height = '100%';
+                canvasEl.style.opacity = '0';
+                canvasEl.style.transition = 'opacity 1s ease';
+                canvasEl.style.display = 'block';
+                container.appendChild(canvasEl);
 
                 // Track renderer for forced updates
                 bot.renderer = renderer;
@@ -458,14 +478,14 @@
                 bot.widgetId = widgetId;
             } catch (e) {
                 console.error("3D Mascot WebGL Failure:", e);
-                container.innerHTML = `<div style="color:var(--accent-magenta); font-size:0.7rem; text-align:center; padding:20px;">3D Render Error: Ensure WebGL is enabled in your browser.</div>`;
+                container.innerHTML = `<div style="color:var(--accent-magenta); font-size:0.7rem; text-align:center; padding:20px;">3D Render Error: Ensure WebGL is enabled in your browser.<br/><small>${e.message}</small></div>`;
                 return;
             }
 
-            // Removing loader and showing canvas
+            // Hide loader and fade in canvas
             const loader = document.getElementById(`loader-${widgetId}`);
             if (loader) loader.style.display = 'none';
-            setTimeout(() => renderer.domElement.classList.add('ready'), 50);
+            setTimeout(() => renderer.domElement.style.opacity = '1', 100);
 
             // Lighting
             const hLight = new THREE.HemisphereLight(0xffffff, 0x080820, 1);
@@ -521,6 +541,16 @@
 
             scene.add(bodyGroup);
             camera.position.z = 4;
+
+            // Resize handler
+            const resizeRenderer = () => {
+                const rw = container.clientWidth || 300;
+                const rh = container.clientHeight || parseInt(container.style.height) || 300;
+                renderer.setSize(rw, rh);
+                camera.aspect = rw / rh;
+                camera.updateProjectionMatrix();
+            };
+            window.addEventListener('resize', resizeRenderer);
 
             // Animation Loop using GSAP for buttery smooth feel
             gsap.to(bodyGroup.position, { y: 0.1, duration: 2, repeat: -1, yoyo: true, ease: "sine.inOut" });
@@ -582,18 +612,21 @@
                         </div>
                     </div>`;
 
-                // Use a ResizeObserver to wait for the element to have dimensions
+                // Use a ResizeObserver to wait for the element to have BOTH width and height
                 const observer = new ResizeObserver(() => {
                     const canvasDiv = document.getElementById(`canvas-${id}`);
-                    if (canvasDiv && canvasDiv.clientWidth > 0 && canvasDiv.clientHeight > 0) {
-                        initPillBot(`canvas-${id}`, id);
-                        observer.disconnect();
+                    if (canvasDiv && canvasDiv.clientWidth > 0) {
+                        // Give the grid one more frame to settle height
+                        requestAnimationFrame(() => {
+                            initPillBot(`canvas-${id}`, id);
+                            observer.disconnect();
+                        });
                     }
                 });
                 setTimeout(() => {
                     const canvasDiv = document.getElementById(`canvas-${id}`);
-                    if (canvasDiv) observer.observe(canvasDiv);
-                }, 100);
+                    if (canvasDiv) observer.observe(canvasDiv.closest('.widget-body') || canvasDiv);
+                }, 200);
             } else if (type === 'iframe') {
                 const proxyUrl = config.url ? `/api/proxy?url=${encodeURIComponent(config.url)}` : 'about:blank';
                 // Try direct first, fallback to proxy is handled by UI settings
