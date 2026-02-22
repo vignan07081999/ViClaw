@@ -655,35 +655,71 @@
 
         <!-- 4. SKILLS MARKETPLACE -->
         <div id="view-skills" class="view-section">
-            <div class="page-title">ClawHub Skills Marketplace</div>
-            <p style="margin-bottom:2rem; opacity:0.8;">Browse, discover, and install new AI capabilities directly into
-                ViClaw's memory. Hot-swapping ensures skills are active immediately without a restart.</p>
+            <div class="page-title">ClawHub Marketplace</div>
+            <p style="margin-bottom:1.5rem; opacity:0.8;">Browse and install skills from <a href="https://clawhub.ai"
+                    target="_blank" style="color:var(--accent);">clawhub.ai</a> — hot-loaded directly into ViClaw
+                without a restart.</p>
 
-            <div class="marketplace-search">
-                <input type="text" id="marketplace-search-input"
-                    placeholder="Search ClawHub for skills (e.g. 'HomeLab', 'Search', 'SSH')..."
-                    oninput="filterMarketplace()">
+            <!-- Tabs -->
+            <div style="display:flex; gap:10px; margin-bottom:1.5rem;">
+                <button class="btn active" id="tab-browse" onclick="switchMarketplaceTab('browse')"
+                    style="padding:8px 20px;">🔍 Browse</button>
+                <button class="btn" id="tab-installed" onclick="switchMarketplaceTab('installed')"
+                    style="padding:8px 20px;">✅ Installed</button>
+                <button class="btn" id="tab-inject" onclick="switchMarketplaceTab('inject')"
+                    style="padding:8px 20px;">💉 Direct URL</button>
             </div>
 
-            <div id="marketplace-loading" style="text-align:center; padding: 2rem; display:none;">
-                <div class="stat-value">Fetching ClawHub...</div>
+            <!-- BROWSE TAB -->
+            <div id="marketplace-tab-browse">
+                <div class="marketplace-search" style="display:flex; gap:10px; margin-bottom:1.5rem;">
+                    <input type="text" id="marketplace-search-input"
+                        placeholder="Search clawhub.ai... (e.g. 'web search', 'SSH', 'HomeLab')"
+                        style="flex:1; margin:0;" onkeydown="if(event.key==='Enter') liveSearch()"
+                        oninput="if(this.value==='') browseClawHub()">
+                    <button class="btn active" onclick="liveSearch()" style="padding:10px 20px;">Search</button>
+                    <button class="btn" onclick="browseClawHub()" style="padding:10px 20px;"
+                        title="Reload browse list">↺ Latest</button>
+                </div>
+
+                <div id="marketplace-loading" style="text-align:center; padding: 2rem; display:none;">
+                    <div class="stat-value" style="animation: pulse 1.5s infinite;">Connecting to clawhub.ai...</div>
+                </div>
+                <div id="marketplace-source"
+                    style="font-size:0.75rem; opacity:0.5; margin-bottom:1rem; text-align:right;"></div>
+
+                <div class="marketplace-grid" id="marketplace-grid">
+                    <!-- Skills injected here -->
+                </div>
+
+                <div id="marketplace-pagination" style="text-align:center; margin-top:1.5rem; display:none;">
+                    <button class="btn" id="load-more-btn" onclick="loadMoreSkills()" style="padding:10px 30px;">Load
+                        More Skills</button>
+                </div>
             </div>
 
-            <div class="marketplace-grid" id="marketplace-grid">
-                <!-- Skills injected here -->
+            <!-- INSTALLED TAB -->
+            <div id="marketplace-tab-installed" style="display:none;">
+                <div id="installed-list"
+                    style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:1rem;">
+                    <div style="opacity:0.6;">Loading installed skills...</div>
+                </div>
             </div>
 
-            <div class="glass-card" style="margin-top:2.5rem;">
-                <h3>Inject via Direct URL</h3>
-                <p style="font-size:0.9rem; opacity:0.7; margin-bottom:1rem;">Have a community skill URL? Paste the raw
-                    Python file link below.</p>
-                <form id="clawhub-form" onsubmit="installSkill(event)">
-                    <div class="form-group">
-                        <input type="text" id="skill-url" placeholder="Paste raw GitHub python URL..." required>
-                        <button type="submit" class="btn" id="install-btn">Direct Add</button>
-                    </div>
-                    <div id="install-msg" style="font-weight:bold; font-size:0.9rem;"></div>
-                </form>
+            <!-- DIRECT URL TAB -->
+            <div id="marketplace-tab-inject" style="display:none;">
+                <div class="glass-card">
+                    <h3>Inject via Direct URL</h3>
+                    <p style="font-size:0.9rem; opacity:0.7; margin-bottom:1rem;">Paste a raw GitHub Python file URL to
+                        install a custom skill.</p>
+                    <form id="clawhub-form" onsubmit="installSkill(event)">
+                        <div class="form-group">
+                            <input type="text" id="skill-url" placeholder="Paste raw GitHub Python URL..." required>
+                            <button type="submit" class="btn" id="install-btn">Direct Add</button>
+                        </div>
+                        <div id="install-msg" style="font-weight:bold; font-size:0.9rem;"></div>
+                    </form>
+                </div>
             </div>
 
             <div class="glass-card" style="margin-top:2rem;">
@@ -722,6 +758,17 @@
             } else if (viewId === 'memory') {
                 loadHistory();
             }
+        }
+
+        // ─── MARKETPLACE TAB SWITCHER ───────────────────────────────────────────
+        function switchMarketplaceTab(tab) {
+            ['browse', 'installed', 'inject'].forEach(t => {
+                document.getElementById(`marketplace-tab-${t}`).style.display = 'none';
+                document.getElementById(`tab-${t}`).classList.remove('active');
+            });
+            document.getElementById(`marketplace-tab-${tab}`).style.display = 'block';
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            if (tab === 'installed') loadInstalledSkills();
         }
 
         // ---------------- API Calls ----------------
@@ -764,84 +811,211 @@
                 });
         }
 
-        let fullMarketplace = [];
-        function browseClawHub() {
+        // ─── CLAWHUB MARKETPLACE ────────────────────────────────────────────────
+
+        let nextCursor = null;
+        let currentSearchMode = false;
+
+        function browseClawHub(cursor = null) {
             const grid = document.getElementById('marketplace-grid');
             const loader = document.getElementById('marketplace-loading');
-            grid.innerHTML = '';
-            loader.style.display = 'block';
+            const source = document.getElementById('marketplace-source');
+            const pagination = document.getElementById('marketplace-pagination');
 
-            fetch('/api/clawhub/browse')
+            if (!cursor) grid.innerHTML = '';
+            loader.style.display = 'block';
+            currentSearchMode = false;
+            document.getElementById('marketplace-search-input').value = '';
+
+            let url = '/api/clawhub/browse?limit=20';
+            if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
+
+            fetch(url)
                 .then(res => res.json())
                 .then(data => {
                     loader.style.display = 'none';
-                    fullMarketplace = data.skills || [];
-                    renderMarketplace(fullMarketplace);
+                    const items = data.items || [];
+                    nextCursor = data.nextCursor || null;
+                    source.innerText = data.source === 'clawhub.ai' ? '🌐 Live from clawhub.ai' : '📦 Local cache';
+
+                    if (items.length === 0 && !cursor) {
+                        grid.innerHTML = `<div style="color:#ef4444; grid-column:1/-1; text-align:center;">Failed to connect to clawhub.ai. Check internet connection.</div>`;
+                        pagination.style.display = 'none';
+                        return;
+                    }
+
+                    renderMarketplace(items, cursor !== null);
+                    pagination.style.display = nextCursor ? 'block' : 'none';
                 })
                 .catch(err => {
                     loader.style.display = 'none';
-                    grid.innerHTML = `<div style="color:#ef4444; grid-column:1/-1; text-align:center;">Failed to connect to ClawHub. Check internet connection.</div>`;
+                    grid.innerHTML = `<div style="color:#ef4444; grid-column:1/-1; text-align:center;">Failed to connect to clawhub.ai. Check internet connection.</div>`;
                 });
         }
 
-        function renderMarketplace(skills) {
+        function loadMoreSkills() {
+            if (nextCursor) browseClawHub(nextCursor);
+        }
+
+        function liveSearch() {
+            const q = document.getElementById('marketplace-search-input').value.trim();
+            if (!q) { browseClawHub(); return; }
+
             const grid = document.getElementById('marketplace-grid');
+            const loader = document.getElementById('marketplace-loading');
+            const source = document.getElementById('marketplace-source');
+            const pagination = document.getElementById('marketplace-pagination');
+
             grid.innerHTML = '';
+            loader.style.display = 'block';
+            currentSearchMode = true;
+
+            fetch(`/api/clawhub/search?q=${encodeURIComponent(q)}`)
+                .then(res => res.json())
+                .then(data => {
+                    loader.style.display = 'none';
+                    const results = data.results || [];
+                    source.innerText = `🔍 Vector search: "${q}" — ${results.length} result(s)`;
+                    pagination.style.display = 'none';
+                    nextCursor = null;
+
+                    if (results.length === 0) {
+                        grid.innerHTML = `<div style="opacity:0.6; grid-column:1/-1; text-align:center; padding:2rem;">No skills found for "${q}". Try different keywords.</div>`;
+                        return;
+                    }
+                    // Map search results to the same format as browse items
+                    const mapped = results.map(r => ({
+                        slug: r.slug,
+                        displayName: r.displayName,
+                        summary: r.summary,
+                        latestVersion: { version: r.version },
+                        stats: { downloads: '—', stars: '—' }
+                    }));
+                    renderMarketplace(mapped, false);
+                })
+                .catch(err => {
+                    loader.style.display = 'none';
+                    grid.innerHTML = `<div style="color:#ef4444; grid-column:1/-1;">Search failed. Check connection.</div>`;
+                });
+        }
+
+        function renderMarketplace(skills, append = false) {
+            const grid = document.getElementById('marketplace-grid');
+            if (!append) grid.innerHTML = '';
+
+            if (skills.length === 0) {
+                grid.innerHTML += `<div style="opacity:0.6; grid-column:1/-1; text-align:center;">No skills to show.</div>`;
+                return;
+            }
 
             skills.forEach(skill => {
-                const tagsRaw = skill.tags || [];
-                const tagsHtml = tagsRaw.map(t => `<span class="skill-tag">${t}</span>`).join('');
+                const slug = skill.slug || '';
+                const name = skill.displayName || slug;
+                const summary = (skill.summary || 'No description.').substring(0, 160) + (skill.summary && skill.summary.length > 160 ? '...' : '');
+                const version = skill.latestVersion?.version || skill.version || '—';
+                const downloads = skill.stats?.downloads ?? '—';
+                const stars = skill.stats?.stars ?? '—';
+                const safeId = slug.replace(/[^a-zA-Z0-9_-]/g, '_');
 
                 grid.innerHTML += `
-                    <div class="skill-card">
+                    <div class="skill-card" id="card-${safeId}">
                         <div class="skill-header">
-                            <span class="skill-name">${skill.name}</span>
-                            <span class="skill-version">v${skill.version}</span>
+                            <span class="skill-name">${name}</span>
+                            <span class="skill-version">v${version}</span>
                         </div>
-                        <div class="skill-desc">${skill.description}</div>
-                        <div class="skill-tags">${tagsHtml}</div>
-                        <button class="btn" style="margin-top:10px; width:100%; justify-content:center;" id="btn-ins-${skill.id}" onclick="installMarketplaceSkill('${skill.id}')">
+                        <div class="skill-desc">${summary}</div>
+                        <div style="display:flex; gap:12px; font-size:0.75rem; opacity:0.55; margin: 8px 0;">
+                            <span>⬇️ ${downloads}</span>
+                            <span>⭐ ${stars}</span>
+                            <a href="https://clawhub.ai/${slug}" target="_blank" style="color:var(--accent); margin-left:auto;">View on ClawHub ↗</a>
+                        </div>
+                        <button class="btn" style="margin-top:8px; width:100%; justify-content:center;" id="btn-ins-${safeId}" onclick="installMarketplaceSkill('${slug}', '${safeId}')">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                            Install Skill
+                            Install
                         </button>
                     </div>
                 `;
             });
         }
 
-        function filterMarketplace() {
-            const term = document.getElementById('marketplace-search-input').value.toLowerCase();
-            const filtered = fullMarketplace.filter(s =>
-                s.name.toLowerCase().includes(term) ||
-                s.description.toLowerCase().includes(term) ||
-                (s.tags && s.tags.some(t => t.toLowerCase().includes(term)))
-            );
-            renderMarketplace(filtered);
-        }
-
-        function installMarketplaceSkill(id) {
-            const btn = document.getElementById(`btn-ins-${id}`);
-            const oldHtml = btn.innerHTML;
+        function installMarketplaceSkill(slug, safeId) {
+            const btn = document.getElementById(`btn-ins-${safeId}`);
+            if (!btn) return;
             btn.disabled = true;
-            btn.innerText = "Installing...";
+            btn.innerText = '⏳ Installing...';
 
             fetch('/api/clawhub/install', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ skill_id: id })
+                body: JSON.stringify({ slug })
             })
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {
-                        btn.style.background = "#22c55e";
-                        btn.innerText = "✓ Installed";
+                        btn.style.background = '#22c55e';
+                        btn.style.border = 'none';
+                        btn.innerText = '✓ Installed';
                         loadSkills();
                     } else {
                         btn.disabled = false;
-                        btn.innerHTML = oldHtml;
-                        alert("Error: " + data.message);
+                        btn.innerText = '❌ Failed — Retry';
+                        btn.style.border = '1px solid #ef4444';
+                        btn.title = data.message;
+                        console.error('Install error:', data.message);
                     }
+                })
+                .catch(() => {
+                    btn.disabled = false;
+                    btn.innerText = '❌ Failed — Retry';
                 });
+        }
+
+        function loadInstalledSkills() {
+            const list = document.getElementById('installed-list');
+            list.innerHTML = '<div style="opacity:0.6;">Loading...</div>';
+            fetch('/api/clawhub/installed')
+                .then(res => res.json())
+                .then(data => {
+                    const items = data.installed || [];
+                    if (items.length === 0) {
+                        list.innerHTML = '<div style="opacity:0.6;">No ClawHub skills installed yet. Browse the marketplace to install some!</div>';
+                        return;
+                    }
+                    list.innerHTML = '';
+                    items.forEach(skill => {
+                        list.innerHTML += `
+                            <div class="skill-card">
+                                <div class="skill-header">
+                                    <span class="skill-name">${skill.slug}</span>
+                                    <span class="skill-version">clawhub.ai</span>
+                                </div>
+                                <div class="skill-desc" style="opacity:0.6; font-size:0.8rem;">${(skill.installed_files || []).length} file(s) installed</div>
+                                <div style="display:flex; gap:10px; margin-top:10px;">
+                                    <a href="https://clawhub.ai/${skill.slug}" target="_blank" class="btn" style="flex:1; justify-content:center; font-size:0.85rem; padding:8px;">View ↗</a>
+                                    <button class="btn" onclick="uninstallSkill('${skill.slug}', this)" style="flex:1; justify-content:center; font-size:0.85rem; padding:8px; border-color:#ef4444; color:#ef4444;">Uninstall</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                });
+        }
+
+        function uninstallSkill(slug, btn) {
+            if (!confirm(`Uninstall "${slug}"? This will remove the skill files.`)) return;
+            btn.disabled = true; btn.innerText = 'Removing...';
+            fetch('/api/clawhub/uninstall', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ slug })
+            }).then(res => res.json()).then(data => {
+                if (data.success) {
+                    loadInstalledSkills();
+                    loadSkills();
+                } else {
+                    alert('Error: ' + data.message);
+                    btn.disabled = false; btn.innerText = 'Uninstall';
+                }
+            });
         }
 
         function installSkill(event) {
@@ -857,10 +1031,10 @@
             })
                 .then(res => res.json())
                 .then(data => {
-                    btn.innerText = "Inject to Memory";
+                    btn.innerText = "Direct Add";
                     document.getElementById('skill-url').value = '';
                     if (data.success) {
-                        msgDiv.innerHTML = "<span style='color:#4cd137;'>Skill hot-swapped successfully! Reloading...</span>";
+                        msgDiv.innerHTML = "<span style='color:#4cd137;'>Skill hot-swapped! Active now.</span>";
                         loadSkills();
                     } else {
                         msgDiv.innerHTML = `<span style='color:#e84118;'>${data.message}</span>`;

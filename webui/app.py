@@ -25,7 +25,11 @@ class KioskLayout(BaseModel):
     layout: List[dict]
 
 class ClawHubInstallRequest(BaseModel):
-    skill_id: str
+    slug: str  # ClawHub skill slug (e.g. "web-search")
+    skill_id: str = ""  # Legacy compat alias
+
+class ClawHubUninstallRequest(BaseModel):
+    slug: str
 
 class ChatMessage(BaseModel):
     message: str
@@ -255,50 +259,77 @@ def save_kiosk_layout(payload: KioskLayout):
         json.dump(payload.dict(), f, indent=4)
     return {"success": True}
 
+@app.get("/api/clawhub/search")
+def clawhub_search(q: str = ""):
+    """Vector search the live ClawHub marketplace at clawhub.ai."""
+    from skills.clawhub_client import ClawHubClient
+    client = ClawHubClient()
+    if not q:
+        return {"results": []}
+    results = client.search(q)
+    return {"results": results}
+
 @app.get("/api/clawhub/browse")
-def browse_clawhub(q: str = ""):
-    """Fetch available skills from the ClawHub index with fuzzy search."""
-    index_url = "https://raw.githubusercontent.com/vignan07081999/ClawHub/main/index.json"
-    skills_list = []
-    try:
-        res = requests.get(index_url, timeout=5)
-        if res.status_code == 200:
-            skills_list = res.json().get("skills", [])
-    except Exception:
-        pass
+def browse_clawhub(cursor: str = "", limit: int = 20):
+    """
+    Browse the live ClawHub skill registry.
+    Supports cursor-based pagination from the API.
+    Falls back to local bundled index if the network is unavailable.
+    """
+    from skills.clawhub_client import ClawHubClient
+    client = ClawHubClient()
+    data = client.list_skills(cursor=cursor or None, limit=limit)
     
-    # Always fall back to local bundled index if remote fails or is empty
-    if not skills_list:
+    # Fall back to local bundled index if network fails
+    if not data.get("items"):
         fallback_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "skills", "clawhub_index.json")
         if os.path.exists(fallback_path):
             with open(fallback_path, "r") as f:
-                skills_list = json.load(f).get("skills", [])
+                local_skills = json.load(f).get("skills", [])
+            return {"items": local_skills, "nextCursor": None, "source": "local"}
     
-    if q:
-        q = q.lower()
-        skills_list = [s for s in skills_list if q in s["name"].lower() or q in s["description"].lower() or (s.get("tags") and any(q in t.lower() for t in s["tags"]))]
-    
-    return {"skills": skills_list}
+    return {**data, "source": "clawhub.ai"}
 
 @app.post("/api/clawhub/install")
 def clawhub_install(payload: ClawHubInstallRequest):
-    if not agent_instance:
-        return {"success": False, "message": "Agent offline."}
+    """
+    Download and install a skill from the live ClawHub marketplace.
+    Accepts 'slug' (e.g. "web-search") as the primary identifier.
+    """
+    from skills.clawhub_client import ClawHubClient
+    
+    slug = payload.slug or payload.skill_id
+    if not slug:
+        return {"success": False, "message": "No skill slug provided."}
 
-    # 1. Fetch index to find the URL
-    index = browse_clawhub()
-    skill_info = next((s for s in index.get("skills", []) if s["id"] == payload.skill_id), None)
-    if not skill_info:
-        return {"success": False, "message": f"Skill {payload.skill_id} not found in ClawHub."}
+    client = ClawHubClient()
+    result = client.install_skill(slug)
 
-    # 2. Install via existing client
+    # Hot-load the newly installed skill into the running agent
+    if result.get("success") and agent_instance:
+        try:
+            agent_instance.skill_manager._load_new_skills()
+            result["message"] += " Agent hot-loaded with new skill."
+        except Exception as e:
+            logging.warning(f"Hot-load after install warning: {e}")
+    
+    return result
+
+@app.post("/api/clawhub/uninstall")
+def clawhub_uninstall(payload: ClawHubUninstallRequest):
+    """Remove an installed ClawHub skill."""
     from skills.clawhub_client import ClawHubClient
     client = ClawHubClient()
-    success = client.download_and_install(skill_info["url"])
-    if success:
-        agent_instance.skill_manager._load_new_skills()
-        return {"success": True, "message": f"Skill {skill_info['name']} installed and hot-loaded."}
-    return {"success": False, "message": "Failed to install. Check daemon logs."}
+    return client.uninstall_skill(payload.slug)
+
+@app.get("/api/clawhub/installed")
+def clawhub_installed():
+    """List all ClawHub skills currently installed."""
+    from skills.clawhub_client import ClawHubClient
+    client = ClawHubClient()
+    installed = client.get_installed_clawhub_skills()
+    return {"installed": installed}
+
 
 @app.get("/api/proxy")
 def web_proxy(url: str):
