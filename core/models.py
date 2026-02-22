@@ -14,6 +14,12 @@ class LLMRouter:
         self.complex_model = next((m for m in self.models if m.get("role") == "complex"), None)
         self.coding_model = next((m for m in self.models if m.get("role") == "coding"), None)
         self.default_model = next((m for m in self.models if m.get("role") == "default"), self.models[0])
+        self.failover_stats = {"attempts": 0, "failovers": 0, "last_failover": None}
+        # Build ordered failover chain: [selected, ...fallback_chain models..., default]
+        from core.config import get_config as _gc
+        cfg = _gc()
+        fallback_names = cfg.get("failover_chain", [])  # list of model names from config
+        self._fallback_models = [m for name in fallback_names for m in self.models if m.get("model") == name]
 
     def evaluate_complexity(self, prompt, context=None):
         """
@@ -40,67 +46,89 @@ class LLMRouter:
         coding_keywords = ["code", "script", "python", "bash", "javascript", "function", "debug", "html", "css", "docker", "api"]
         return any(word in prompt.lower() for word in coding_keywords)
 
-    def generate(self, prompt, system_prompt=None, context=None, tools=None, images=None):
-        """
-        Generates a response from the configured LLM.
-        Note: `tools` is ignored here as we've moved to XML-based tool execution.
-        `images` accepts a list of base64 encoded image strings.
-        """
+    def _select_model(self, prompt, context):
+        """Returns the route-selected model based on complexity/coding heuristics."""
         is_complex = self.evaluate_complexity(prompt, context)
         is_code = self.is_coding_task(prompt)
-        
-        selected_model = self.default_model
-        
+        selected = self.default_model
         if is_code and self.coding_model:
-            selected_model = self.coding_model
+            selected = self.coding_model
         elif is_complex and self.complex_model:
-            selected_model = self.complex_model
+            selected = self.complex_model
         elif not is_complex and not is_code and self.fast_model:
-            selected_model = self.fast_model
-            
-        # Overwrite if we have images, require a vision model. Currently assuming complex model for vision if not specified.
-        # In a generic environment we might map a dedicated "vision" model role.
-        if images and "vision" not in selected_model["model"].lower() and "llava" not in selected_model["model"].lower():
-            # Images present but model may not support vision; pass through and let Ollama handle it.
-            # Add a "vision" role to config.json for an explicit vision model mapping.
-            logging.info("Images present; selected model may not support vision. Consider adding a 'vision' role to config.json.")
-        role_printed = selected_model.get('role', 'default')
-        logging.info(f"Smart Routing -> Task: {'Coding' if is_code else ('Complex' if is_complex else 'Simple')} -> Selected Model: {selected_model['model']} ({selected_model['provider']} - {role_printed})")
-        
-        # Build messages payload
-        messages = [{"role": "system", "content": system_prompt}]
-        
+            selected = self.fast_model
+        return selected
+
+    def _build_failover_chain(self, selected):
+        """Build ordered list of models to try: selected → fallback_chain → default."""
+        chain = [selected]
+        for m in self._fallback_models:
+            if m is not selected and m not in chain:
+                chain.append(m)
+        if self.default_model not in chain:
+            chain.append(self.default_model)
+        return chain
+
+    def _call_model(self, messages, model_cfg, images=None):
+        """Dispatch to Ollama or LiteLLM based on provider."""
+        if model_cfg["provider"] == "ollama":
+            url = model_cfg.get("ollama_url", "http://localhost:11434")
+            return self._call_ollama(messages, model_cfg["model"], url)
+        elif model_cfg["provider"] == "litellm":
+            api_key = os.environ.get(model_cfg.get("api_key_env", "OPENAI_API_KEY"))
+            return self._call_litellm(messages, model_cfg["model"], api_key)
+        else:
+            raise ValueError(f"Unknown provider: {model_cfg['provider']}")
+
+    def generate(self, prompt, system_prompt=None, context=None, tools=None, images=None):
+        """
+        Generates a response from the configured LLM with automatic failover.
+        Tries: route-selected model → fallback_chain → default model (last resort).
+        `tools` is ignored (we use XML-based tool execution).
+        `images` accepts a list of base64 encoded image strings.
+        """
+        selected = self._select_model(prompt, context)
+        role_printed = selected.get("role", "default")
+        logging.info(f"Smart Routing → Selected: {selected['model']} ({selected['provider']} - {role_printed})")
+
+        if images and "vision" not in selected["model"].lower() and "llava" not in selected["model"].lower():
+            logging.info("Images present; selected model may not support vision. Consider a 'vision' role in config.json.")
+
+        messages = [{"role": "system", "content": system_prompt or ""}]
         if context:
             messages.extend(context)
-            
-        # Bind images specifically to the final User prompt for Vision handling
         user_msg = {"role": "user", "content": prompt}
-        if images and selected_model["provider"] == "ollama":
+        if images and selected["provider"] == "ollama":
             user_msg["images"] = images
-            
+        elif images and selected["provider"] == "litellm":
+            litellm_parts = [{"type": "text", "text": prompt}]
+            for img in images:
+                litellm_parts.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img}"}})
+            user_msg["content"] = litellm_parts
         messages.append(user_msg)
 
-        # Route to provider (native tools parameter is intentionally None to force XML behavior)
-        if selected_model["provider"] == "ollama":
-            url = selected_model.get("ollama_url", "http://localhost:11434")
-            res = self._call_ollama(messages, selected_model["model"], url, tools=None)
-        
-        elif selected_model["provider"] == "litellm":
-            env_key = selected_model.get("api_key_env", "OPENAI_API_KEY")
-            api_key = os.environ.get(env_key)
-            
-            # Format Litellm vision structure
-            if images:
-               litellm_msg = []
-               litellm_msg.append({"type": "text", "text": prompt})
-               for img in images:
-                   litellm_msg.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img}"}})
-               messages[-1]["content"] = litellm_msg
-               
-            res = self._call_litellm(messages, selected_model["model"], api_key, tools=None)
-
+        # ── Failover loop ──────────────────────────────────────────────
+        chain = self._build_failover_chain(selected)
+        last_error = None
+        for i, model_cfg in enumerate(chain):
+            self.failover_stats["attempts"] += 1
+            try:
+                if i > 0:
+                    self.failover_stats["failovers"] += 1
+                    import datetime
+                    self.failover_stats["last_failover"] = datetime.datetime.now().isoformat()
+                    logging.warning(f"Failover #{i}: trying {model_cfg['model']} after {last_error}")
+                res = self._call_model(messages, model_cfg, images)
+                if res.get("content") and not res["content"].startswith("I encountered an error"):
+                    if i > 0:
+                        res["_failover_used"] = model_cfg["model"]
+                    break
+            except Exception as e:
+                last_error = e
+                logging.error(f"Model {model_cfg['model']} failed: {e}")
+                res = {"content": str(e), "tool_calls": []}
         else:
-            raise ValueError(f"Unknown provider: {selected_model['provider']}")
+            res = {"content": "All models in the failover chain failed. Please check your Ollama/API configuration.", "tool_calls": []}
             
         # UNIVERSAL XML TOOL EXTRACTOR
         # Parses <tool name="...">{...}</tool> from the output text.
@@ -222,38 +250,55 @@ class LLMRouter:
 
     def generate_stream(self, prompt, system_prompt=None, context=None, images=None):
         """
-        Generator that yields text token chunks progressively.
-        Used by the /api/chat/stream SSE endpoint.
-        Yields: str chunks (raw token text)
-        After all tokens are yielded, checks for XML tool calls in the assembled text
-        and yields a final JSON event with tool results if tools were triggered.
+        Generator that yields text token chunks progressively with failover support.
+        Tries: route-selected model → fallback_chain → default model.
         """
-        is_complex = self.evaluate_complexity(prompt, context)
-        is_code = self.is_coding_task(prompt)
-        selected_model = self.default_model
-        if is_code and self.coding_model:
-            selected_model = self.coding_model
-        elif is_complex and self.complex_model:
-            selected_model = self.complex_model
-        elif not is_complex and not is_code and self.fast_model:
-            selected_model = self.fast_model
+        selected = self._select_model(prompt, context)
+        logging.info(f"Stream routing → {selected['model']} ({selected['provider']})")
 
         messages = [{"role": "system", "content": system_prompt or ""}]
         if context:
             messages.extend(context)
         user_msg = {"role": "user", "content": prompt}
-        if images and selected_model["provider"] == "ollama":
+        if images and selected["provider"] == "ollama":
             user_msg["images"] = images
         messages.append(user_msg)
 
-        if selected_model["provider"] == "ollama":
-            url = selected_model.get("ollama_url", "http://localhost:11434")
-            yield from self._call_ollama_stream(messages, selected_model["model"], url)
-        else:
-            # LiteLLM: non-streaming fallback — yield whole response as single chunk
-            res = self._call_litellm(messages, selected_model["model"],
-                                     os.environ.get(selected_model.get("api_key_env", "OPENAI_API_KEY")))
-            yield res.get("content", "")
+        chain = self._build_failover_chain(selected)
+        last_error = None
+        for i, model_cfg in enumerate(chain):
+            try:
+                if i > 0:
+                    self.failover_stats["failovers"] += 1
+                    import datetime
+                    self.failover_stats["last_failover"] = datetime.datetime.now().isoformat()
+                    logging.warning(f"Stream failover #{i}: trying {model_cfg['model']}")
+                    yield f"[Failover → {model_cfg['model']}] "
+
+                if model_cfg["provider"] == "ollama":
+                    url = model_cfg.get("ollama_url", "http://localhost:11434")
+                    # Test if the stream produces at least one token before committing
+                    token_count = 0
+                    for token in self._call_ollama_stream(messages, model_cfg["model"], url):
+                        if token.startswith("[Stream error:") and token_count == 0:
+                            raise RuntimeError(token)
+                        token_count += 1
+                        yield token
+                    return  # success — done
+                else:
+                    # LiteLLM: non-streaming fallback
+                    res = self._call_litellm(messages, model_cfg["model"],
+                                             os.environ.get(model_cfg.get("api_key_env", "OPENAI_API_KEY")))
+                    content = res.get("content", "")
+                    if content and not content.startswith("I encountered an error"):
+                        yield content
+                        return
+                    raise RuntimeError(content)
+            except Exception as e:
+                last_error = e
+                logging.error(f"Stream model {model_cfg['model']} failed: {e}")
+
+        yield f"[All models failed. Last error: {last_error}]"
 
     def _call_ollama_stream(self, messages, model_name, url):
         """Stream tokens from Ollama using the ollama library's stream=True mode."""

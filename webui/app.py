@@ -349,7 +349,10 @@ def get_diagnostics():
         "provider": config.get("provider", "Unknown"),
         "db_size": db_size,
         "ollama_status": ollama_status,
-        "daemon_status": daemon_status
+        "daemon_status": daemon_status,
+        "failover_stats": agent_instance.router.failover_stats if agent_instance and hasattr(agent_instance, "router") else {},
+        "failover_chain": config.get("failover_chain", []),
+        "memory_stats": agent_instance.memory.get_memory_stats() if agent_instance and hasattr(agent_instance, "memory") else {},
     }
 
 @app.get("/api/logs")

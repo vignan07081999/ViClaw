@@ -196,6 +196,22 @@ def conf_models(config):
         config["models"].append(model_entry)
         adding_models = questionary.confirm("Add another AI model? (ViClaw routes between them)", default=False).ask()
 
+    # ── Failover chain config ─────────────────────────────────────────
+    if len(config.get("models", [])) > 1:
+        model_names = [m.get("model", "?") for m in config["models"]]
+        console.print(f"\n[bold cyan]Failover Chain Config:[/bold cyan]")
+        console.print(f"Configured models: {', '.join(model_names)}")
+        console.print("[dim]ViClaw will try models in this order if the primary fails.[/dim]")
+        default_chain = ", ".join(model_names[1:])
+        chain_input = questionary.text(
+            "Enter failover chain (comma-separated model names, or leave blank to use all in order):",
+            default=default_chain
+        ).ask()
+        config["failover_chain"] = [m.strip() for m in chain_input.split(",") if m.strip()] if chain_input else model_names[1:]
+        console.print(f"[green]✓ Failover chain: {config['failover_chain']}[/green]")
+    else:
+        config["failover_chain"] = []
+
 def conf_platforms(config):
     console.print("\n[bold yellow]--- 3. Messaging Integration Setup ---[/bold yellow]")
     if "platforms" not in config: config["platforms"] = {}
