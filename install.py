@@ -392,6 +392,54 @@ def main():
     else:
         console.print("[dim]You will be notified in the WebUI and CLI when manual updates are available.[/dim]")
 
+    # 8. Advanced AGI Modules (Resource Intensive)
+    console.print("\n[bold yellow]8. Advanced AGI Modules (Resource Intensive)[/bold yellow]")
+    console.print("[dim]ViClaw supports highly complex cognitive routines that require significant RAM/VRAM. The system has analyzed your hardware.[/dim]")
+    
+    config["advanced_modules"] = {}
+    
+    # Calculate RAM again just in case
+    ram_gb = 8.0
+    try:
+        ram_gb = (os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')) / (1024.**3)
+    except:
+        pass
+
+    console.print(f"\n[cyan]Detected System RAM:[/cyan] [bold]{ram_gb:.1f} GB[/bold]")
+    
+    # Vision Module
+    if ram_gb < 7.0:
+        console.print("[bold yellow]Hardware Alert:[/bold yellow] Your system has <8GB RAM. Loading multimodal vision models (like llava) requires roughly 4GB-6GB just for image tensors and may cause OOM crashes.")
+        enable_vision = questionary.confirm("Enable Vision/Image Attachment capabilities anyway?", default=False).ask()
+    else:
+        enable_vision = questionary.confirm("Enable Vision/Image Attachment capabilities? (Safe for your hardware)", default=True).ask()
+    config["advanced_modules"]["vision"] = enable_vision
+    
+    # Swarm Orchestrator
+    if ram_gb < 7.0:
+        console.print("[bold yellow]Hardware Alert:[/bold yellow] Spawning parallel Swarm Sub-Agents bloats the LLM context window massively. On <8GB arrays, this can lock up the system.")
+        enable_swarm = questionary.confirm("Enable Multi-Agent Swarm Orchestrator anyway?", default=False).ask()
+    else:
+        enable_swarm = questionary.confirm("Enable Multi-Agent Swarm Orchestrator? (Safe for your hardware)", default=True).ask()
+    config["advanced_modules"]["swarm"] = enable_swarm
+    
+    # Roadmap Features
+    console.print("\n[dim]--- Roadmap Pre-configurations ---[/dim]")
+    
+    if ram_gb < 15.0:
+        console.print("[bold yellow]Hardware Alert:[/bold yellow] Your system has <16GB RAM. Future features like Local Edge Audio (Whisper) or Custom Emotive TTS (Kokoro/Coqui) require massive CPU multithreading and tensor manipulation.")
+        enable_audio = questionary.confirm("Pre-configure for Local Edge Audio transcription/generation anyway?", default=False).ask()
+    else:
+        enable_audio = questionary.confirm("Pre-configure for Local Edge Audio transcription/generation? (Roadmap Feature)", default=True).ask()
+    config["advanced_modules"]["local_edge_audio"] = enable_audio
+        
+    if ram_gb < 7.0:
+        console.print("[bold yellow]Hardware Alert:[/bold yellow] Playwright Computer-Use agents spawn headless Chromium tabs, drawing 500MB-1GB of RAM per tab.")
+        enable_playwright = questionary.confirm("Pre-configure Playwright Browser Automation agents anyway?", default=False).ask()
+    else:
+        enable_playwright = questionary.confirm("Pre-configure Playwright Browser Automation agents? (Roadmap Feature)", default=True).ask()
+    config["advanced_modules"]["playwright_agents"] = enable_playwright
+
     console.print("\n[bold cyan]Configuration Summary[/bold cyan]")
     console.print(Panel(json.dumps(config, indent=2), border_style="cyan"))
     
