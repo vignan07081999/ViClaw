@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ViClaw Entry Point v31.5 (Zero-Auth Overhaul)
 import os
 import sys
 
