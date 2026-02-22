@@ -27,23 +27,23 @@ You must have **Python 3.9+** and `git` installed.
 
 ```bash
 # On Debian / Ubuntu
-sudo apt update && sudo apt install -y python3 python3-venv git
+sudo apt update && sudo apt install -y python3 python3-venv git curl
 ```
 
-### 2. Clone & Execute
+### 2. Global Installation Snippet
+
+You can completely auto-deploy the Github repository and trigger the Setup Wizard seamlessly via this single line snippet from any working directory:
 
 ```bash
-git clone https://github.com/vignan07081999/ViClaw.git
-cd ViClaw
-chmod +x install.sh
-./install.sh
+bash <(curl -fsSL https://raw.githubusercontent.com/vignan07081999/ViClaw/main/setup.sh)
 ```
 
-**The script handles everything:**
-1. It downloads OS dependencies (`curl`, `lshw`, `python3-venv`).
-2. It builds isolated Python environments for execution safety.
-3. The Setup Wizard will boot. **If you don't have Ollama installed**, tell the setup wizard YES, and it will deploy the local daemon natively and pull the models automatically.
-4. It will bind the WebUI and background daemon scripts.
+**What this snippet does natively:**
+1. Verifies `git` exists and clones the agent into a `./ViClaw/` directory safely.
+2. Changes permissions and automatically boots `./install.sh`.
+3. Downloads OS dependencies (`curl`, `lshw`, `python3-venv`) via apt/pacman contextually.
+4. Builds an isolated `.venv` Python sandbox array natively avoiding global overlaps.
+5. Boots the Setup Wizard. If Ollama is missing, the wizard injects it naturally.
 
 ### 3. Usage & Interacting
 

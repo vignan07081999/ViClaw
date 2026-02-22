@@ -440,8 +440,31 @@ def main():
         enable_playwright = questionary.confirm("Pre-configure Playwright Browser Automation agents? (Roadmap Feature)", default=True).ask()
     config["advanced_modules"]["playwright_agents"] = enable_playwright
 
-    console.print("\n[bold cyan]Configuration Summary[/bold cyan]")
-    console.print(Panel(json.dumps(config, indent=2), border_style="cyan"))
+    console.print("\n[bold cyan]Detailed Setup Summary[/bold cyan]")
+    
+    summary_text = f"⚙️  [bold yellow]Agent Identity:[/bold yellow]\n"
+    summary_text += f" - Name: {config.get('identity', {}).get('name')}\n"
+    summary_text += f" - Personality: {config.get('identity', {}).get('personality')}\n\n"
+    
+    summary_text += f"🧠 [bold yellow]AI Resource Allocation:[/bold yellow]\n"
+    for m in config.get("models", []):
+        summary_text += f" - Provider: [{m.get('provider').upper()}] | Model: {m.get('model')} | Role: {m.get('role')}\n"
+        
+    summary_text += f"\n📡 [bold yellow]Platform I/O:[/bold yellow]\n"
+    summary_text += f" - CLI Terminal: {'Running' if config.get('platforms', {}).get('cli', {}).get('enabled', False) else 'Disabled'}\n"
+    summary_text += f" - Telegram: {'Online' if config.get('platforms', {}).get('telegram', {}).get('enabled', False) else 'Disabled'}\n"
+    summary_text += f" - Discord: {'Online' if config.get('platforms', {}).get('discord', {}).get('enabled', False) else 'Disabled'}\n"
+    
+    summary_text += f"\n🌐 [bold yellow]WebUI & Desktop Kiosk:[/bold yellow]\n"
+    summary_text += f" - Port: {config.get('webui', {}).get('port', 8501)} ({'Enabled' if config.get('webui', {}).get('enabled', False) else 'Disabled'})\n"
+    summary_text += f" - 3D Stream Deck Kiosk: {'Enabled' if config.get('kiosk', {}).get('enabled', False) else 'Disabled'}\n"
+    
+    summary_text += f"\n⚙️  [bold yellow]Advanced AGI System Toggles:[/bold yellow]\n"
+    summary_text += f" - Multimodal Hardware Vision API: {'Enabled' if config.get('advanced_modules', {}).get('vision', False) else 'Opt-Out'}\n"
+    summary_text += f" - Multi-Agent Swarm Logic: {'Enabled' if config.get('advanced_modules', {}).get('swarm', False) else 'Opt-Out'}\n"
+    summary_text += f" - Auto-Updater (OTA): {'Enabled (' + config.get('updater', {}).get('frequency', '') + ')' if config.get('updater', {}).get('auto_update', False) else 'Manual Mode'}\n"
+    
+    console.print(Panel(summary_text, title="[bold cyan]Final Agent Blueprint Output[/bold cyan]", border_style="cyan"))
     
     if questionary.confirm("Save and proceed?", default=True).ask():
         os.makedirs("data", exist_ok=True)
