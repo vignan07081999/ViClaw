@@ -75,7 +75,14 @@ def index():
                 </div>
                 <h3 style="margin-top:20px;">Recent Daemon Logs</h3>
                 <button onclick="loadLogs()" style="margin-bottom: 10px; background-color: #7f8c8d;">Fetch Logs</button>
+                <button onclick="window.location.href='/api/download_logs'" style="margin-bottom: 10px; background-color: #e67e22;">Download Complete Logs Archive (ZIP)</button>
                 <pre id="log-box" style="background:#2c3e50; color:#ecf0f1; padding:10px; border-radius:4px; max-height:200px; overflow-y:scroll; font-size:12px;">Waiting for logs...</pre>
+                
+                <h3 style="margin-top:20px;">Agent Action History & Raw Chat Data</h3>
+                <button onclick="loadHistory()" style="margin-bottom: 10px; background-color: #8e44ad;">Load Agent Memory DB</button>
+                <div id="history-box" style="background:#f9ebf9; color:#333; padding:10px; border: 1px solid #dcdde1; border-radius:4px; max-height:300px; overflow-y:scroll; font-size:13px;">
+                    <i>Click 'Load Agent Memory DB' to view the raw cognitive loops and action history...</i>
+                </div>
             </div>
             
             <script>
@@ -165,6 +172,37 @@ def index():
                         .then(data => {
                             logBox.innerHTML = data.logs;
                             logBox.scrollTop = logBox.scrollHeight;
+                        });
+                }
+                
+                // Load Memory History
+                function loadHistory() {
+                    const histBox = document.getElementById('history-box');
+                    histBox.innerHTML = 'Fetching Memory DB Context...';
+                    fetch('/api/history')
+                        .then(res => res.json())
+                        .then(data => {
+                            if (!data.history || data.history.length === 0) {
+                                histBox.innerHTML = 'No history recorded yet.';
+                                return;
+                            }
+                            let html = '';
+                            data.history.forEach(entry => {
+                                let role = entry.role.toUpperCase();
+                                let color = "black";
+                                if (role === "USER") color = "blue";
+                                if (role === "ASSISTANT") color = "purple";
+                                if (role === "SYSTEM") color = "#e67e22"; // Orange for internal action logs
+                                
+                                // Format line breaks for html
+                                let content = entry.content.replace(/\\n/g, "<br>");
+                                html += `<div style="margin-bottom: 15px; border-bottom: 1px dotted #ccc; padding-bottom: 5px;">
+                                    <strong style="color: ${color};">[${role}]</strong> 
+                                    <span style="white-space: pre-wrap;">${content}</span>
+                                </div>`;
+                            });
+                            histBox.innerHTML = html;
+                            histBox.scrollTop = histBox.scrollHeight;
                         });
                 }
 
@@ -340,9 +378,24 @@ def get_logs():
 @app.get("/api/download_logs", response_class=FileResponse)
 def download_logs():
     import os
-    if os.path.exists("data/viclaw.log"):
-        return FileResponse("data/viclaw.log", filename="viclaw_system.log")
-    return HTMLResponse("No log file generated yet. Check if daemon is running.", status_code=404)
+    import zipfile
+    
+    zip_path = "data/viclaw_logs_archive.zip"
+    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        if os.path.exists("data/viclaw.log"):
+            zipf.write("data/viclaw.log", arcname="viclaw.log")
+        if os.path.exists("data/memory.db"):
+            zipf.write("data/memory.db", arcname="memory.db")
+            
+    if os.path.exists(zip_path):
+        return FileResponse(zip_path, filename="viclaw_logs_archive.zip", media_type="application/zip")
+    return HTMLResponse("No log files generated yet.", status_code=404)
+
+@app.get("/api/history")
+def get_history():
+    if agent_instance and hasattr(agent_instance, 'memory'):
+        return {"history": agent_instance.memory.short_term}
+    return {"history": []}
 
 def start_webui(agent):
     global agent_instance

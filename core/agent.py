@@ -138,6 +138,72 @@ class OpenClawAgent:
         if message_text.strip().startswith("/"):
             return self._process_slash_command(message_text)
             
+        # *** Check for Pending Autonomous Actions ***
+        last_msg = self.memory.short_term[-1] if self.memory.short_term else None
+        if last_msg and last_msg["role"] == "system" and "[PENDING_ACTION]" in last_msg["content"]:
+            pending_action = last_msg["content"]
+            import re
+            act_type = re.search(r"type:(.*?)\s", pending_action).group(1)
+            target = re.search(r"target:(.*?)\s", pending_action).group(1)
+            original_msg = re.search(r"original_msg:(.*)", pending_action).group(1)
+            
+            # User approval
+            if message_text.lower().strip() in ["yes", "y", "sure", "do it", "ok", "okay"]:
+                # Execute the dependency installation safely
+                import subprocess
+                self.memory.add_short_term("system", f"User approved installation of {target}.")
+                try:
+                    if act_type == "pip_install":
+                        import sys
+                        result = subprocess.run([sys.executable, "-m", "pip", "install", target], capture_output=True, text=True)
+                    elif act_type == "apt_install":
+                        # Attempt to use sudo if available
+                        result = subprocess.run(f"sudo apt-get install -y {target}", shell=True, capture_output=True, text=True)
+                    elif act_type == "clawhub_skill":
+                        # Autonomous ClawHub Resolution
+                        # Normally we'd search an API. For the clone, we'll map a few keywords to raw GitHub URLs or just fail gracefully.
+                        self.memory.add_short_term("system", f"Fetching {target} from ClawHub...")
+                        client = ClawHubClient()
+                        
+                        # Mock Catalog mapping
+                        catalog = {
+                            "web scraper": "https://raw.githubusercontent.com/vignan07081999/ViClaw/main/skills/web_scraper.py",
+                            "github": "https://raw.githubusercontent.com/vignan07081999/ViClaw/main/skills/github_integration.py",
+                            "twitter": "https://raw.githubusercontent.com/vignan07081999/ViClaw/main/skills/twitter_bot.py"
+                        }
+                        
+                        resolve_url = catalog.get(target.lower(), None)
+                        if not resolve_url:
+                            # If we don't have a hardcoded map, we can just pretend to search a real API
+                            # by constructing a fake URL to see if it exists
+                            resolve_url = f"https://raw.githubusercontent.com/vignan07081999/ClawHub-Community/main/skills/{target.lower().replace(' ', '_')}.py"
+                            
+                        success = client.download_and_install(resolve_url)
+                        if success:
+                            self.skill_manager._load_all_skills()
+                            self.memory.add_short_term("system", f"Skill {target} installed dynamically. Retrying prompt: '{original_msg}'")
+                            message_text = original_msg
+                            # Fall through to re-execute the original message natively
+                            result = type('obj', (object,), {'returncode': 0})()
+                        else:
+                            self.memory.add_short_term("system", f"Could not locate {target} natively in ClawHub.")
+                            return f"I searched ClawHub but could not find a verified skill matching `{target}`. Let me know if you have a direct GitHub URL.", []
+
+                    
+                    if act_type in ["pip_install", "apt_install"]:
+                        if result.returncode == 0:
+                            self.memory.add_short_term("system", f"Installation of {target} succeeded. Automatically retrying the original prompt: '{original_msg}'")
+                            # Clear the pending flag by re-injecting the original message to resume the flow organically
+                            message_text = original_msg
+                        else:
+                            self.memory.add_short_term("system", f"Failed to install {target}. Error: {result.stderr}")
+                            return f"I tried to install `{target}` but it failed. You may need to install it manually. Error:\n```\n{result.stderr}\n```", []
+                except Exception as e:
+                    return f"Critical error during installation of {target}: {str(e)}", []
+            else:
+                self.memory.add_short_term("system", "User denied the pending installation.")
+                return f"Okay, I've cancelled the automatic installation of `{target}`. Let me know what else I can do.", []
+                
         self.memory.add_short_term("user", message_text)
         system_prompt = self.personality.construct_system_prompt(current_query=message_text)
         context = self.memory.get_short_term_context()[:-1] 
@@ -153,6 +219,20 @@ class OpenClawAgent:
         
         final_reply = response.get("content", "") or ""
         raw_tools = []
+        
+        # *** DYNAMIC SKILL RESOLVER ***
+        # The LLM is instructed in its personality prompt to request skills if it can't fulfill the user's prompt. 
+        # Alternatively, if it hallucinates a tool call that doesn't exist, we catch it here.
+        if "I need the" in final_reply and "skill" in final_reply.lower() and "?" in final_reply:
+            import re
+            # E.g. "I need the Web Scraper skill to do this. May I install it?"
+            match = re.search(r"I need the (.*?) skill", final_reply, re.IGNORECASE)
+            if match:
+                missing_skill = match.group(1).strip()
+                self.memory.add_short_term("system", f"[PENDING_ACTION] type:clawhub_skill target:{missing_skill} original_msg:{message_text}")
+                # We overwrite the reply to be an explicit permission prompt in the exact format ClawHub requires
+                final_reply = f"To accomplish this, I need the `{missing_skill}` skill from ClawHub. May I dynamically download and install it now?"
+                return final_reply, []
         
         if response.get("content"):
             self.memory.add_short_term("assistant", response["content"])
@@ -179,9 +259,32 @@ class OpenClawAgent:
                     tool_result = self.skill_manager.execute_tool(tool_name, tool_args)
                     executed_results.append(f"[TOOL EXECUTION RESULT: {tool_name}]\n{tool_result}")
                 except Exception as e:
-                    err_msg = f"I encountered an error running {tool_name}: {e}"
-                    executed_results.append(err_msg)
+                    err_str = str(e)
+                    err_msg = f"I encountered an error running {tool_name}: {err_str}"
                     logging.error(e)
+                    
+                    # *** AUTONOMOUS DEPENDENCY RESOLVER ***
+                    if "ModuleNotFoundError" in err_str or "No module named" in err_str:
+                        import re
+                        match = re.search(r"No module named '(.*?)'", err_str)
+                        missing_mod = match.group(1) if match else "unknown_module"
+                        
+                        prompt = f"The tool '{tool_name}' failed because the Python module '{missing_mod}' is missing. May I automatically run `pip install {missing_mod}` for you and retry?"
+                        
+                        # Set a flag in memory so the next user input "yes" triggers the install
+                        self.memory.add_short_term("system", f"[PENDING_ACTION] type:pip_install target:{missing_mod} original_msg:{message_text}")
+                        return prompt, raw_tools
+                        
+                    elif "command not found" in err_str.lower():
+                        import re
+                        match = re.search(r"(.*): command not found", err_str)
+                        missing_cmd = match.group(1).strip().split()[-1] if match else "unknown_command"
+                        prompt = f"The shell command failed because '{missing_cmd}' is not installed on this Linux system. May I automatically try to install it using `apt install {missing_cmd}` and retry?"
+                        
+                        self.memory.add_short_term("system", f"[PENDING_ACTION] type:apt_install target:{missing_cmd} original_msg:{message_text}")
+                        return prompt, raw_tools
+                    else:
+                        executed_results.append(err_msg)
             
             # Combine all batched results into memory
             combined_results = "\n\n".join(executed_results)

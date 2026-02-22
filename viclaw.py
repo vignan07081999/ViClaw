@@ -24,12 +24,13 @@ def main():
         console.print("[4] 📊 System Diagnostics & Health")
         console.print("[5] 🩺 Agent Doctor (Troubleshoot & Fix)")
         console.print("[6] ⚙️  Update Configuration")
-        console.print("[7] 🔄 Reinstall ViClaw")
-        console.print("[8] 🗑️  Uninstall ViClaw")
-        console.print("[9] ☁️  Check for Github OTA Updates")
+        console.print("[7] 📜 View Chat History & Action Logs")
+        console.print("[8] 🔄 Reinstall ViClaw")
+        console.print("[9] 🗑️  Uninstall ViClaw")
+        console.print("[10] ☁️ Check for Github OTA Updates")
         console.print("[0] 🚪 Exit")
         
-        choice = Prompt.ask("\nSelect an option", choices=["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"], default="1")
+        choice = Prompt.ask("\nSelect an option", choices=[str(i) for i in range(11)], default="1")
         
         if choice == "0":
             break
@@ -48,12 +49,28 @@ def main():
         elif choice == "6":
             subprocess.run(["bash", "scripts/update_config.sh"])
         elif choice == "7":
-            subprocess.run(["bash", "scripts/reinstall.sh"])
+            console.print("\n[bold cyan]--- Recent Agent Memory & Action Logs ---[/bold cyan]")
+            try:
+                from core.memory import AgentMemory
+                mem = AgentMemory()
+                for entry in mem.short_term:
+                    role = entry.get("role", "unknown").upper()
+                    if role == "USER":
+                        console.print(f"[bold blue]USER:[/bold blue] {entry.get('content')}")
+                    elif role == "ASSISTANT":
+                        console.print(f"[bold magenta]VICLAW:[/bold magenta] {entry.get('content')}")
+                    elif role == "SYSTEM":
+                        console.print(f"[dim yellow]SYSTEM/TOOL:[/dim yellow] {entry.get('content')}")
+            except Exception as e:
+                console.print(f"[red]Failed to load memory context: {e}[/red]")
+            Prompt.ask("\nPress Enter to return to menu...")
         elif choice == "8":
+            subprocess.run(["bash", "scripts/reinstall.sh"])
+        elif choice == "9":
             subprocess.run(["bash", "scripts/uninstall.sh"])
             if not os.path.exists("data/config.json"):
                 break
-        elif choice == "9":
+        elif choice == "10":
             import sys
             sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
             from core.updater import UpdaterEngine
