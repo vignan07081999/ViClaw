@@ -11,19 +11,13 @@ from pydantic import BaseModel
 from typing import Optional, List
 import uuid
 import time
-import uvicorn
-import threading
-
-from core.config import is_webui_enabled, get_webui_port, get_local_api_key
+from core.config import is_webui_enabled, get_webui_port
 
 app = FastAPI(title="ViClaw Agent WebUI")
 
 # Global reference to the agent instance (set by main.py)
 agent_instance = None
-
-# In-memory session store mapping SessionToken -> {user_id, expires}
-ACTIVE_SESSIONS: dict = {}
-cookie_scheme = APIKeyCookie(name="viclaw_session", auto_error=False)
+DEFAULT_USER = "local_user"
 
 class KioskLayout(BaseModel):
     layout: List[dict]
@@ -32,52 +26,7 @@ class ClawHubInstallRequest(BaseModel):
     skill_id: str
 
 
-def _evict_expired_sessions():
-    """Background task: remove sessions past their expiry every hour."""
-    while True:
-        now = time.time()
-        expired = [k for k, v in list(ACTIVE_SESSIONS.items()) if now > v["expires"]]
-        for k in expired:
-            ACTIVE_SESSIONS.pop(k, None)
-        if expired:
-            logging.info(f"Session cleanup: evicted {len(expired)} expired session(s).")
-        time.sleep(3600)
 
-def get_current_user(request: Request, viclaw_session: str = Depends(cookie_scheme)):
-    """
-    Authenticate the caller. Three paths:
-    1. Localhost + X-Local-Auth: local  → auto-authenticated as 'local_user' (CLI tools)
-    2. Valid session cookie             → authenticated as stored user_id
-    3. Anything else                    → None (unauthorized)
-    """
-    # ── Localhost bypass for CLI tools (chat.py, diagnostics.py, etc.) ──────
-    client_host = request.client.host if request.client else "unknown"
-    local_auth_header = request.headers.get("X-Local-Auth", "")
-    expected_key = get_local_api_key()
-
-    # Allow localhost + X-Local-Auth being either "local" (old behavior) or the real secret
-    if client_host in ("127.0.0.1", "::1", "localhost") and (local_auth_header in ("local", expected_key)):
-        return "local_user"
-    
-    # NEW: Secure bypass from anywhere if the real local_api_key is provided
-    # This helps in Docker/NAT scenarios where local IP might not show as 127.0.0.1
-    if local_auth_header == expected_key and expected_key != "insecure_fallback":
-        return "local_user"
-
-    # Log reason for auth failure to help troubleshooting
-    if local_auth_header and viclaw_session is None:
-        logging.warning(f"Local auth failed: host={client_host}, header_len={len(local_auth_header)}")
-
-    # ── Session cookie auth ──────────────────────────────────────────────────
-    if not viclaw_session or viclaw_session not in ACTIVE_SESSIONS:
-        return None
-
-    session = ACTIVE_SESSIONS[viclaw_session]
-    if time.time() > session["expires"]:
-        del ACTIVE_SESSIONS[viclaw_session]
-        return None
-
-    return session["user_id"]
 
 class ChatMessage(BaseModel):
     message: str
@@ -91,125 +40,21 @@ class LoginRequest(BaseModel):
     password: str
 
 @app.get("/", response_class=HTMLResponse)
-def index_login(request: Request, viclaw_session: str = Cookie(None)):
-    if viclaw_session and viclaw_session in ACTIVE_SESSIONS and time.time() < ACTIVE_SESSIONS[viclaw_session]["expires"]:
-        dash_path = os.path.join(os.path.dirname(__file__), "dashboard.html")
-        if os.path.exists(dash_path):
-            with open(dash_path, "r") as f:
-                return f.read()
-
-    # Check whether credentials have been configured
-    from core.config import get_config
-    creds = get_config().get("webui", {}).get("credentials", {})
-    setup_required = not creds.get("password", "")
-    setup_banner = ""
-    if setup_required:
-        setup_banner = """
-        <div style="background:#f59e0b;color:#1c1917;padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px;text-align:left;">
-            <strong>⚠ First-time setup:</strong> No password configured yet.<br>
-            Default password is <code style="background:rgba(0,0,0,0.15);padding:1px 5px;border-radius:3px;">viclaw</code>.<br>
-            Run <code style="background:rgba(0,0,0,0.15);padding:1px 5px;border-radius:3px;">viclaw</code> → [6] Update Configuration to set a permanent password.
-        </div>"""
-
-    html_content = f"""
-    <html>
-        <head>
-            <title>ViClaw Login</title>
-            <style>
-                body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; background-color: #0f172a; color: #f8fafc; display:flex; justify-content:center; align-items:center; height:100vh; }}
-                .login-box {{ background: #1e293b; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); width: 370px; text-align: center; border: 1px solid #334155; }}
-                h1 {{ color: #38bdf8; margin-top:0; }}
-                input {{ width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #334155; border-radius: 6px; background: #0f172a; color:white; box-sizing: border-box; }}
-                button {{ width: 100%; padding: 12px; background-color: #38bdf8; color: #0f172a; border: none; border-radius: 6px; cursor: pointer; font-weight:bold; margin-top:12px; }}
-                button:hover {{ background-color: #0ea5e9; }}
-                #error-msg {{ color: #ef4444; margin-top: 10px; font-size: 0.88em; min-height: 20px; text-align:left; }}
-                code {{ background: rgba(255,255,255,0.1); padding: 1px 5px; border-radius: 3px; font-size:0.9em; }}
-            </style>
-        </head>
-        <body>
-            <div class="login-box">
-                <h1>ViClaw Agent Gateway</h1>
-                <p style="opacity:0.7; font-size:13px; margin-bottom:16px;">Secure Swarm System Authentication</p>
-                {setup_banner}
-                <form id="login-form" onsubmit="doLogin(event)">
-                    <input type="text" id="username" placeholder="Username" required autofocus />
-                    <input type="password" id="password" placeholder="Password" required />
-                    <button type="submit">Initialize Session</button>
-                    <div id="error-msg"></div>
-                </form>
-            </div>
-            <script>
-                function doLogin(e) {{
-                    e.preventDefault();
-                    const u = document.getElementById('username').value;
-                    const p = document.getElementById('password').value;
-                    fetch('/api/login', {{
-                        method: 'POST',
-                        headers: {{ 'Content-Type': 'application/json' }},
-                        body: JSON.stringify({{username: u, password: p}})
-                    }}).then(res => res.json()).then(data => {{
-                        if(data.success) {{
-                            window.location.reload();
-                        }} else {{
-                            document.getElementById('error-msg').innerText = data.error || 'Access denied.';
-                        }}
-                    }});
-                }}
-            </script>
-        </body>
-    </html>
-    """
-    return html_content
-
-@app.post("/api/login")
-def login(payload: LoginRequest, response: Response):
-    """
-    Authenticate against credentials stored in data/config.json.
-    If no credentials have been configured (fresh install or pre-Phase-30 config),
-    falls back to password 'viclaw' with a setup_required flag so the login page
-    can show a banner prompting the user to set a real password.
-    """
-    from core.config import get_config
-    cfg = get_config()
-    creds = cfg.get("webui", {}).get("credentials", {})
-    admin_user = creds.get("username", "admin")
-    admin_pass = creds.get("password", "")
-    setup_required = False
-
-    # Fallback: if no password configured, use 'viclaw' temporarily
-    if not admin_pass:
-        admin_pass = "viclaw"
-        setup_required = True
-        logging.warning(
-            "WebUI using fallback password 'viclaw'. "
-            "Run viclaw → [6] Update Configuration to set a permanent password."
-        )
-
-    if payload.username == admin_user and payload.password == admin_pass:
-        session_id = str(uuid.uuid4())
-        ACTIVE_SESSIONS[session_id] = {
-            "user_id": payload.username,
-            "expires": time.time() + (24 * 3600),
-        }
-        response.set_cookie(
-            key="viclaw_session", value=session_id,
-            httponly=True, samesite="lax", max_age=86400
-        )
-        logging.info(f"WebUI login: user '{payload.username}' authenticated.")
-        return {"success": True, "setup_required": setup_required}
-
-    logging.warning(f"WebUI login: failed attempt for username '{payload.username}'.")
-    return {"success": False, "error": "Invalid username or password."}
+def index_dashboard():
+    import os
+    dash_path = os.path.join(os.path.dirname(__file__), "dashboard.html")
+    if os.path.exists(dash_path):
+        with open(dash_path, "r") as f:
+            return f.read()
+    return "Dashboard file not found."
 
 @app.post("/api/chat")
-def handle_chat(payload: ChatMessage, user_id: str = Depends(get_current_user)):
-    if not user_id:
-        return {"reply": "Unauthorized. Please refresh and log back in.", "raw_content": None}
-        
+def handle_chat(payload: ChatMessage):
     if agent_instance:
         # Bind the specific authenticated user to the agent processing pipeline
-        reply, raw_content = agent_instance.process_immediate_message("web", user_id, payload.message, images=payload.images)
+        reply, raw_content = agent_instance.process_immediate_message("web", DEFAULT_USER, payload.message, images=payload.images)
         return {"reply": reply, "raw_content": raw_content}
+    return {"reply": "Agent is offline.", "raw_content": None}
     return {"reply": "Agent is offline.", "raw_content": None}
 
 class WebhookPayload(BaseModel):
@@ -387,9 +232,7 @@ def download_logs():
     return HTMLResponse("No log files generated yet.", status_code=404)
 
 @app.get("/api/history")
-def get_history(user_id: str = Depends(get_current_user)):
-    if not user_id:
-        return {"history": []}
+def get_history():
     if agent_instance and hasattr(agent_instance, 'memory'):
         return {"history": agent_instance.memory.get_short_term_context()}
     return {"history": []}
@@ -408,9 +251,7 @@ def get_kiosk_layout():
     ]}
 
 @app.post("/api/kiosk_layout")
-def save_kiosk_layout(payload: KioskLayout, user_id: str = Depends(get_current_user)):
-    if not user_id:
-        return {"success": False, "message": "Unauthorized"}
+def save_kiosk_layout(payload: KioskLayout):
     layout_path = "data/kiosk_layout.json"
     os.makedirs("data", exist_ok=True)
     with open(layout_path, "w") as f:
@@ -418,27 +259,28 @@ def save_kiosk_layout(payload: KioskLayout, user_id: str = Depends(get_current_u
     return {"success": True}
 
 @app.get("/api/clawhub/browse")
-def browse_clawhub():
-    """Fetch available skills from the ClawHub index (or offline fallback)."""
+def browse_clawhub(q: str = ""):
+    """Fetch available skills from the ClawHub index with fuzzy search."""
     index_url = "https://raw.githubusercontent.com/vignan07081999/ClawHub/main/index.json"
+    skills_list = []
     try:
         res = requests.get(index_url, timeout=5)
         if res.status_code == 200:
-            return res.json()
+            skills_list = res.json().get("skills", [])
     except Exception:
-        pass
+        fallback_path = "skills/clawhub_index.json"
+        if os.path.exists(fallback_path):
+            with open(fallback_path, "r") as f:
+                skills_list = json.load(f).get("skills", [])
     
-    # Offline fallback
-    fallback_path = "skills/clawhub_index.json"
-    if os.path.exists(fallback_path):
-        with open(fallback_path, "r") as f:
-            return json.load(f)
-    return {"skills": []}
+    if q:
+        q = q.lower()
+        skills_list = [s for s in skills_list if q in s["name"].lower() or q in s["description"].lower() or (s.get("tags") and any(q in t.lower() for t in s["tags"]))]
+    
+    return {"skills": skills_list}
 
 @app.post("/api/clawhub/install")
-def clawhub_install(payload: ClawHubInstallRequest, user_id: str = Depends(get_current_user)):
-    if not user_id:
-        return {"success": False, "message": "Unauthorized"}
+def clawhub_install(payload: ClawHubInstallRequest):
     if not agent_instance:
         return {"success": False, "message": "Agent offline."}
 
@@ -456,10 +298,15 @@ def clawhub_install(payload: ClawHubInstallRequest, user_id: str = Depends(get_c
         agent_instance.skill_manager._load_new_skills()
         return {"success": True, "message": f"Skill {skill_info['name']} installed and hot-loaded."}
     return {"success": False, "message": "Failed to install. Check daemon logs."}
-def get_history():
-    if agent_instance and hasattr(agent_instance, 'memory'):
-        return {"history": agent_instance.memory.short_term_context}
-    return {"history": []}
+
+@app.get("/api/proxy")
+def web_proxy(url: str):
+    """Simple proxy for iframe-blocked sites (e.g. Home Assistant)."""
+    try:
+        res = requests.get(url, timeout=10)
+        return HTMLResponse(content=res.text)
+    except Exception as e:
+        return HTMLResponse(content=f"Proxy error: {str(e)}", status_code=500)
 
 def start_webui(agent):
     global agent_instance
@@ -469,10 +316,7 @@ def start_webui(agent):
         return
 
     port = get_webui_port()
-    logging.info(f"Starting WebUI on port {port} bound to 0.0.0.0...")
-
-    # Start session cleanup background thread
-    threading.Thread(target=_evict_expired_sessions, daemon=True).start()
+    logging.info(f"Starting Zero-Auth WebUI on port {port}...")
 
     def run_server():
         # Use uvicorn.Server + isolated asyncio loop so signal handlers

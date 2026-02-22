@@ -89,40 +89,41 @@ fi
 echo "✓ Global command installed at: $VICLAW_SHIM"
 
 # ── Ensure /usr/local/bin is in PATH ────────────────────────────────────────
-# CasaOS root does not include /usr/local/bin in its default PATH.
-# We patch every relevant profile so it persists after reboot.
+# Aggressively patch every relevant profile for root and standard users.
 _patch_path() {
     local FILE="$1"
     local LINE='export PATH="$PATH:/usr/local/bin:$HOME/.local/bin"'
-    if [ -f "$FILE" ] && ! grep -q "/usr/local/bin" "$FILE" 2>/dev/null; then
-        echo "" >> "$FILE"
-        echo "# Added by ViClaw installer" >> "$FILE"
-        echo "$LINE" >> "$FILE"
-        echo "✓ PATH updated in $FILE"
+    if [ -f "$FILE" ]; then
+        if ! grep -q "/usr/local/bin" "$FILE" 2>/dev/null; then
+            echo "" >> "$FILE"
+            echo "# Added by ViClaw installer" >> "$FILE"
+            echo "$LINE" >> "$FILE"
+            echo "✓ PATH updated in $FILE"
+        fi
     fi
 }
 
+# Root-specific profiles (CasaOS defaults)
 _patch_path "/root/.bashrc"
 _patch_path "/root/.profile"
 _patch_path "/root/.bash_profile"
+# Global profiles
+_patch_path "/etc/bash.bashrc"
+_patch_path "/etc/profile"
+# User profiles
 _patch_path "$HOME/.bashrc"
 _patch_path "$HOME/.profile"
 
-# Patch /etc/environment for system-wide PATH (works on Debian/CasaOS)
+# Patch /etc/environment for system-wide static PATH
 if [ -f /etc/environment ]; then
     if ! grep -q "/usr/local/bin" /etc/environment; then
-        # Read current PATH from /etc/environment and append
-        if grep -q "^PATH=" /etc/environment; then
-            sed -i 's|^PATH="\(.*\)"|PATH="\1:/usr/local/bin"|' /etc/environment 2>/dev/null || true
-        fi
+        sed -i 's|^PATH="\(.*\)"|PATH="\1:/usr/local/bin"|' /etc/environment 2>/dev/null || true
         echo "✓ /etc/environment updated"
     fi
 fi
 
 # Make the shim immediately available in the current shell session
 export PATH="$PATH:/usr/local/bin:$HOME/.local/bin"
-echo "✓ viclaw is available in this shell. New shells will pick it up automatically."
-echo "  (If still not found, run: source ~/.bashrc)"
 
 # ── Systemd Service ──────────────────────────────────────────────────────────
 echo "Setting up systemd service to run ViClaw automatically..."
@@ -140,7 +141,7 @@ WorkingDirectory=$DIR
 ExecStart=$DIR/.venv/bin/python3 $DIR/main.py
 Restart=always
 RestartSec=10
-Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+Environment="PATH=$PATH"
 
 [Install]
 WantedBy=multi-user.target

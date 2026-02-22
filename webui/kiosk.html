@@ -4,539 +4,667 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ViClaw Kiosk Dashboard</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <title>ViClaw Kiosk Evolution</title>
+    <!-- Premium Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridstack@7.2.3/dist/gridstack.min.css" />
+    <!-- Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/gridstack@7.2.3/dist/gridstack-all.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
     <style>
         :root {
-            --bg-color: #0f172a;
-            --card-bg: rgba(30, 41, 59, 0.7);
+            --bg: #05070a;
+            --accent-blue: #38bdf8;
+            --accent-magenta: #f472b6;
+            --card-bg: rgba(15, 23, 42, 0.6);
             --card-border: rgba(255, 255, 255, 0.1);
-            --accent: #38bdf8;
-            --text-color: #f8fafc;
-            --blur: blur(20px);
+            --glass: blur(25px) saturate(180%);
+            --radius-lg: 24px;
+            --radius-md: 16px;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
         }
 
-        body,
-        html {
+        * {
             margin: 0;
             padding: 0;
-            width: 100vw;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg);
+            color: var(--text-main);
             height: 100vh;
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
             overflow: hidden;
             background-image:
-                radial-gradient(circle at 10% 20%, rgba(56, 189, 248, 0.1) 0%, transparent 40%),
-                radial-gradient(circle at 90% 80%, rgba(56, 189, 248, 0.05) 0%, transparent 40%);
+                radial-gradient(circle at 0% 0%, rgba(56, 189, 248, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 100% 100%, rgba(244, 114, 182, 0.1) 0%, transparent 50%);
         }
 
-        #kiosk-viewport {
-            width: 100vw;
-            height: 100vh;
+        /* --- Steam Deck / Homarr Hybrid Layout --- */
+        #main-container {
             display: flex;
-            flex-direction: column;
+            height: 100vh;
+            width: 100vw;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        header {
-            height: 60px;
-            padding: 0 20px;
+        /* Sidebar - Homarr Style Widget Gallery */
+        #widget-sidebar {
+            width: 320px;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: var(--glass);
+            border-right: 1px solid var(--card-border);
+            padding: 30px;
+            transform: translateX(-100%);
+            position: absolute;
+            z-index: 1000;
+            transition: transform 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        #widget-sidebar.open {
+            transform: translateX(0);
+        }
+
+        .sidebar-header {
+            margin-bottom: 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: rgba(15, 23, 42, 0.8);
-            border-bottom: 1px solid var(--card-border);
-            backdrop-filter: var(--blur);
-            z-index: 100;
+        }
+
+        .gallery-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-md);
+            padding: 15px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .gallery-item:hover {
+            background: rgba(56, 189, 248, 0.15);
+            border-color: var(--accent-blue);
+            transform: translateY(-2px);
+        }
+
+        .gallery-item .icon-box {
+            width: 40px;
+            height: 40px;
+            background: var(--accent-blue);
+            color: #000;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        /* Main Viewport */
+        #viewport {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+            position: relative;
+        }
+
+        header {
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 40px;
+            z-index: 50;
         }
 
         .brand {
+            font-size: 1.5rem;
             font-weight: 800;
-            color: var(--accent);
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            letter-spacing: -0.5px;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-magenta));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
-        .toolbar {
+        .controls {
             display: flex;
-            gap: 10px;
+            gap: 12px;
         }
 
         .btn {
-            background: var(--card-bg);
+            background: rgba(255, 255, 255, 0.05);
             border: 1px solid var(--card-border);
-            color: var(--text-color);
-            padding: 8px 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.85rem;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 30px;
             font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s;
             display: flex;
             align-items: center;
             gap: 8px;
+            backdrop-filter: blur(10px);
         }
 
         .btn:hover {
-            background: var(--card-border);
-            border-color: var(--accent);
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.3);
         }
 
-        .btn.primary {
-            background: var(--accent);
-            color: #012;
+        .btn.active {
+            background: var(--accent-blue);
+            color: #000;
             border: none;
         }
 
+        /* Grid */
         .grid-stack {
-            padding: 20px;
             flex: 1;
             overflow-y: auto !important;
+            padding: 20px 40px 40px 40px;
         }
 
         .grid-stack-item-content {
             background: var(--card-bg) !important;
-            backdrop-filter: var(--blur);
+            backdrop-filter: var(--glass);
             border: 1px solid var(--card-border) !important;
-            border-radius: 20px !important;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border-radius: var(--radius-lg) !important;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
             overflow: hidden;
             display: flex;
             flex-direction: column;
+            transition: border-color 0.3s, transform 0.3s;
         }
 
-        .widget-header {
-            padding: 12px 18px;
-            border-bottom: 1px solid var(--card-border);
+        .grid-stack-item:hover .grid-stack-item-content {
+            border-color: rgba(56, 189, 248, 0.4) !important;
+        }
+
+        .widget-head {
+            height: 50px;
+            padding: 0 20px;
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            justify-content: space-between;
+            cursor: grab;
+            user-select: none;
+        }
+
+        .widget-head .title {
             font-size: 0.75rem;
             text-transform: uppercase;
             font-weight: 800;
-            letter-spacing: 1px;
-            opacity: 0.6;
-            cursor: grab;
+            color: var(--text-dim);
+            letter-spacing: 1.5px;
         }
 
         .widget-body {
             flex: 1;
-            padding: 20px;
+            padding: 0;
             position: relative;
-            overflow: auto;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
         }
 
-        .w-clock {
-            font-size: 3.5rem;
+        /* --- Custom Widgets --- */
+        .w-clock-lg {
+            text-align: center;
+        }
+
+        .w-clock-lg .time {
+            font-size: 5rem;
             font-weight: 800;
-            color: var(--accent);
-            text-align: center;
+            line-height: 1;
+            color: var(--accent-blue);
+            filter: drop-shadow(0 0 15px rgba(56, 189, 248, 0.3));
         }
 
-        .w-clock .date {
-            font-size: 1.1rem;
-            opacity: 0.7;
-            font-weight: 400;
-            color: white;
-            margin-top: 5px;
+        .w-clock-lg .date {
+            font-size: 1.2rem;
+            color: var(--text-dim);
+            margin-top: 10px;
         }
 
-        .bot-container {
+        /* Mascot Bot */
+        .bot-wrap {
             width: 100%;
             height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
             position: relative;
         }
 
-        #avatar-canvas-container {
+        #bot-canvas {
             width: 100%;
             height: 100%;
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 1;
         }
 
-        .speech-bubble {
-            background: rgba(15, 23, 42, 0.9);
-            border: 1px solid var(--accent);
-            padding: 12px 18px;
-            border-radius: 15px;
-            font-size: 0.95rem;
-            text-align: center;
-            color: white;
-            max-width: 80%;
-            z-index: 10;
+        .thought-bubble {
             position: absolute;
-            top: 10%;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid var(--accent-blue);
+            padding: 12px 20px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            text-align: center;
+            width: 80%;
             display: none;
-            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 10;
+        }
+
+        /* Context Menu / Settings */
+        .settings-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
             backdrop-filter: blur(10px);
         }
 
-        .speech-bubble.active {
-            display: block;
-        }
-
-        @keyframes popIn {
-            from {
-                transform: scale(0.8);
-                opacity: 0;
-            }
-
-            to {
-                transform: scale(1);
-                opacity: 1;
-            }
-        }
-
-        .bot-controls {
-            width: 90%;
-            z-index: 10;
-            position: absolute;
-            bottom: 10px;
-            display: flex;
-            gap: 10px;
-        }
-
-        .bot-controls input {
-            flex: 1;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid var(--card-border);
-            color: white;
-            padding: 8px 12px;
-            border-radius: 8px;
-            outline: none;
-        }
-
-        .bot-controls input:focus {
-            border-color: var(--accent);
-        }
-
-        .modal {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.85);
-            z-index: 1000;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            backdrop-filter: blur(15px);
-        }
-
-        .modal-content {
+        .settings-card {
             background: #1e293b;
             border: 1px solid var(--card-border);
-            width: 90%;
-            max-width: 500px;
-            border-radius: 24px;
-            padding: 35px;
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.6);
+            width: 400px;
+            border-radius: var(--radius-lg);
+            padding: 40px;
+            box-shadow: 0 50px 100px rgba(0, 0, 0, 0.8);
         }
 
         input,
         select {
             width: 100%;
-            padding: 12px;
+            padding: 14px;
             background: #0f172a;
-            color: white;
+            color: #fff;
             border: 1px solid #334155;
-            border-radius: 10px;
-            margin-top: 5px;
-            outline: none;
+            border-radius: 12px;
+            margin: 10px 0 25px 0;
+            font-family: inherit;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: transparent;
+        }
+
+        /* Edit Mode Highlights */
+        body.editing .grid-stack-item-content {
+            outline: 2px dashed var(--accent-blue);
+            outline-offset: -2px;
         }
     </style>
 </head>
 
-<body>
-    <div id="kiosk-viewport">
-        <header>
-            <div class="brand">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                </svg>
-                VICLAW KIOSK v31.1
+<body class="zero-auth">
+    <div id="main-container">
+        <!-- Sidebar Widget Gallery -->
+        <aside id="widget-sidebar">
+            <div class="sidebar-header">
+                <h3 style="font-weight: 800;">Widgets</h3>
+                <button class="btn" style="padding: 5px 10px;" onclick="toggleSidebar()">✕</button>
             </div>
-            <div class="toolbar">
-                <button class="btn" onclick="toggleEdit()">
-                    <span id="edit-icon">✎</span> <span id="edit-text">Edit Layout</span>
-                </button>
-                <button class="btn" onclick="showAddWidget()">+</button>
-                <button class="btn primary" onclick="saveLayout()">Save Changes</button>
+            <div class="gallery-item" onclick="createWidget('clock', 'Clock')">
+                <div class="icon-box">🕒</div>
+                <div><strong>Clock</strong>
+                    <div style="font-size:0.7rem; opacity:0.6;">Time & Date</div>
+                </div>
             </div>
-        </header>
-        <div class="grid-stack"></div>
+            <div class="gallery-item" onclick="createWidget('agent', 'Pill Bot')">
+                <div class="icon-box">🤖</div>
+                <div><strong>Pill Bot</strong>
+                    <div style="font-size:0.7rem; opacity:0.6;">3D AI Companion</div>
+                </div>
+            </div>
+            <div class="gallery-item" onclick="createWidget('iframe', 'Embed')">
+                <div class="icon-box">🔗</div>
+                <div><strong>External Site</strong>
+                    <div style="font-size:0.7rem; opacity:0.6;">HaSS, Octoprint, etc.</div>
+                </div>
+            </div>
+            <div class="gallery-item" onclick="createWidget('stats', 'System')">
+                <div class="icon-box">📊</div>
+                <div><strong>Health</strong>
+                    <div style="font-size:0.7rem; opacity:0.6;">CPU, RAM, Status</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Viewport -->
+        <div id="viewport">
+            <header>
+                <div class="brand">VICLAW EVOLUTION</div>
+                <div class="controls">
+                    <button id="btn-edit" class="btn" onclick="toggleEditMode()">
+                        <span>⚙️</span> Edit Mode
+                    </button>
+                    <button class="btn" onclick="toggleSidebar()">
+                        <span>🧩</span> Add Widget
+                    </button>
+                    <button class="btn active" onclick="saveLayout()">
+                        <span>💾</span> Save
+                    </button>
+                </div>
+            </header>
+
+            <div class="grid-stack"></div>
+        </div>
     </div>
 
-    <div id="widget-modal" class="modal">
-        <div class="modal-content">
-            <h2 style="margin-bottom:20px; font-weight:800;">Add Widget</h2>
-            <div style="display:flex; flex-direction:column; gap:20px;">
-                <label>Type
-                    <select id="w-type">
-                        <option value="clock">Clock & Date</option>
-                        <option value="agent">3D AI Assistant</option>
-                        <option value="weather">Weather</option>
-                        <option value="iframe">iFrame / Website</option>
-                        <option value="stats">System Health</option>
-                    </select>
-                </label>
-                <label>Title <input type="text" id="w-title" placeholder="My Widget"></label>
-                <label>URL <input type="text" id="w-url" placeholder="https://..."></label>
-                <div style="display:flex; gap:12px; margin-top:10px;">
-                    <button class="btn primary" style="flex:1;" onclick="addWidgetAction()">Add Widget</button>
-                    <button class="btn" style="flex:1;" onclick="closeModal()">Cancel</button>
-                </div>
+    <!-- Settings Modal -->
+    <div id="settings-overlay" class="settings-overlay">
+        <div class="settings-card">
+            <h2 id="settings-title" style="margin-bottom:10px;">Widget Settings</h2>
+            <input type="hidden" id="edit-id">
+            <label>Title</label>
+            <input type="text" id="edit-title">
+            <label id="url-label">URL / Endpoint</label>
+            <input type="text" id="edit-url">
+            <div style="display:flex; gap:12px;">
+                <button class="btn active" style="flex:1;" onclick="applySettings()">Apply</button>
+                <button class="btn" style="flex:1;" onclick="closeSettings()">Cancel</button>
             </div>
         </div>
     </div>
 
     <script>
-        let grid = GridStack.init({ cellHeight: 80, margin: 10, staticGrid: true });
+        let grid = GridStack.init({
+            cellHeight: 80,
+            margin: 15,
+            staticGrid: true,
+            float: true,
+            animate: true
+        });
+
         let isEditing = false;
-        let widgetMetadata = {};
+        let widgets = {}; // Persistent metadata
 
-        // Three.js Globals
-        let scene, camera, renderer, botHead, eye, glow;
-        let botState = 'idle'; // idle, thinking, happy, concern
+        // --- 3D Mascot Logic (Pill Bot) ---
+        let bot = { scene: null, camera: null, renderer: null, pill: null, eyes: [], hands: [] };
+        let botState = 'idle';
 
-        function toggleEdit() {
-            isEditing = !isEditing;
-            grid.setStatic(!isEditing);
-            document.getElementById('edit-text').innerText = isEditing ? 'Lock Layout' : 'Edit Layout';
-            document.getElementById('edit-icon').innerText = isEditing ? '✓' : '✎';
-            document.body.style.cursor = isEditing ? 'initial' : 'none';
-        }
-
-        function showAddWidget() { document.getElementById('widget-modal').style.display = 'flex'; }
-        function closeModal() { document.getElementById('widget-modal').style.display = 'none'; }
-
-        function createWidget(w) {
-            widgetMetadata[w.id] = { type: w.type, title: w.title, url: w.url };
-            let content = '';
-            if (w.type === 'clock') {
-                content = `<div class="w-clock"><div id="time-${w.id}">00:00</div><div class="date" id="date-${w.id}">Loading...</div></div>`;
-                setTimeout(() => setupClock(w.id), 10);
-            } else if (w.type === 'agent') {
-                content = `<div class="bot-container">
-                    <div class="speech-bubble" id="bubble-${w.id}">System Ready.</div>
-                    <div id="avatar-canvas-container"></div>
-                    <div class="bot-controls">
-                        <button class="btn" style="padding:10px; border-radius:50%;" onclick="startVoice('${w.id}')">🎙️</button>
-                        <input type="text" id="agent-input-${w.id}" placeholder="Type message..." onkeydown="handleAgentKey(event, '${w.id}')">
-                    </div>
-                </div>`;
-                setTimeout(() => initThreeJS(w.id), 100);
-            } else if (w.type === 'weather') {
-                content = `<div style="text-align:center;"><div id="temp-${w.id}" style="font-size:3rem; font-weight:800;">--°C</div><div id="cond-${w.id}" style="opacity:0.7;">...</div></div>`;
-                setTimeout(() => fetchWeather(w.id), 10);
-            } else if (w.type === 'iframe') {
-                content = `<iframe src="${w.url}"></iframe>`;
-            } else if (w.type === 'stats') {
-                content = `<div id="stats-${w.id}" style="font-family:monospace; font-size:0.9rem; line-height:1.6; opacity:0.8;">Loading...</div>`;
-                setTimeout(() => fetchStats(w.id), 10);
-            }
-
-            grid.addWidget({
-                id: w.id, x: w.x, y: w.y, w: w.w, h: w.h,
-                content: `<div class="widget-header"><span>${w.title || w.type}</span> <span onclick="removeWidget('${w.id}')" style="cursor:pointer;">✕</span></div><div class="widget-body">${content}</div>`
-            });
-        }
-
-        function initThreeJS(widgetId) {
-            const container = document.getElementById('avatar-canvas-container');
+        function initPillBot(containerId) {
+            const container = document.getElementById(containerId);
             if (!container) return;
 
-            scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(container.clientWidth, container.clientHeight);
             container.appendChild(renderer.domElement);
 
             // Lighting
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-            scene.add(ambientLight);
-            const pointLight = new THREE.PointLight(0x38bdf8, 1);
-            pointLight.position.set(5, 5, 5);
-            scene.add(pointLight);
+            const hLight = new THREE.HemisphereLight(0xffffff, 0x080820, 1);
+            scene.add(hLight);
+            const pLight = new THREE.PointLight(0x38bdf8, 2);
+            pLight.position.set(2, 2, 5);
+            scene.add(pLight);
 
-            // Bot Head (Spherical/Rounded Box)
-            const geometry = new THREE.SphereGeometry(1, 40, 40);
-            const material = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.2 });
-            botHead = new THREE.Mesh(geometry, material);
-            scene.add(botHead);
+            // Pill Body
+            const bodyGroup = new THREE.Group();
+            const bodyGeo = new THREE.CapsuleGeometry(0.8, 1, 32, 32);
+            const bodyMat = new THREE.MeshStandardMaterial({
+                color: 0x1e293b,
+                metalness: 0.6,
+                roughness: 0.1,
+                emissive: 0x38bdf8,
+                emissiveIntensity: 0.1
+            });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            bodyGroup.add(body);
 
-            // "Face" Shield
-            const faceGeo = new THREE.SphereGeometry(0.95, 30, 30, 0, Math.PI * 2, 0, Math.PI / 2.5);
-            const faceMat = new THREE.MeshBasicMaterial({ color: 0x0f172a });
+            // Digital Faceplate
+            const faceGeo = new THREE.SphereGeometry(0.7, 32, 16, 0, Math.PI, 0, Math.PI / 2);
+            const faceMat = new THREE.MeshBasicMaterial({ color: 0x020617 });
             const face = new THREE.Mesh(faceGeo, faceMat);
-            face.rotation.x = Math.PI / 1.5;
-            botHead.add(face);
+            face.rotation.x = Math.PI / 2;
+            face.position.z = 0.2;
+            bodyGroup.add(face);
 
-            // Eye (Central LED)
-            const eyeGeo = new THREE.SphereGeometry(0.15, 20, 20);
-            const eyeMat = new THREE.MeshBasicMaterial({ color: 0x00d2d3 });
-            eye = new THREE.Mesh(eyeGeo, eyeMat);
-            eye.position.set(0, 0.3, 0.85);
-            botHead.add(eye);
+            // Floating Eyes (Small spheres)
+            const eyeGeo = new THREE.SphereGeometry(0.1, 16, 16);
+            const eyeMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
 
-            // Eye Glow
-            const glowGeo = new THREE.SphereGeometry(0.3, 20, 20);
-            const glowMat = new THREE.MeshBasicMaterial({ color: 0x00d2d3, transparent: true, opacity: 0.3 });
-            glow = new THREE.Mesh(glowGeo, glowMat);
-            glow.position.copy(eye.position);
-            botHead.add(glow);
+            const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+            eyeL.position.set(-0.25, 0.8, 0.75);
+            bodyGroup.add(eyeL);
 
-            camera.position.z = 3;
+            const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
+            eyeR.position.set(0.25, 0.8, 0.75);
+            bodyGroup.add(eyeR);
 
-            // Animation Loop
-            let time = 0;
+            // Floating Hands
+            const handGeo = new THREE.SphereGeometry(0.15, 16, 16);
+            const handMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8 });
+
+            const handL = new THREE.Mesh(handGeo, handMat);
+            handL.position.set(-1.2, 0.2, 0);
+            bodyGroup.add(handL);
+
+            const handR = new THREE.Mesh(handGeo, handMat);
+            handR.position.set(1.2, 0.2, 0);
+            bodyGroup.add(handR);
+
+            scene.add(bodyGroup);
+            camera.position.z = 4;
+
+            // Animation Loop using GSAP for buttery smooth feel
+            gsap.to(bodyGroup.position, { y: 0.1, duration: 2, repeat: -1, yoyo: true, ease: "sine.inOut" });
+            gsap.to(bodyGroup.rotation, { y: 0.1, duration: 3, repeat: -1, yoyo: true, ease: "sine.inOut" });
+
+            gsap.to(handL.position, { y: 0.3, duration: 2.5, repeat: -1, yoyo: true, ease: "sine.inOut" });
+            gsap.to(handR.position, { y: 0.3, duration: 2.8, repeat: -1, yoyo: true, ease: "sine.inOut" });
+
             const animate = () => {
                 requestAnimationFrame(animate);
-                time += 0.05;
 
-                // 1. Standby: Breathing
-                botHead.scale.setScalar(1 + Math.sin(time * 0.5) * 0.03);
-
-                // 2. Standby: Random Look Around
-                if (botState === 'idle') {
-                    botHead.rotation.y = Math.sin(time * 0.2) * 0.3;
-                    botHead.rotation.x = Math.cos(time * 0.3) * 0.1;
-                    eye.material.color.setHex(0x38bdf8);
-
-                    // NEW: Random Blinking
-                    if (Math.random() < 0.01) {
-                        eye.scale.y = 0.1;
-                        setTimeout(() => eye.scale.y = 1, 150);
-                    }
-                } else if (botState === 'thinking') {
-                    // 3. Thinking Animation
-                    botHead.rotation.y += 0.1;
-                    eye.material.color.setHex(0xa855f7);
-                } else if (botState === 'happy') {
-                    botHead.scale.y = 1 + Math.abs(Math.sin(time * 2)) * 0.1;
-                    eye.material.color.setHex(0x22c55e);
+                // Reactive animations
+                if (botState === 'thinking') {
+                    bodyGroup.rotation.y += 0.05;
+                    handL.position.x = Math.sin(Date.now() * 0.01) * 1.5;
+                    handR.position.x = -Math.sin(Date.now() * 0.01) * 1.5;
                 }
 
                 renderer.render(scene, camera);
             };
             animate();
-
-            // Periodic Idle Thoughts
-            setInterval(() => {
-                if (botState === 'idle') {
-                    const thoughts = [
-                        "Scanning local subnet...",
-                        "Memory optimized.",
-                        "Ollama is responding within 200ms.",
-                        "Everything looks green.",
-                        "Waiting for your command.",
-                        "Rethinking the universe...",
-                        "I wonder if I can run Doom?",
-                        "System integrity verified.",
-                        "Listening via X-Local-Auth..."
-                    ];
-                    showBubble(thoughts[Math.floor(Math.random() * thoughts.length)], widgetId);
-                }
-            }, 45000);
         }
 
-        function showBubble(text, id) {
-            const bubble = document.getElementById(`bubble-${id}`);
-            if (!bubble) return;
-            bubble.innerText = text;
-            bubble.classList.add('active');
-            setTimeout(() => bubble.classList.remove('active'), 5000);
+        function toggleEditMode() {
+            isEditing = !isEditing;
+            grid.setStatic(!isEditing);
+            document.body.classList.toggle('editing', isEditing);
+            document.getElementById('btn-edit').classList.toggle('active', isEditing);
+            gsap.from('.grid-stack-item', { scale: 0.98, opacity: 0.5, stagger: 0.05, duration: 0.4 });
         }
 
-        function setupClock(id) {
-            const update = () => {
-                const now = new Date();
-                const tEl = document.getElementById(`time-${id}`);
-                const dEl = document.getElementById(`date-${id}`);
-                if (tEl) tEl.innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                if (dEl) dEl.innerText = now.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
-            };
-            update(); setInterval(update, 10000);
+        function toggleSidebar() {
+            document.getElementById('widget-sidebar').classList.toggle('open');
         }
 
-        function fetchWeather(id) {
-            fetch('https://wttr.in/?format=j1').then(res => res.json()).then(data => {
-                const cond = data.current_condition[0];
-                document.getElementById(`temp-${id}`).innerText = cond.temp_C + '°C';
-                document.getElementById(`cond-${id}`).innerText = cond.weatherDesc[0].value;
-            });
-        }
+        function createWidget(type, title, config = {}) {
+            const id = 'w-' + Date.now();
+            const w = config.w || (type === 'agent' ? 3 : type === 'clock' ? 4 : 3);
+            const h = config.h || (type === 'agent' ? 5 : 2);
 
-        function fetchStats(id) {
-            fetch('/api/diagnostics').then(res => res.json()).then(data => {
-                const el = document.getElementById(`stats-${id}`);
-                if (el) el.innerHTML = `Daemon: ${data.daemon_status}<br>Model: ${data.model}<br>DB: ${data.db_size}`;
-            });
-        }
+            widgets[id] = { type, title, url: config.url || '' };
 
-        function handleAgentKey(e, id) {
-            if (e.key === 'Enter') {
-                const input = document.getElementById(`agent-input-${id}`);
-                const msg = input.value;
-                if (!msg) return;
-                input.value = '';
-                botState = 'thinking';
-                fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: msg })
-                }).then(res => res.json()).then(data => {
-                    botState = 'happy';
-                    showBubble(data.reply, id);
-                    if (window.speechSynthesis) window.speechSynthesis.speak(new SpeechSynthesisUtterance(data.reply));
-                    setTimeout(() => botState = 'idle', 5000);
-                });
+            let innerHtml = '';
+            if (type === 'clock') {
+                innerHtml = `
+                    <div class="w-clock-lg">
+                        <div class="time" id="time-${id}">00:00</div>
+                        <div class="date" id="date-${id}">...</div>
+                    </div>`;
+                setTimeout(() => startClock(id), 10);
+            } else if (type === 'agent') {
+                innerHtml = `
+                    <div class="bot-wrap">
+                        <div class="thought-bubble" id="thought-${id}">Ready to assist.</div>
+                        <div id="canvas-${id}" style="width:100%; height:100%;"></div>
+                        <div style="position:absolute; bottom:15px; width:90%; left:5%; display:flex; gap:10px;">
+                            <input type="text" placeholder="Speak..." id="chat-${id}" style="margin:0; padding:10px;" onkeydown="sendChat(event, '${id}')">
+                        </div>
+                    </div>`;
+                setTimeout(() => initPillBot(`canvas-${id}`), 100);
+            } else if (type === 'iframe') {
+                const proxyUrl = config.url ? `/api/proxy?url=${encodeURIComponent(config.url)}` : 'about:blank';
+                // Try direct first, fallback to proxy is handled by UI settings
+                innerHtml = `<iframe src="${config.url || 'about:blank'}" id="frame-${id}"></iframe>`;
+            } else if (type === 'stats') {
+                innerHtml = `<div id="stats-${id}" style="text-align:center; font-family:monospace; font-size:1rem; color:var(--accent-blue);">Loading Telemetry...</div>`;
+                setInterval(() => updateStats(id), 5000);
             }
-        }
 
-        function saveLayout() {
-            const layout = grid.save().map(item => {
-                const meta = widgetMetadata[item.id] || { type: 'unknown' };
-                return { id: item.id, x: item.x, y: item.y, w: item.w, h: item.h, type: meta.type, title: meta.title, url: meta.url };
-            });
-            fetch('/api/kiosk_layout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ layout }) })
-                .then(() => alert('Layout saved. (v31.1)'));
-        }
-
-        function loadLayout() {
-            fetch('/api/kiosk_layout').then(res => res.json()).then(data => {
-                grid.removeAll(); widgetMetadata = {};
-                data.layout.forEach(w => createWidget(w));
+            const header = isEditing ? 'initial' : 'none';
+            grid.addWidget({
+                id, x: 0, y: 0, w, h,
+                content: `
+                    <div class="widget-head">
+                        <span class="title">${title}</span>
+                        <div style="display:flex; gap:10px;">
+                            <span onclick="openSettings('${id}')" style="cursor:pointer; opacity:0.5;">⚙️</span>
+                            <span onclick="removeWidget('${id}')" style="cursor:pointer; opacity:0.5;">✕</span>
+                        </div>
+                    </div>
+                    <div class="widget-body">${innerHtml}</div>`
             });
         }
 
         function removeWidget(id) {
             const el = document.querySelector(`[gs-id="${id}"]`);
             if (el) grid.removeWidget(el);
-            delete widgetMetadata[id];
+            delete widgets[id];
         }
 
-        function addWidgetAction() {
-            const type = document.getElementById('w-type').value;
-            const title = document.getElementById('w-title').value;
-            const url = document.getElementById('w-url').value;
-            const id = 'w-' + Date.now();
-            createWidget({ id, type, title, url, x: 0, y: 0, w: 4, h: 4 });
-            closeModal();
+        function openSettings(id) {
+            const w = widgets[id];
+            document.getElementById('edit-id').value = id;
+            document.getElementById('edit-title').value = w.title;
+            document.getElementById('edit-url').value = w.url;
+            document.getElementById('settings-title').innerText = `Settings: ${w.title}`;
+            document.getElementById('url-label').style.display = (w.type === 'iframe' || w.type === 'stats') ? 'block' : 'none';
+            document.getElementById('edit-url').style.display = (w.type === 'iframe' || w.type === 'stats') ? 'block' : 'none';
+            document.getElementById('settings-overlay').style.display = 'flex';
+        }
+
+        function applySettings() {
+            const id = document.getElementById('edit-id').value;
+            const title = document.getElementById('edit-title').value;
+            const url = document.getElementById('edit-url').value;
+
+            widgets[id].title = title;
+            widgets[id].url = url;
+
+            // Update Title in Header
+            const el = document.querySelector(`[gs-id="${id}"] .title`);
+            if (el) el.innerText = title;
+
+            // Update Iframe if needed
+            const frame = document.getElementById(`frame-${id}`);
+            if (frame) {
+                // Heuristic: If it's HASS or an internal IP, maybe hint proxy?
+                frame.src = url;
+            }
+
+            closeSettings();
+        }
+
+        function closeSettings() {
+            document.getElementById('settings-overlay').style.display = 'none';
+        }
+
+        function startClock(id) {
+            const update = () => {
+                const now = new Date();
+                const t = document.getElementById(`time-${id}`);
+                const d = document.getElementById(`date-${id}`);
+                if (t) t.innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                if (d) d.innerText = now.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+            };
+            update(); setInterval(update, 1000);
+        }
+
+        async function updateStats(id) {
+            try {
+                const res = await fetch('/api/history'); // Simple ping to check life
+                const el = document.getElementById(`stats-${id}`);
+                if (el) el.innerHTML = `SYSTEM LIVE<br>DASHBOARD v31.2<br>ZERO-AUTH ACTIVE`;
+            } catch (e) { }
+        }
+
+        function sendChat(e, id) {
+            if (e.key === 'Enter') {
+                const input = document.getElementById(`chat-${id}`);
+                const bubble = document.getElementById(`thought-${id}`);
+                const msg = input.value;
+                if (!msg) return;
+                input.value = '';
+
+                botState = 'thinking';
+                bubble.innerText = "...";
+                bubble.style.display = 'block';
+
+                fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: msg })
+                }).then(res => res.json()).then(data => {
+                    botState = 'idle';
+                    bubble.innerText = data.reply;
+                    if (window.speechSynthesis) {
+                        const ut = new SpeechSynthesisUtterance(data.reply);
+                        ut.pitch = 1.5; ut.rate = 1.1;
+                        window.speechSynthesis.speak(ut);
+                    }
+                    setTimeout(() => bubble.style.display = 'none', 8000);
+                });
+            }
+        }
+
+        function saveLayout() {
+            const layout = grid.save().map(item => ({
+                ...item,
+                ...widgets[item.id]
+            }));
+            fetch('/api/kiosk_layout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ layout })
+            }).then(() => {
+                gsap.to('header', { backgroundColor: 'rgba(34, 197, 94, 0.4)', duration: 0.3, yoyo: true, repeat: 1 });
+            });
+        }
+
+        async function loadLayout() {
+            const res = await fetch('/api/kiosk_layout');
+            const data = await res.json();
+            grid.removeAll();
+            data.layout.forEach(w => {
+                createWidget(w.type, w.title, { ...w });
+            });
         }
 
         window.onload = loadLayout;
+
     </script>
 </body>
 

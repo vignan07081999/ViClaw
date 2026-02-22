@@ -58,13 +58,12 @@ def main():
             if not user_input.strip():
                 continue
                 
-            # Send to daemon via a new API endpoint we'll create in WebUI app.py
+            # Send to daemon via WebUI API
             with console.status("[bold cyan]ViClaw is thinking...[/bold cyan]", spinner="dots"):
                 try:
                     res = requests.post(
                         f"{base_url}/api/chat",
-                        json={"message": user_input},
-                        headers={"X-Local-Auth": api_key},
+                        json={"message": user_input}
                     )
                     if res.status_code == 200:
                         data = res.json()
