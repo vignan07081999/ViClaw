@@ -33,6 +33,7 @@ sudo apt update && sudo apt install -y python3 python3-venv git
 ```bash
 git clone https://github.com/vignan07081999/ViClaw.git
 cd ViClaw
+chmod +x install.sh
 ./install.sh
 ```
 
