@@ -232,32 +232,12 @@ def conf_webui(config):
                     break
         console.print(f"[green]✓ Assigned WebUI to port {webui_port}[/green]")
 
-        # ---- WebUI credential setup ------------------------------------------
-        console.print("\n[bold red]⚠ Security:[/bold red] Set a username and password for WebUI access.")
-        console.print("[dim]These replace the old hardcoded defaults. Store them safely.[/dim]")
-        existing_creds = config.get("webui", {}).get("credentials", {})
-        webui_user = questionary.text(
-            "WebUI Admin Username:",
-            default=existing_creds.get("username", "admin")
-        ).ask()
-        # Password with confirmation loop
-        while True:
-            webui_pass = questionary.password("WebUI Password (min 6 chars):").ask()
-            if not webui_pass or len(webui_pass) < 6:
-                console.print("[red]Password must be at least 6 characters. Try again.[/red]")
-                continue
-            webui_pass_confirm = questionary.password("Confirm password:").ask()
-            if webui_pass == webui_pass_confirm:
-                break
-            console.print("[red]Passwords do not match. Try again.[/red]")
-        # ---------------------------------------------------------------------
-
         config["webui"] = {
             "enabled": True,
             "port": webui_port,
-            "credentials": {"username": webui_user, "password": webui_pass},
+            "credentials": {} # Zero-Auth: Credentials ignored by backend
         }
-        console.print(f"[green]✓ WebUI credentials saved for user '{webui_user}'.[/green]")
+        console.print("[green]✓ Zero-Auth WebUI configured (no login required).[/green]")
     else:
         config["webui"] = {"enabled": False, "port": webui_port}
 

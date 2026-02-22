@@ -79,10 +79,8 @@ class ConfigManager:
             except json.JSONDecodeError:
                 logging.error(f"Failed to parse {self._path}. Keeping previous config.")
             
-            # Auto-generate local_api_key if missing
-            if "local_api_key" not in self._data:
-                self._data["local_api_key"] = str(uuid.uuid4())
-                self.save(self._data)
+            # Auto-generate local_api_key - REMOVED for Zero-Auth Overhaul
+            pass
 
     def save(self, data: dict) -> None:
         """Persist a new config dict to disk and update in-memory state."""
@@ -186,6 +184,5 @@ def get_webui_port() -> int:
     return _manager.get("webui", {}).get("port", 8501)
 
 
-def get_local_api_key() -> str:
-    """Return the shared secret for local CLI tools to authenticate."""
-    return _manager.get("local_api_key", "insecure_fallback")
+
+# Zero-Auth: get_local_api_key removed.

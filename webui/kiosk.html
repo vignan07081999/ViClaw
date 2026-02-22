@@ -248,6 +248,37 @@
         #bot-canvas {
             width: 100%;
             height: 100%;
+            transition: opacity 1s ease;
+            opacity: 0;
+        }
+
+        #bot-canvas.ready {
+            opacity: 1;
+        }
+
+        .bot-loader {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent-blue);
+            font-size: 0.8rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 0.3;
+            }
+
+            50% {
+                opacity: 1;
+            }
         }
 
         .thought-bubble {
@@ -401,7 +432,7 @@
         let bot = { scene: null, camera: null, renderer: null, pill: null, eyes: [], hands: [] };
         let botState = 'idle';
 
-        function initPillBot(containerId) {
+        function initPillBot(containerId, widgetId) {
             const container = document.getElementById(containerId);
             if (!container) return;
 
@@ -409,7 +440,13 @@
             const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
             const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.domElement.id = 'bot-canvas';
             container.appendChild(renderer.domElement);
+
+            // Removing loader and showing canvas
+            const loader = document.getElementById(`loader-${widgetId}`);
+            if (loader) loader.style.display = 'none';
+            setTimeout(() => renderer.domElement.classList.add('ready'), 50);
 
             // Lighting
             const hLight = new THREE.HemisphereLight(0xffffff, 0x080820, 1);
@@ -517,14 +554,27 @@
                 setTimeout(() => startClock(id), 10);
             } else if (type === 'agent') {
                 innerHtml = `
-                    <div class="bot-wrap">
+                    <div class="bot-wrap" id="wrap-${id}">
+                        <div class="bot-loader" id="loader-${id}">Initializing Mascot...</div>
                         <div class="thought-bubble" id="thought-${id}">Ready to assist.</div>
                         <div id="canvas-${id}" style="width:100%; height:100%;"></div>
                         <div style="position:absolute; bottom:15px; width:90%; left:5%; display:flex; gap:10px;">
                             <input type="text" placeholder="Speak..." id="chat-${id}" style="margin:0; padding:10px;" onkeydown="sendChat(event, '${id}')">
                         </div>
                     </div>`;
-                setTimeout(() => initPillBot(`canvas-${id}`), 100);
+
+                // Use a ResizeObserver to wait for the element to have dimensions
+                const observer = new ResizeObserver(() => {
+                    const canvasDiv = document.getElementById(`canvas-${id}`);
+                    if (canvasDiv && canvasDiv.clientWidth > 0 && canvasDiv.clientHeight > 0) {
+                        initPillBot(`canvas-${id}`, id);
+                        observer.disconnect();
+                    }
+                });
+                setTimeout(() => {
+                    const canvasDiv = document.getElementById(`canvas-${id}`);
+                    if (canvasDiv) observer.observe(canvasDiv);
+                }, 100);
             } else if (type === 'iframe') {
                 const proxyUrl = config.url ? `/api/proxy?url=${encodeURIComponent(config.url)}` : 'about:blank';
                 // Try direct first, fallback to proxy is handled by UI settings

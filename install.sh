@@ -164,3 +164,23 @@ else
     echo "  sudo mv /tmp/viclaw.service /etc/systemd/system/viclaw.service"
     echo "  sudo systemctl daemon-reload && sudo systemctl enable viclaw && sudo systemctl start viclaw"
 fi
+
+# ── Finish ──────────────────────────────────────────────────────────────────
+clear
+echo "========================================================"
+echo "          ViClaw Installation Complete!                 "
+echo "========================================================"
+echo ""
+echo "!!! ACTION REQUIRED TO ENABLE COMMANDS !!!"
+echo "To use the 'viclaw' command in this terminal, run:"
+echo ""
+echo "    source ~/.bashrc"
+echo ""
+echo "Then you can run:"
+echo "    viclaw chat          - Open the interactive CLI"
+echo "    viclaw diagnostics   - Check system health"
+echo "    viclaw doctor        - Troubleshoot setup"
+echo "    viclaw --help        - List all available commands"
+echo ""
+echo "WebUI is available at: http://localhost:8501"
+echo "========================================================"

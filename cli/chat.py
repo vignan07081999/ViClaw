@@ -15,16 +15,13 @@ from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.markdown import Markdown
 
-# Ensure we're running from the root of OpenClawClone
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from core.config import get_webui_port, get_local_api_key
+from core.config import get_webui_port
 
 console = Console()
 
 def main():
     port = get_webui_port()
     base_url = f"http://localhost:{port}"
-    api_key = get_local_api_key()
 
     console.clear()
     console.print(Panel.fit("[bold magenta]ViClaw Interactive Local Client[/bold magenta]", border_style="magenta"))

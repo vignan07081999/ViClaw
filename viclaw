@@ -15,6 +15,16 @@ def main():
     args = []
     
     if len(sys.argv) > 1:
+        if sys.argv[1] in ["--help", "-h", "help"]:
+            print("ViClaw (OpenClaw Clone) CLI Wrapper")
+            print("\nUsage:")
+            print("  viclaw chat          - Interactive chat with the agent")
+            print("  viclaw diagnostics   - Check system status and logs")
+            print("  viclaw doctor        - Automated troubleshooting")
+            print("  viclaw main          - Run the core agent loop")
+            print("  viclaw launcher      - Open the cross-platform GUI")
+            print("\nGlobal command: viclaw [subcommand] [args...]")
+            sys.exit(0)
         cmd = sys.argv[1]
         args = sys.argv[2:]
         
