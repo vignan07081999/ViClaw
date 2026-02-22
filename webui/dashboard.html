@@ -1374,7 +1374,36 @@
                             if (!line.startsWith('data: ')) continue;
                             const data = line.slice(6);
 
+                            // ── Ignore pure control/heartbeat events ──
+                            if (data === '[PING]' || data === '[CHUNK]') continue;
+
+                            // ── THINKING: show spinner in bubble ──
+                            if (data === '[THINKING]') {
+                                if (bubble) bubble.setAttribute('data-thinking', '1');
+                                const statusId = 'thinking-status-' + bubbleId;
+                                if (!document.getElementById(statusId)) {
+                                    document.getElementById('msg-' + bubbleId)?.insertAdjacentHTML('afterend',
+                                        `<div id="${statusId}" class="msg-container bot" style="opacity:0.6;font-size:0.82em;">` +
+                                        `<div class="bubble" style="padding:6px 14px;display:flex;align-items:center;gap:8px;">` +
+                                        `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);animation:blink 0.8s step-end infinite;"></span>` +
+                                        `<span id="${statusId}-text">Thinking…</span></div></div>`
+                                    );
+                                }
+                                continue;
+                            }
+
+                            // ── TOOL_START: update thinking status label ──
+                            if (data.startsWith('[TOOL_START]')) {
+                                const toolName = data.slice(12);
+                                const el = document.getElementById('thinking-status-' + bubbleId + '-text');
+                                if (el) el.textContent = 'Running tool: ' + toolName + '…';
+                                continue;
+                            }
+
                             if (data === '[DONE]') {
+                                // Remove thinking status bubble
+                                const statusId = 'thinking-status-' + bubbleId;
+                                document.getElementById(statusId)?.remove();
                                                                 if (cursor) cursor.remove();
                                 // Render final accumulated text as markdown
                                 if (bubble) {

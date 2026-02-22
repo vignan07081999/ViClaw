@@ -58,15 +58,22 @@ def handle_chat(payload: ChatMessage):
     return {"reply": "Agent is offline.", "raw_content": None}
 
 from fastapi.responses import StreamingResponse as FastAPIStreamingResponse
+import threading as _threading
+import queue as _queue
 
 @app.post("/api/chat/stream")
 def handle_chat_stream(payload: ChatMessage):
     """
     Server-Sent Events endpoint — streams LLM tokens in real time.
-    Each token is emitted as:   data: <token text>\n\n
-    After all tokens, emits:    data: [DONE]\n\n
-    If tool calls are detected, emits before [DONE]:
-                                data: [TOOL_RESULT]<json>\n\n
+
+    SSE event types:
+      data: <token>          — raw token text (newlines escaped as \\n)
+      data: [PING]           — heartbeat (keep-alive, no visual effect)
+      data: [THINKING]       — agent is executing a tool call
+      data: [TOOL_START]<n>  — which tool is running
+      data: [TOOL_RESULT]... — JSON tool results after execution
+      data: [CHUNK]          — natural chunk boundary (paragraph/sentence end)
+      data: [DONE]           — stream complete
     """
     if not agent_instance:
         def _offline():
@@ -76,6 +83,8 @@ def handle_chat_stream(payload: ChatMessage):
 
     def _stream_generator():
         import json as _json
+        import re as _re
+        import time as _time
 
         agent = agent_instance
         message_text = payload.message
@@ -84,7 +93,7 @@ def handle_chat_stream(payload: ChatMessage):
         # Add user message to memory
         agent.memory.add_short_term("user", message_text)
 
-        # Build system prompt (same logic as process_immediate_message)
+        # Build system prompt
         from skills.clawhub_bridge import get_installed_skills_context
         system_prompt = agent.personality.construct_system_prompt(current_query=message_text)
         context = agent.memory.get_short_term_context()[:-1]
@@ -105,8 +114,12 @@ def handle_chat_stream(payload: ChatMessage):
             for i, r in enumerate(related):
                 system_prompt += f"{i+1}. {r}\n"
 
-        # Stream tokens
+        # ── Stream tokens ──────────────────────────────────────────────
         full_text = []
+        chunk_buf = ""        # Accumulates text since last [CHUNK] boundary
+        CHUNK_TRIGGERS = {".\n", "\n\n", "!\n", "?\n", ". ", "! ", "? "}
+        CHUNK_MIN_LEN = 80   # Don't emit a chunk boundary for very short buffers
+
         try:
             for token in agent.router.generate_stream(
                 message_text,
@@ -115,9 +128,20 @@ def handle_chat_stream(payload: ChatMessage):
                 images=images if images else None
             ):
                 full_text.append(token)
-                # SSE format: escape newlines inside text so each event is one line
+                chunk_buf += token
+
+                # Emit the token
                 safe_token = token.replace("\n", "\\n")
                 yield f"data: {safe_token}\n\n"
+
+                # Emit [CHUNK] boundary at natural break points
+                if len(chunk_buf) >= CHUNK_MIN_LEN:
+                    for trigger in CHUNK_TRIGGERS:
+                        if chunk_buf.endswith(trigger):
+                            yield "data: [CHUNK]\n\n"
+                            chunk_buf = ""
+                            break
+
         except Exception as e:
             yield f"data: [Error: {e}]\n\n"
             yield "data: [DONE]\n\n"
@@ -126,24 +150,54 @@ def handle_chat_stream(payload: ChatMessage):
         assembled = "".join(full_text)
         agent.memory.add_short_term("assistant", assembled)
 
-        # Detect + execute any tool calls in the assembled text
-        import re as _re
+        # ── Tool call detection + execution with PING heartbeat ────────
         pattern = r"<tool\s+name=[\"']([^\"']+)[\"']>([\s\S]*?)</tool>"
         tool_matches = list(_re.finditer(pattern, assembled))
+
         if tool_matches:
+            # Signal the UI that tool execution is starting
+            yield "data: [THINKING]\n\n"
+
             tool_results = []
             for match in tool_matches:
                 func_name = match.group(1)
-                try:
-                    args = _json.loads(match.group(2).strip())
-                except Exception:
-                    args = {}
-                try:
-                    skill = agent.skill_manager.skills.get(func_name)
-                    result = skill.execute(func_name, args) if skill else f"Unknown tool: {func_name}"
-                except Exception as e:
-                    result = f"Tool error: {e}"
-                tool_results.append({"tool": func_name, "result": str(result)})
+                yield f"data: [TOOL_START]{func_name}\n\n"
+
+                # Start PING thread for this tool execution
+                ping_stop = _threading.Event()
+                def _ping_loop(ev=ping_stop):
+                    pass   # Can't yield from thread; use queue instead
+
+                # Execute tool with ping queue
+                ping_q = _queue.Queue()
+                result_box = [None]
+
+                def _run_tool(fname=func_name, match=match, box=result_box, q=ping_q):
+                    try:
+                        args = _json.loads(match.group(2).strip())
+                    except Exception:
+                        args = {}
+                    try:
+                        skill = agent.skill_manager.skills.get(fname)
+                        box[0] = skill.execute(fname, args) if skill else f"Unknown tool: {fname}"
+                    except Exception as e:
+                        box[0] = f"Tool error: {e}"
+                    q.put("DONE")
+
+                t = _threading.Thread(target=_run_tool, daemon=True)
+                t.start()
+
+                # Emit PINGs every 8 seconds until tool finishes
+                while True:
+                    try:
+                        ping_q.get(timeout=8)
+                        break   # Tool done
+                    except _queue.Empty:
+                        yield "data: [PING]\n\n"
+
+                t.join()
+                tool_results.append({"tool": func_name, "result": str(result_box[0])})
+
             yield f"data: [TOOL_RESULT]{_json.dumps(tool_results)}\n\n"
 
         yield "data: [DONE]\n\n"
@@ -153,7 +207,7 @@ def handle_chat_stream(payload: ChatMessage):
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",  # Disable nginx buffering
+            "X-Accel-Buffering": "no",
         }
     )
 
