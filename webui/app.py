@@ -4,9 +4,8 @@ import subprocess
 import zipfile
 import asyncio
 import requests
-from fastapi import FastAPI, Request, Depends, HTTPException, status, Response, Cookie
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import HTMLResponse, FileResponse
-from fastapi.security import APIKeyCookie
 from pydantic import BaseModel
 from typing import Optional, List
 import uuid
@@ -25,9 +24,6 @@ class KioskLayout(BaseModel):
 class ClawHubInstallRequest(BaseModel):
     skill_id: str
 
-
-
-
 class ChatMessage(BaseModel):
     message: str
     images: Optional[List[str]] = None
@@ -35,12 +31,11 @@ class ChatMessage(BaseModel):
 class SkillInstallRequest(BaseModel):
     url: str
 
-class LoginRequest(BaseModel):
-    username: str
-    password: str
-
 @app.get("/", response_class=HTMLResponse)
-def index_dashboard():
+def index_dashboard(response: Response):
+    # Force-clear legacy session cookies to prevent "Unauthorized" loops
+    response.delete_cookie("auth_token")
+    
     import os
     dash_path = os.path.join(os.path.dirname(__file__), "dashboard.html")
     if os.path.exists(dash_path):
@@ -54,7 +49,6 @@ def handle_chat(payload: ChatMessage):
         # Bind the specific authenticated user to the agent processing pipeline
         reply, raw_content = agent_instance.process_immediate_message("web", DEFAULT_USER, payload.message, images=payload.images)
         return {"reply": reply, "raw_content": raw_content}
-    return {"reply": "Agent is offline.", "raw_content": None}
     return {"reply": "Agent is offline.", "raw_content": None}
 
 class WebhookPayload(BaseModel):

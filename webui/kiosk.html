@@ -409,9 +409,17 @@
             <input type="text" id="edit-title">
             <label id="url-label">URL / Endpoint</label>
             <input type="text" id="edit-url">
-            <div style="display:flex; gap:12px;">
+            <div style="display:flex; gap:12px; margin-bottom: 15px;">
                 <button class="btn active" style="flex:1;" onclick="applySettings()">Apply</button>
                 <button class="btn" style="flex:1;" onclick="closeSettings()">Cancel</button>
+            </div>
+            <div id="settings-advanced"
+                style="display:none; border-top: 1px solid var(--card-border); padding-top: 20px;">
+                <label>Mascot Troubleshooting</label>
+                <button class="btn btn-outline" style="width:100%; justify-content:center;"
+                    onclick="forceMascotRender()">Force Re-render 3D Mascot</button>
+                <div style="font-size:0.7rem; color:var(--text-dim); margin-top:10px; text-align:center;">Click this if
+                    the bot shows a blank space.</div>
             </div>
         </div>
     </div>
@@ -438,10 +446,21 @@
 
             const scene = new THREE.Scene();
             const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
-            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setSize(container.clientWidth, container.clientHeight);
-            renderer.domElement.id = 'bot-canvas';
-            container.appendChild(renderer.domElement);
+            try {
+                const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                renderer.setSize(container.clientWidth, container.clientHeight);
+                renderer.domElement.id = 'bot-canvas';
+                container.appendChild(renderer.domElement);
+
+                // Track renderer for forced updates
+                bot.renderer = renderer;
+                bot.containerId = containerId;
+                bot.widgetId = widgetId;
+            } catch (e) {
+                console.error("3D Mascot WebGL Failure:", e);
+                container.innerHTML = `<div style="color:var(--accent-magenta); font-size:0.7rem; text-align:center; padding:20px;">3D Render Error: Ensure WebGL is enabled in your browser.</div>`;
+                return;
+            }
 
             // Removing loader and showing canvas
             const loader = document.getElementById(`loader-${widgetId}`);
@@ -613,6 +632,10 @@
             document.getElementById('settings-title').innerText = `Settings: ${w.title}`;
             document.getElementById('url-label').style.display = (w.type === 'iframe' || w.type === 'stats') ? 'block' : 'none';
             document.getElementById('edit-url').style.display = (w.type === 'iframe' || w.type === 'stats') ? 'block' : 'none';
+
+            // Show advanced mascot tools if it's the agent widget
+            document.getElementById('settings-advanced').style.display = (w.type === 'agent') ? 'block' : 'none';
+
             document.getElementById('settings-overlay').style.display = 'flex';
         }
 
@@ -640,6 +663,19 @@
 
         function closeSettings() {
             document.getElementById('settings-overlay').style.display = 'none';
+        }
+
+        function forceMascotRender() {
+            const id = document.getElementById('edit-id').value;
+            const containerId = `canvas-${id}`;
+            console.log("Forcing 3D Mascot Re-render for", id);
+
+            const container = document.getElementById(containerId);
+            if (container) {
+                container.innerHTML = ''; // Wipe
+                initPillBot(containerId, id);
+            }
+            closeSettings();
         }
 
         function startClock(id) {

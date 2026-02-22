@@ -8,6 +8,30 @@ echo "========================================================"
 echo "          ViClaw (OpenClaw Clone) Installer             "
 echo "========================================================"
 
+echo "=== Phase 31.4: Scorched Earth Environment Cleanup ==="
+echo "Purging stale processes..."
+pkill -f viclaw || true
+pkill -f main.py || true
+pkill -f uvicorn || true
+rm -f data/viclaw.pid 2>/dev/null || true
+
+echo "Sanitizing shell profiles... (Removing legacy OpenClaw/ViClaw paths)"
+_sanitize_profile() {
+    local FILE="$1"
+    if [ -f "$FILE" ]; then
+        # Use a portable temporary file approach for sed -i compatibility
+        sed '/openclaw/d' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
+        sed '/viclaw/d' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
+        echo "✓ Sanitized $FILE"
+    fi
+}
+
+_sanitize_profile "/root/.bashrc"
+_sanitize_profile "/root/.profile"
+_sanitize_profile "/root/.bash_profile"
+_sanitize_profile "$HOME/.bashrc"
+_sanitize_profile "$HOME/.profile"
+
 echo "Checking for base OS dependencies..."
 if ! command -v curl &> /dev/null || ! command -v lshw &> /dev/null || ( command -v dpkg &> /dev/null && ! dpkg-query -W -f='${Status}' python3-venv 2>/dev/null | grep -q "ok installed" ); then
     echo "Attempting to install curl, lshw, and python3-venv..."
