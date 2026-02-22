@@ -1,6 +1,19 @@
+# Virtual environments
+.venv/
 venv/
+
+# Python bytecode
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# Data / secrets (never commit)
 data/config.json
 data/memory.db
+data/viclaw.pid
+data/viclaw_logs_archive.zip
+
+# OS
 .DS_Store
+Thumbs.db
