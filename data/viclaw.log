@@ -303,3 +303,88 @@ Traceback (most recent call last):
   File "/Users/MXW476/Library/CloudStorage/GoogleDrive-vignan07081999@gmail.com/My Drive/AI Agent/OpenClawClone/main.py", line 11, in <module>
     import schedule
 ModuleNotFoundError: No module named 'schedule'
+2026-02-21 21:27:11,631 - root - INFO - Starting OpenClawClone Daemon...
+2026-02-21 21:27:11,631 - root - INFO - Loading skills...
+2026-02-21 21:27:11,632 - root - INFO - Loaded skill: sessions
+2026-02-21 21:27:11,892 - root - INFO - Loaded skill: RemoteSSH
+2026-02-21 21:27:11,893 - root - INFO - Loaded skill: shell_engine
+2026-02-21 21:27:11,893 - root - INFO - Loaded skill: SystemInfo
+2026-02-21 21:27:11,894 - root - INFO - Loaded skill: reminders
+2026-02-21 21:27:11,896 - root - INFO - Loaded skill: FileIO
+2026-02-21 21:27:11,896 - root - INFO - Loaded skill: WebSearch
+2026-02-21 21:27:11,898 - root - INFO - Loaded skill: HomeLab
+2026-02-21 21:28:01,089 - root - INFO - Starting OpenClawClone Daemon...
+2026-02-21 21:28:01,092 - root - INFO - Loading skills...
+2026-02-21 21:28:01,092 - root - INFO - Loaded skill: sessions
+2026-02-21 21:28:01,184 - root - INFO - Loaded skill: RemoteSSH
+2026-02-21 21:28:01,185 - root - INFO - Loaded skill: shell_engine
+2026-02-21 21:28:01,185 - root - INFO - Loaded skill: SystemInfo
+2026-02-21 21:28:01,185 - root - INFO - Loaded skill: reminders
+2026-02-21 21:28:01,186 - root - INFO - Loaded skill: FileIO
+2026-02-21 21:28:01,186 - root - INFO - Loaded skill: WebSearch
+2026-02-21 21:28:01,187 - root - INFO - Loaded skill: HomeLab
+2026-02-21 21:28:01,187 - root - INFO - Installing ClawHub default skills...
+2026-02-21 21:28:01,187 - root - INFO - Default skills installed successfully.
+2026-02-21 21:28:01,187 - root - INFO - Loading skills...
+2026-02-21 21:28:01,187 - root - INFO - Loaded skill: sessions
+2026-02-21 21:28:01,187 - root - INFO - Loaded skill: RemoteSSH
+2026-02-21 21:28:01,187 - root - INFO - Loaded skill: shell_engine
+2026-02-21 21:28:01,187 - root - INFO - Loaded skill: SystemInfo
+2026-02-21 21:28:01,187 - root - INFO - Loaded skill: reminders
+2026-02-21 21:28:01,187 - root - INFO - Loaded skill: FileIO
+2026-02-21 21:28:01,187 - root - INFO - Loaded skill: WebSearch
+2026-02-21 21:28:01,187 - root - INFO - Loaded skill: HomeLab
+2026-02-21 21:28:01,187 - root - INFO - Starting ViClaw Time/Cron Scheduler...
+2026-02-21 21:28:01,188 - root - INFO - Starting WebUI on port 8501 accessible externally at 0.0.0.0...
+2026-02-21 21:28:01,188 - root - INFO - Starting ViClaw Proactive Heartbeat...
+2026-02-21 21:28:01,189 - root - INFO - OpenClaw is running. Press Ctrl+C to terminate.
+2026-02-21 21:30:33,531 - root - INFO - Starting OpenClawClone Daemon...
+2026-02-21 21:30:33,534 - root - INFO - Loading skills...
+2026-02-21 21:30:33,535 - root - INFO - Loaded skill: sessions
+2026-02-21 21:30:33,643 - root - INFO - Loaded skill: RemoteSSH
+2026-02-21 21:30:33,644 - root - INFO - Loaded skill: shell_engine
+2026-02-21 21:30:33,644 - root - INFO - Loaded skill: SystemInfo
+2026-02-21 21:30:33,645 - root - INFO - Loaded skill: reminders
+2026-02-21 21:30:33,645 - root - INFO - Loaded skill: FileIO
+2026-02-21 21:30:33,646 - root - INFO - Loaded skill: WebSearch
+2026-02-21 21:30:33,646 - root - INFO - Loaded skill: HomeLab
+2026-02-21 21:30:33,647 - root - INFO - Installing ClawHub default skills...
+2026-02-21 21:30:33,647 - root - INFO - Default skills installed successfully.
+2026-02-21 21:30:33,647 - root - INFO - Loading skills...
+2026-02-21 21:30:33,647 - root - INFO - Loaded skill: sessions
+2026-02-21 21:30:33,647 - root - INFO - Loaded skill: RemoteSSH
+2026-02-21 21:30:33,647 - root - INFO - Loaded skill: shell_engine
+2026-02-21 21:30:33,647 - root - INFO - Loaded skill: SystemInfo
+2026-02-21 21:30:33,647 - root - INFO - Loaded skill: reminders
+2026-02-21 21:30:33,647 - root - INFO - Loaded skill: FileIO
+2026-02-21 21:30:33,647 - root - INFO - Loaded skill: WebSearch
+2026-02-21 21:30:33,647 - root - INFO - Loaded skill: HomeLab
+2026-02-21 21:30:33,647 - root - INFO - Starting ViClaw Time/Cron Scheduler...
+2026-02-21 21:30:33,647 - root - INFO - Starting WebUI on port 8501 accessible externally at 0.0.0.0...
+2026-02-21 21:30:33,647 - root - INFO - Starting ViClaw Proactive Heartbeat...
+2026-02-21 21:30:33,648 - root - INFO - OpenClaw is running. Press Ctrl+C to terminate.
+2026-02-21 21:42:38,636 - root - INFO - Starting ViClaw Daemon...
+2026-02-21 21:42:38,641 - root - INFO - Loading skills...
+2026-02-21 21:42:38,642 - root - INFO - Loaded skill: sessions
+2026-02-21 21:42:38,744 - root - INFO - Loaded skill: RemoteSSH
+2026-02-21 21:42:38,745 - root - INFO - Loaded skill: shell_engine
+2026-02-21 21:42:38,745 - root - INFO - Loaded skill: SystemInfo
+2026-02-21 21:42:38,746 - root - INFO - Loaded skill: reminders
+2026-02-21 21:42:38,746 - root - INFO - Loaded skill: FileIO
+2026-02-21 21:42:38,747 - root - INFO - Loaded skill: WebSearch
+2026-02-21 21:42:38,747 - root - INFO - Loaded skill: HomeLab
+2026-02-21 21:42:38,747 - root - INFO - Installing ClawHub default skills...
+2026-02-21 21:42:38,747 - root - INFO - Default skills installed successfully.
+2026-02-21 21:42:38,747 - root - INFO - Loading skills...
+2026-02-21 21:42:38,747 - root - INFO - Loaded skill: sessions
+2026-02-21 21:42:38,748 - root - INFO - Loaded skill: RemoteSSH
+2026-02-21 21:42:38,748 - root - INFO - Loaded skill: shell_engine
+2026-02-21 21:42:38,748 - root - INFO - Loaded skill: SystemInfo
+2026-02-21 21:42:38,748 - root - INFO - Loaded skill: reminders
+2026-02-21 21:42:38,748 - root - INFO - Loaded skill: FileIO
+2026-02-21 21:42:38,748 - root - INFO - Loaded skill: WebSearch
+2026-02-21 21:42:38,748 - root - INFO - Loaded skill: HomeLab
+2026-02-21 21:42:38,748 - root - INFO - Starting ViClaw Time/Cron Scheduler...
+2026-02-21 21:42:38,748 - root - INFO - Starting WebUI on port 8501 bound to 0.0.0.0...
+2026-02-21 21:42:38,748 - root - INFO - Starting ViClaw Proactive Heartbeat...
+2026-02-21 21:42:38,749 - root - INFO - ViClaw is running. Press Ctrl+C to terminate.

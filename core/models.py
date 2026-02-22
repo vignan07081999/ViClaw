@@ -1,5 +1,6 @@
 import logging
 import json
+import re
 import os
 from litellm import completion
 import ollama
@@ -60,10 +61,9 @@ class LLMRouter:
         # Overwrite if we have images, require a vision model. Currently assuming complex model for vision if not specified.
         # In a generic environment we might map a dedicated "vision" model role.
         if images and "vision" not in selected_model["model"].lower() and "llava" not in selected_model["model"].lower():
-             logging.info("Images detected in prompt. Forcing a vision capable model evaluation...")
-             # Optionally default to llava if forced, but for now we pass it through to the complex model
-             # In production, we'd add a "vision" role to config.json.
-            
+            # Images present but model may not support vision; pass through and let Ollama handle it.
+            # Add a "vision" role to config.json for an explicit vision model mapping.
+            logging.info("Images present; selected model may not support vision. Consider adding a 'vision' role to config.json.")
         role_printed = selected_model.get('role', 'default')
         logging.info(f"Smart Routing -> Task: {'Coding' if is_code else ('Complex' if is_complex else 'Simple')} -> Selected Model: {selected_model['model']} ({selected_model['provider']} - {role_printed})")
         
@@ -108,9 +108,6 @@ class LLMRouter:
         tool_calls = res.get("tool_calls", [])
         
         if content and "<tool" in content:
-            import re
-            import json
-            
             # Find all XML tool tags
             pattern = r"<tool\s+name=[\"']([^\"']+)[\"']>([\s\S]*?)</tool>"
             matches = list(re.finditer(pattern, content))

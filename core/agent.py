@@ -1,6 +1,9 @@
 import time
 import logging
 import json
+import re
+import os
+import subprocess
 import threading
 
 from core.models import LLMRouter
@@ -111,9 +114,8 @@ class OpenClawAgent:
                 # Fast type enforcement for hallucinated empty string parameters dicts
                 if isinstance(tool_args, str):
                     try:
-                        import json
                         tool_args = json.loads(tool_args) if tool_args.strip() else {}
-                    except:
+                    except (json.JSONDecodeError, ValueError):
                         tool_args = {}
                 elif not isinstance(tool_args, dict):
                     tool_args = {}
@@ -223,7 +225,6 @@ class OpenClawAgent:
         context = self.memory.get_short_term_context()[:-1] 
         tools = self.skill_manager.get_all_tools()
         tools_xml_prompt = "\n\nAVAILABLE TOOLS:\nYou have access to the following tools. To use a tool, you MUST output an XML block like this: <tool name=\"tool_name\">{\"arg_name\": \"arg_value\"}</tool>. Do NOT output any raw JSON outside of the XML block. If you do not need a tool, just answer normally.\nTools available:\n"
-        import json
         for t in tools:
             tools_xml_prompt += f"- {t['function']['name']}: {t['function'].get('description', '')}\n  Schema: {json.dumps(t['function'].get('parameters', {}))}\n"
         
@@ -245,7 +246,6 @@ class OpenClawAgent:
         # The LLM is instructed in its personality prompt to request skills if it can't fulfill the user's prompt. 
         # Alternatively, if it hallucinates a tool call that doesn't exist, we catch it here.
         if "I need the" in final_reply and "skill" in final_reply.lower() and "?" in final_reply:
-            import re
             # E.g. "I need the Web Scraper skill to do this. May I install it?"
             match = re.search(r"I need the (.*?) skill", final_reply, re.IGNORECASE)
             if match:
@@ -269,9 +269,8 @@ class OpenClawAgent:
                 # Type enforcement
                 if isinstance(tool_args, str):
                     try:
-                        import json
                         tool_args = json.loads(tool_args) if tool_args.strip() else {}
-                    except:
+                    except (json.JSONDecodeError, ValueError):
                         tool_args = {}
                 elif not isinstance(tool_args, dict):
                     tool_args = {}
@@ -286,7 +285,6 @@ class OpenClawAgent:
                     
                     # *** AUTONOMOUS DEPENDENCY RESOLVER ***
                     if "ModuleNotFoundError" in err_str or "No module named" in err_str:
-                        import re
                         match = re.search(r"No module named '(.*?)'", err_str)
                         missing_mod = match.group(1) if match else "unknown_module"
                         
@@ -297,7 +295,6 @@ class OpenClawAgent:
                         return prompt, raw_tools
                         
                     elif "command not found" in err_str.lower():
-                        import re
                         match = re.search(r"(.*): command not found", err_str)
                         missing_cmd = match.group(1).strip().split()[-1] if match else "unknown_command"
                         prompt = f"The shell command failed because '{missing_cmd}' is not installed on this Linux system. May I automatically try to install it using `apt install {missing_cmd}` and retry?"
@@ -357,7 +354,6 @@ class OpenClawAgent:
                     if os.path.exists(reminders_file):
                         try:
                             with open(reminders_file, "r") as f:
-                                import json
                                 reminders_data = json.load(f)
                                 if reminders_data:
                                     sys_prompt += "\n\nActive Persistent Reminders:\n"

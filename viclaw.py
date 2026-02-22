@@ -3,7 +3,7 @@ import sys
 
 # Auto-enforce virtual environment
 if sys.prefix == sys.base_prefix:
-    venv_python = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".venv", "bin", "python")
+    venv_python = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".venv", "bin", "python3")
     if os.path.exists(venv_python):
         os.execv(venv_python, [venv_python] + sys.argv)
 
@@ -54,7 +54,7 @@ def main():
             try:
                 from core.memory import AgentMemory
                 mem = AgentMemory()
-                for entry in mem.short_term:
+                for entry in mem.short_term_context:
                     role = entry.get("role", "unknown").upper()
                     if role == "USER":
                         console.print(f"[bold blue]USER:[/bold blue] {entry.get('content')}")
@@ -72,7 +72,6 @@ def main():
             if not os.path.exists("data/config.json"):
                 break
         elif choice == "10":
-            import sys
             sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
             from core.updater import UpdaterEngine
             console.print("\n[yellow]Checking Github for new OpenClawClone patches...[/yellow]")

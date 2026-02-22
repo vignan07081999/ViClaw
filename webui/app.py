@@ -1,7 +1,16 @@
 import logging
-from fastapi import FastAPI
-from pydantic import BaseModel
+import os
+import subprocess
+import zipfile
+import asyncio
+import requests
+from fastapi import FastAPI, Request, Depends, HTTPException, status, Response, Cookie
 from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.security import APIKeyCookie
+from pydantic import BaseModel
+from typing import Optional, List
+import uuid
+import time
 import uvicorn
 import threading
 
@@ -9,17 +18,11 @@ from core.config import is_webui_enabled, get_webui_port
 
 app = FastAPI(title="OpenClaw Clone WebUI")
 
-# Global reference to the agent instance to fetch status (set by main.py)
+# Global reference to the agent instance (set by main.py)
 agent_instance = None
 
-from fastapi import Request, Depends, HTTPException, status, Response, Cookie
-from fastapi.security import APIKeyCookie
-import uuid
-import time
-from typing import Optional, List
-
-# Extremely simple in-memory session store mapping SessionUUID -> dict(user_id, role)
-ACTIVE_SESSIONS = {}
+# In-memory session store mapping SessionToken -> {user_id, expires}
+ACTIVE_SESSIONS: dict = {}
 cookie_scheme = APIKeyCookie(name="viclaw_session", auto_error=False)
 
 def get_current_user(viclaw_session: str = Depends(cookie_scheme)):
@@ -48,8 +51,6 @@ class LoginRequest(BaseModel):
 @app.get("/", response_class=HTMLResponse)
 def index_login(request: Request, viclaw_session: str = Cookie(None)):
     if viclaw_session and viclaw_session in ACTIVE_SESSIONS and time.time() < ACTIVE_SESSIONS[viclaw_session]["expires"]:
-        # Already logged in, serve dashboard
-        import os
         dash_path = os.path.join(os.path.dirname(__file__), "dashboard.html")
         if os.path.exists(dash_path):
             with open(dash_path, "r") as f:
@@ -406,11 +407,9 @@ def dashboard():
 
 @app.get("/kiosk", response_class=HTMLResponse)
 def kiosk():
-    import os
     from core.config import get_config
     if not get_config().get("kiosk", {}).get("enabled", True):
         return HTMLResponse("<h1>Kiosk Dashboard is Disabled in Config</h1><p>Enable it in your data/config.json.</p>")
-        
     kiosk_path = os.path.join(os.path.dirname(__file__), "kiosk.html")
     if os.path.exists(kiosk_path):
         with open(kiosk_path, "r") as f:
@@ -419,7 +418,6 @@ def kiosk():
 
 @app.get("/wiki", response_class=HTMLResponse)
 def wiki():
-    import os
     wiki_path = os.path.join(os.path.dirname(__file__), "wiki.html")
     if os.path.exists(wiki_path):
         with open(wiki_path, "r") as f:
@@ -480,11 +478,7 @@ def trigger_update():
 
 @app.get("/api/diagnostics")
 def get_diagnostics():
-    import os
-    import subprocess
-    import requests
     from core.config import get_config
-    
     config = get_config()
     db_size = "Unknown"
     if os.path.exists("data/memory.db"):
@@ -516,9 +510,6 @@ def get_diagnostics():
 
 @app.get("/api/logs")
 def get_logs():
-    import subprocess
-    import os
-    
     # Try fetching from systemd first
     try:
         res = subprocess.run(["journalctl", "-u", "viclaw", "-n", "30", "--no-pager"], capture_output=True, text=True)
@@ -539,9 +530,6 @@ def get_logs():
 
 @app.get("/api/download_logs", response_class=FileResponse)
 def download_logs():
-    import os
-    import zipfile
-    
     zip_path = "data/viclaw_logs_archive.zip"
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
         if os.path.exists("data/viclaw.log"):
@@ -556,22 +544,27 @@ def download_logs():
 @app.get("/api/history")
 def get_history():
     if agent_instance and hasattr(agent_instance, 'memory'):
-        return {"history": agent_instance.memory.short_term}
+        return {"history": agent_instance.memory.short_term_context}
     return {"history": []}
 
 def start_webui(agent):
     global agent_instance
     agent_instance = agent
-    
+
     if not is_webui_enabled():
         return
-        
+
     port = get_webui_port()
-    logging.info(f"Starting WebUI on port {port} accessible externally at 0.0.0.0...")
-    
+    logging.info(f"Starting WebUI on port {port} bound to 0.0.0.0...")
+
     def run_server():
-        uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
-        
-    t = threading.Thread(target=run_server, daemon=True)
-    t.start()
+        # Use uvicorn.Server + isolated asyncio loop so signal handlers
+        # don't crash when running inside a daemon thread.
+        cfg = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="warning")
+        server = uvicorn.Server(cfg)
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(server.serve())
+
+    threading.Thread(target=run_server, daemon=True).start()
 

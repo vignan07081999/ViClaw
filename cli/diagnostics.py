@@ -4,11 +4,10 @@ import sys
 # Auto-enforce virtual environment from subdirectory
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if sys.prefix == sys.base_prefix:
-    venv_python = os.path.join(root_dir, ".venv", "bin", "python")
+    venv_python = os.path.join(root_dir, ".venv", "bin", "python3")
     if os.path.exists(venv_python):
         os.execv(venv_python, [venv_python] + sys.argv)
 
-import json
 import sqlite3
 import requests
 import subprocess
@@ -16,7 +15,6 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.prompt import Prompt
-from rich import print as rprint
 
 # Ensure we're running from the root of OpenClawClone
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -67,14 +65,14 @@ def view_logs():
     input("\nPress Enter to return...")
 
 def run_script(script_name):
-    script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts", script_name)
+    # Resolve relative to project root, not cli/ subdir
+    script_path = os.path.join(root_dir, "scripts", script_name)
     if not os.path.exists(script_path):
         console.print(f"[red]Error: {script_name} not found in scripts directory![/red]")
         input("\nPress Enter to return...")
         return
-        
     try:
-        subprocess.run(["bash", "-c", script_path], check=True)
+        subprocess.run(["bash", script_path], check=True)
     except subprocess.CalledProcessError as e:
         console.print(f"\n[red]Script exited with error code {e.returncode}[/red]")
     input("\nPress Enter to return...")
@@ -138,7 +136,7 @@ def master_menu():
         elif choice == "5":
             continue
         elif choice == "6":
-            import doctor
+            from cli import doctor
             doctor.run_doctor()
 
 if __name__ == "__main__":
