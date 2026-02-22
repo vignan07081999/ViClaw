@@ -320,6 +320,19 @@ def trigger_update():
     except Exception as e:
         return {"success": False, "message": str(e)}
 
+@app.get("/api/usage")
+def get_usage():
+    """Returns token usage stats from UsageTracker."""
+    from core.usage import UsageTracker
+    return UsageTracker.instance().get_stats()
+
+@app.post("/api/usage/clear")
+def clear_usage():
+    """Clears all usage history."""
+    from core.usage import UsageTracker
+    UsageTracker.instance().clear_history()
+    return {"success": True}
+
 @app.get("/api/diagnostics")
 def get_diagnostics():
     from core.config import get_config

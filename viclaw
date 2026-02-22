@@ -22,6 +22,8 @@ def main():
             print("  viclaw chat          - Interactive chat with the agent")
             print("  viclaw diagnostics   - Check system status and logs")
             print("  viclaw doctor        - Automated troubleshooting")
+            print("  viclaw usage         - Show token usage stats")
+            print("  viclaw usage --clear - Wipe usage history")
             print("  viclaw main          - Run the core agent loop")
             print("  viclaw launcher      - Open the cross-platform GUI")
             print("\nGlobal command: viclaw [subcommand] [args...]")
@@ -33,6 +35,7 @@ def main():
         "chat": "cli/chat.py",
         "diagnostics": "cli/diagnostics.py",
         "doctor": "cli/doctor.py",
+        "usage": "cli/usage.py",
         "main": "main.py",
         "launcher": "launcher.py",
         "viclaw": "viclaw.py"

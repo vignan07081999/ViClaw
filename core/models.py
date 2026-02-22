@@ -6,6 +6,7 @@ from litellm import completion
 import ollama
 
 from core.config import get_models
+from core.usage import UsageTracker
 
 class LLMRouter:
     def __init__(self):
@@ -163,6 +164,22 @@ class LLMRouter:
             
         res["content"] = content.strip()
         res["tool_calls"] = tool_calls
+
+        # ── Usage tracking ──────────────────────────────────────────────
+        import time as _time
+        try:
+            lat = int((getattr(res, '_latency_ms', None)) or 0)
+            UsageTracker.instance().record(
+                model=model_cfg.get("model", "unknown") if 'model_cfg' in dir() else selected.get("model", "unknown"),
+                provider=model_cfg.get("provider", "?") if 'model_cfg' in dir() else selected.get("provider", "?"),
+                prompt=str(prompt) + str(system_prompt or ""),
+                completion=res["content"],
+                latency_ms=lat,
+                failover_used=res.get("_failover_used", "")
+            )
+        except Exception as _ue:
+            logging.debug(f"Usage tracking skipped: {_ue}")
+
         return res
 
     def _call_ollama(self, messages, model_name, url, tools=None):
