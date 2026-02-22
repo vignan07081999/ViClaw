@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ViClaw Technical Wiki & Manual</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            color: #334155;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background-color: #1e293b;
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            letter-spacing: -0.5px;
+        }
+
+        header p {
+            opacity: 0.8;
+            font-size: 1.1em;
+            max-width: 600px;
+            margin: 10px auto 0;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 0 20px;
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 40px;
+        }
+
+        nav {
+            position: sticky;
+            top: 40px;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            height: fit-content;
+        }
+
+        nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        nav li {
+            margin-bottom: 10px;
+        }
+
+        nav a {
+            text-decoration: none;
+            color: #475569;
+            font-weight: 600;
+            transition: color 0.2s;
+        }
+
+        nav a:hover {
+            color: #2563eb;
+        }
+
+        main {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        h2 {
+            color: #0f172a;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+
+        h3 {
+            color: #1e293b;
+            margin-top: 30px;
+        }
+
+        .cmd-box {
+            background: #f1f5f9;
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 20px;
+        }
+
+        .cmd-code {
+            font-family: monospace;
+            background: #e2e8f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #ef4444;
+            font-weight: bold;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .feature-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .tag {
+            display: inline-block;
+            background: #dbeafe;
+            color: #1d4ed8;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 0.8em;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>ViClaw Technical Wiki</h1>
+        <p>The definitive guide to the OpenClaw Clone architecture, including slash commands, tool usage, and network
+            discovery.</p>
+    </header>
+
+    <div class="container">
+        <nav>
+            <h2>Contents</h2>
+            <ul>
+                <li><a href="#cli-menu">The Terminal Super Menu</a></li>
+                <li><a href="#slash-commands">Interactive Slash Commands</a></li>
+                <li><a href="#skills-clawhub">Skills & ClawHub</a></li>
+                <li><a href="#auto-healing">Auto-Dependency Healing</a></li>
+                <li><a href="#network-scanner">Network Discovery Scanner</a></li>
+                <li><a href="#webui-dashboards">Dashboards (3D & Kiosk)</a></li>
+            </ul>
+            <a href="/"
+                style="display: block; margin-top: 30px; text-align: center; background: #3b82f6; color: white; padding: 10px; border-radius: 6px;">←
+                Back to Home</a>
+        </nav>
+
+        <main>
+            <section id="cli-menu">
+                <h2>The Terminal Super Menu</h2>
+                <p>Running <code>./viclaw</code> from the installation directory opens the Master Interface. From here,
+                    you can manage the absolute core of the agent.</p>
+
+                <div class="cmd-box">
+                    <strong>[1] Interactive CLI Chat:</strong> Drops you directly into a terminal conversation with the
+                    agent. Uses raw text streams.<br>
+                    <strong>[2] Start/Restart Background Daemon:</strong> Binds the AI logic to an infinite loop,
+                    exposing the WebUI on Port 8501 and allowing Telegram/Discord polling.<br>
+                    <strong>[4] System Diagnostics:</strong> Polls the CPU, RAM, Network, and Ollama registry for
+                    latency constraints.<br>
+                    <strong>[5] Agent Doctor:</strong> An autonomous script that reads the crash logs of ViClaw and
+                    attempts to self-heal the python environment or kill rogue locking processes.<br>
+                    <strong>[7] View Chat History & Action Logs:</strong> Dumps the SQLite <code>memory.db</code>
+                    directly to the console so you can read what the agent is "thinking" without a web browser.<br>
+                    <strong>[10] OTA Updates:</strong> Checks the connected GitHub repository (vignan07081999/ViClaw)
+                    for code changes and hot-swaps them locally.
+                </div>
+            </section>
+
+            <section id="slash-commands">
+                <h2>Interactive Chat Slash Commands</h2>
+                <p>When typing to ViClaw (either in the WebUI or CLI), you can bypass the LLM and issue direct system
+                    commands using the <code>/</code> prefix.</p>
+
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <span class="tag">/clear</span>
+                        <p>Instantly wipes the agent's short-term memory array. This resets the conversational context,
+                            essentially acting as an amnesia pill to stop hallucinations from looping.</p>
+                    </div>
+                    <div class="feature-card">
+                        <span class="tag">/status</span>
+                        <p>Returns the diagnostic state of the Agent, including active backend Model (e.g., Qwen 2.5),
+                            API connection latency, and the number of loaded Skills.</p>
+                    </div>
+                    <div class="feature-card">
+                        <span class="tag">/skills</span>
+                        <p>Prints an exhaustive list of every Python skill currently loaded into the Agent's tool
+                            execution framework, along with their JSON schema parameters.</p>
+                    </div>
+                    <div class="feature-card">
+                        <span class="tag">/update</span>
+                        <p>Triggers the OTA Updater Engine from within a chat natively, allowing you to patch the bot
+                            from a Telegram message.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="skills-clawhub">
+                <h2>Skills & ClawHub Marketplace</h2>
+                <p>ViClaw operates heavily on <strong>Tools (Skills)</strong>. By default, it cannot scrape websites or
+                    control Linux until it is given a Skill. Skills are python files stored in the <code>/skills/</code>
+                    directory.</p>
+                <h3>Dynamic Skill Resolver</h3>
+                <p>If you ask ViClaw to do something it lacks the tool for, it will natively pause inference and ask
+                    you:<br>
+                    <em>"To accomplish this, I need the `Web Scraper` skill from ClawHub. May I dynamically download and
+                        install it now?"</em><br>
+                    If you reply "yes", the agent pulls the python file directly from GitHub and injects it into its
+                    live execution cycle without restarting.
+                </p>
+            </section>
+
+            <section id="auto-healing">
+                <h2>Auto-Dependency Healing</h2>
+                <p>In Phase 18, ViClaw gained the ability to fix itself.</p>
+                <div class="cmd-box">
+                    If the agent attempts to run a Python Skill, but it crashes because <code>requests</code> or
+                    <code>bs4</code> isn't installed in the environment, the <strong>Agent loops the Python Stack Trace
+                        back into its reasoning engine</strong>. It will then pause and ask you for explicit permission
+                    to run <code>pip install [package]</code> or <code>apt-get install [package]</code>.
+                </div>
+            </section>
+
+            <section id="network-scanner">
+                <h2>Network Discovery Scanner 50+</h2>
+                <p>During installation, ViClaw maps the subnet (e.g., <code>192.168.1.*</code>) via highly threaded
+                    port-sweeps looking for the Top 50 HomeLab infrastructure signatures. It maps IPs natively for:</p>
+                <ul>
+                    <li><strong>Virtualization:</strong> Proxmox VE, TrueNAS, Portainer</li>
+                    <li><strong>Media & Arr-Stack:</strong> Plex, Jellyfin, Sonarr, Radarr, Prowlarr</li>
+                    <li><strong>Home Automation:</strong> Home Assistant, Scrypted, Homebridge, Node-RED</li>
+                    <li><strong>Monitoring & DNS:</strong> Grafana, Prometheus, Pi-Hole, AdGuard Home</li>
+                    <li><strong>3D Printing:</strong> Octoprint, Moonraker (Klipper)</li>
+                </ul>
+            </section>
+
+            <section id="webui-dashboards">
+                <h2>Dashboards (3D & Tablet Kiosk)</h2>
+                <p>The Web UI exposed on <strong>Port 8501</strong> provides two distinct visual ways to monitor the
+                    agent.</p>
+                <h3>The 3D Dashboard (/dashboard)</h3>
+                <p>A monitoring-focused UI containing a ClawHub installation input form, System Log trailing, and an
+                    interactive Chat Box. It allows downloading forensic ZIP archives of the AI's internal actions.</p>
+                <h3>The Stream Deck Kiosk (/kiosk)</h3>
+                <p>A revolutionary, fullscreen, glassmorphic layout created specifically for iPads or Android tablets
+                    docked next to a PC. It features an animated WebGL 3D Robot that speaks agent statuses dynamically,
+                    backed by a changing CSS gradient bound to the actual atmospheric time of day. It contains
+                    interactive Pomodoro timers, clocks, and live iFrames.</p>
+            </section>
+
+        </main>
+    </div>
+
+</body>
+
+</html>

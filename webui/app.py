@@ -44,7 +44,11 @@ def index():
                 <div style="flex: 1;">
                     <h2>Agent Status: <span class="status-on">Running</span></h2>
                     <p>Background daemon active.</p>
-                    <a href="/dashboard" style="display: inline-block; padding: 10px 15px; background: #0ea5e9; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; margin-bottom: 20px;">Open 3D Dashboard →</a>
+                    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                        <a href="/dashboard" style="display: inline-block; padding: 10px 15px; background: #0ea5e9; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Open 3D Dashboard →</a>
+                        <a href="/kiosk" style="display: inline-block; padding: 10px 15px; background: #8e44ad; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Launch Tablet Kiosk 📱</a>
+                        <a href="/wiki" style="display: inline-block; padding: 10px 15px; background: #27ae60; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">📖 Read Wiki</a>
+                    </div>
                     
                     <h3>ClawHub Setup</h3>
                     <form id="clawhub-form" onsubmit="installSkill(event)" style="margin-bottom: 20px;">
@@ -263,6 +267,28 @@ def dashboard():
         with open(dash_path, "r") as f:
             return f.read()
     return "Dashboard HTML missing"
+
+@app.get("/kiosk", response_class=HTMLResponse)
+def kiosk():
+    import os
+    from core.config import get_config
+    if not get_config().get("kiosk", {}).get("enabled", True):
+        return HTMLResponse("<h1>Kiosk Dashboard is Disabled in Config</h1><p>Enable it in your data/config.json.</p>")
+        
+    kiosk_path = os.path.join(os.path.dirname(__file__), "kiosk.html")
+    if os.path.exists(kiosk_path):
+        with open(kiosk_path, "r") as f:
+            return f.read()
+    return "Kiosk HTML missing"
+
+@app.get("/wiki", response_class=HTMLResponse)
+def wiki():
+    import os
+    wiki_path = os.path.join(os.path.dirname(__file__), "wiki.html")
+    if os.path.exists(wiki_path):
+        with open(wiki_path, "r") as f:
+            return f.read()
+    return "Wiki HTML missing"
 
 @app.get("/api/skills")
 def get_skills():

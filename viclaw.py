@@ -28,9 +28,10 @@ def main():
         console.print("[8] 🔄 Reinstall ViClaw")
         console.print("[9] 🗑️  Uninstall ViClaw")
         console.print("[10] ☁️ Check for Github OTA Updates")
+        console.print("[11] 📖 ViClaw Wiki & Manual")
         console.print("[0] 🚪 Exit")
         
-        choice = Prompt.ask("\nSelect an option", choices=[str(i) for i in range(11)], default="1")
+        choice = Prompt.ask("\nSelect an option", choices=[str(i) for i in range(12)], default="1")
         
         if choice == "0":
             break
@@ -91,6 +92,9 @@ def main():
                     console.print(f"[bold green]✓ You are running the latest version.[/bold green] ({loc_hash})\n[dim]{msg}[/dim]")
             except Exception as e:
                 console.print(f"[red]Updater error: {e}[/red]")
+            Prompt.ask("\nPress Enter to return to menu...")
+        elif choice == "11":
+            subprocess.run(["python", "cli/wiki.py"])
             Prompt.ask("\nPress Enter to return to menu...")
 
 if __name__ == "__main__":

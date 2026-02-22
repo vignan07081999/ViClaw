@@ -270,6 +270,11 @@ def main():
         
     config["webui"] = {"enabled": enable_webui, "port": webui_port}
     
+    # 4.b Kiosk Dashboard
+    console.print("\n[bold yellow]4.b Stream Deck Kiosk Desktop[/bold yellow]")
+    console.print("[dim]The Kiosk Dashboard transforms a tablet or external monitor into a glassmorphic dashboard with widgets, HomeAssistant iframes, and an animated 3D Deskbot.[/dim]")
+    config["kiosk"] = {"enabled": questionary.confirm("Enable the Stream Deck Kiosk interface?", default=True).ask()}
+    
     # 5. Agent Skills
     console.print("\n[bold yellow]5. Skills & ClawHub[/bold yellow]")
     install_defaults = questionary.confirm("Install default community agent skills (Shell Engine, Reminders, SysInfo)?", default=True).ask()

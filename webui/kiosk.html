@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ViClaw Kiosk Dashboard</title>
+    <!-- Use Inter font for a modern look -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --glass-blur: blur(16px);
+            --text-color: #ffffff;
+        }
+
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            font-family: 'Inter', sans-serif;
+            color: var(--text-color);
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            overflow: hidden;
+            /* No scrolling on kiosk */
+            transition: background 2s ease;
+        }
+
+        .dashboard-container {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+            gap: 20px;
+        }
+
+        /* 25% Left Column for Avatar */
+        .avatar-section {
+            width: 25%;
+            height: 100%;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border-radius: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        #avatar-container {
+            width: 100%;
+            height: 60%;
+        }
+
+        .speech-bubble {
+            position: absolute;
+            top: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.6);
+            padding: 15px 20px;
+            border-radius: 12px;
+            font-size: 1.1em;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            max-width: 80%;
+            word-wrap: break-word;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+        }
+
+        /* 75% Right Column Grid */
+        .widget-grid {
+            width: 75%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .widget {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border-radius: 24px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            transition: transform 0.2s;
+            overflow: hidden;
+        }
+
+        .widget:hover {
+            transform: scale(1.02);
+        }
+
+        .widget-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: rgba(255, 255, 255, 0.9);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 10px;
+        }
+
+        /* Specific Widgets */
+        #clock-widget {
+            align-items: center;
+            justify-content: center;
+        }
+
+        #time-display {
+            font-size: 4em;
+            font-weight: 300;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        #date-display {
+            font-size: 1.2em;
+            opacity: 0.8;
+            margin-top: 10px;
+        }
+
+        /* Pomodoro Timer */
+        #timer-display {
+            font-size: 3em;
+            font-weight: 300;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .timer-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .timer-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background 0.2s;
+        }
+
+        .timer-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Reminders List */
+        .reminder-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        .reminder-item {
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+        }
+
+        .reminder-item::before {
+            content: "•";
+            color: #4cd137;
+            font-size: 1.5em;
+            margin-right: 10px;
+        }
+
+        /* Iframe Widget */
+        .iframe-widget {
+            grid-column: span 2;
+            padding: 0;
+            /* Remove padding for iframe */
+        }
+
+        .iframe-content {
+            width: 100%;
+            height: 100%;
+            border: none;
+            border-radius: 24px;
+        }
+
+        /* Calendar */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            text-align: center;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+
+        .calendar-header {
+            font-weight: bold;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 5px;
+        }
+
+        .calendar-day {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            padding: 5px 0;
+        }
+
+        .calendar-day.active {
+            background: rgba(76, 209, 55, 0.4);
+            border: 1px solid #4cd137;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="dashboard-container">
+
+        <!-- Left Column: Avatar & Agent State -->
+        <div class="avatar-section">
+            <div class="speech-bubble" id="speech-bubble">Initializing systems...</div>
+            <div id="avatar-container"></div>
+            <div style="margin-top: 20px; font-weight: 300; font-size: 1.2em; letter-spacing: 2px;">ViClaw AI</div>
+            <div style="font-size: 0.8em; opacity: 0.6; margin-top: 5px;" id="agent-status">Status: Connecting...</div>
+        </div>
+
+        <!-- Right Column: Stream Deck Grid -->
+        <div class="widget-grid">
+
+            <!-- Clock Widget -->
+            <div class="widget" id="clock-widget">
+                <div id="time-display">--:--</div>
+                <div id="date-display">-- -- ----</div>
+            </div>
+
+            <!-- Timer/Pomodoro -->
+            <div class="widget">
+                <div class="widget-title">Focus Timer</div>
+                <div id="timer-display">25:00</div>
+                <div class="timer-controls">
+                    <button class="timer-btn" onclick="startTimer()">Start</button>
+                    <button class="timer-btn" onclick="pauseTimer()">Pause</button>
+                    <button class="timer-btn" onclick="resetTimer()">Reset</button>
+                </div>
+            </div>
+
+            <!-- Calendar Widget -->
+            <div class="widget">
+                <div class="widget-title" id="month-title">Calendar</div>
+                <div class="calendar-grid">
+                    <div class="calendar-header">S</div>
+                    <div class="calendar-header">M</div>
+                    <div class="calendar-header">T</div>
+                    <div class="calendar-header">W</div>
+                    <div class="calendar-header">T</div>
+                    <div class="calendar-header">F</div>
+                    <div class="calendar-header">S</div>
+                    <!-- Days dynamically injected -->
+                </div>
+                <div id="calendar-days" class="calendar-grid" style="margin-top:0;"></div>
+            </div>
+
+            <!-- Dynamic iFrame 1 (e.g. Home Assistant or Weather) -->
+            <div class="widget iframe-widget">
+                <iframe class="iframe-content"
+                    src="https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=°C&metricWind=km/h&zoom=5&overlay=wind&product=ecmwf&level=surface"
+                    title="Weather Radar"></iframe>
+            </div>
+
+            <!-- Reminders / ToDo -->
+            <div class="widget">
+                <div class="widget-title">Agent Memory & ToDo</div>
+                <ul class="reminder-list" id="reminders-list">
+                    <li class="reminder-item">Waiting for memory context...</li>
+                </ul>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // --- 1. Dynamic Background based on Time ---
+        function updateAtmosphere() {
+            const hour = new Date().getHours();
+            let bg = '';
+            if (hour >= 5 && hour < 8) {
+                // Sunrise
+                bg = 'linear-gradient(135deg, #ff9966 0%, #ff5e62 100%)';
+            } else if (hour >= 8 && hour < 17) {
+                // Day
+                bg = 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)';
+            } else if (hour >= 17 && hour < 20) {
+                // Sunset
+                bg = 'linear-gradient(135deg, #f12711 0%, #f5af19 100%)';
+            } else {
+                // Night
+                bg = 'linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)';
+            }
+            document.body.style.background = bg;
+        }
+
+        // --- 2. Clock Widget ---
+        function updateClock() {
+            const now = new Date();
+            let h = now.getHours();
+            let m = now.getMinutes();
+            let ampm = h >= 12 ? 'PM' : 'AM';
+            h = h % 12;
+            h = h ? h : 12; // 0 should be 12
+            m = m < 10 ? '0' + m : m;
+            document.getElementById('time-display').innerText = h + ':' + m + ' ' + ampm;
+
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('date-display').innerText = now.toLocaleDateString(undefined, options);
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+        updateAtmosphere();
+        setInterval(updateAtmosphere, 600000); // Check atmosphere every 10 mins
+
+        // --- 3. Pomodoro Timer ---
+        let timerInterval;
+        let timeLeft = 25 * 60; // 25 minutes
+        let isRunning = false;
+
+        function updateTimerDisplay() {
+            let m = Math.floor(timeLeft / 60);
+            let s = timeLeft % 60;
+            document.getElementById('timer-display').innerText =
+                (m < 10 ? "0" + m : m) + ":" + (s < 10 ? "0" + s : s);
+        }
+        function startTimer() {
+            if (isRunning) return;
+            isRunning = true;
+            timerInterval = setInterval(() => {
+                if (timeLeft > 0) {
+                    timeLeft--;
+                    updateTimerDisplay();
+                } else {
+                    clearInterval(timerInterval);
+                    isRunning = false;
+                    speakBubble("Pomodoro session complete! Time for a break.");
+                }
+            }, 1000);
+        }
+        function pauseTimer() {
+            clearInterval(timerInterval);
+            isRunning = false;
+        }
+        function resetTimer() {
+            clearInterval(timerInterval);
+            isRunning = false;
+            timeLeft = 25 * 60;
+            updateTimerDisplay();
+        }
+
+        // --- 4. Simple Calendar Builder ---
+        function buildCalendar() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth();
+            const today = now.getDate();
+
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            document.getElementById('month-title').innerText = monthNames[month] + " " + year;
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            let html = '';
+            // Empty slots for start of month
+            for (let i = 0; i < firstDay; i++) {
+                html += '<div class="calendar-day" style="opacity:0"></div>';
+            }
+            // Actual days
+            for (let i = 1; i <= daysInMonth; i++) {
+                let activeClass = (i === today) ? 'active' : '';
+                html += `<div class="calendar-day ${activeClass}">${i}</div>`;
+            }
+            document.getElementById('calendar-days').innerHTML = html;
+        }
+        buildCalendar();
+
+        // --- 5. 3D Avatar (Three.js) ---
+        const container = document.getElementById('avatar-container');
+        const scene = new THREE.Scene();
+        // Camera setup to fit the container
+        const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        container.appendChild(renderer.domElement);
+
+        // Core lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+        const pointLight = new THREE.PointLight(0x4cd137, 1);
+        pointLight.position.set(5, 5, 5);
+        scene.add(pointLight);
+
+        // Constructing a simple robot avatar (Head & Body)
+        const botGroup = new THREE.Group();
+
+        // Head (Glass orb)
+        const headGeo = new THREE.SphereGeometry(1, 32, 32);
+        const headMat = new THREE.MeshPhysicalMaterial({
+            color: 0xffffff,
+            metalness: 0.1,
+            roughness: 0.2,
+            transmission: 0.9, // glass-like
+            thickness: 0.5
+        });
+        const head = new THREE.Mesh(headGeo, headMat);
+        head.position.y = 1.2;
+        botGroup.add(head);
+
+        // Core / glowing eye
+        const eyeGeo = new THREE.SphereGeometry(0.3, 16, 16);
+        const eyeMat = new THREE.MeshBasicMaterial({ color: 0x00d2d3 });
+        const eye = new THREE.Mesh(eyeGeo, eyeMat);
+        eye.position.set(0, 1.2, 0.8);
+        botGroup.add(eye);
+
+        // Body (Floating base)
+        const bodyGeo = new THREE.CylinderGeometry(0.5, 0.8, 1.5, 32);
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x2d3436, metalness: 0.8, roughness: 0.2 });
+        const body = new THREE.Mesh(bodyGeo, bodyMat);
+        body.position.y = -0.3;
+        botGroup.add(body);
+
+        scene.add(botGroup);
+        camera.position.z = 5;
+        camera.position.y = 0.5;
+
+        // Animation Loop
+        let frame = 0;
+        function animate() {
+            requestAnimationFrame(animate);
+            // Gentle hovering
+            botGroup.position.y = Math.sin(frame * 0.05) * 0.1;
+            // Slow rotation looking around
+            botGroup.rotation.y = Math.sin(frame * 0.02) * 0.3;
+            // Eye pulsate
+            eye.scale.setScalar(1 + Math.sin(frame * 0.1) * 0.1);
+
+            renderer.render(scene, camera);
+            frame++;
+        }
+        animate();
+
+        // Handle window resize for 3D canvas
+        window.addEventListener('resize', () => {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        });
+
+        // --- 6. ViClaw API Integrations ---
+        const bubble = document.getElementById('speech-bubble');
+
+        function speakBubble(text) {
+            bubble.innerText = text;
+            bubble.style.opacity = 1;
+            // Turn eye color to active (orange/pink) while speaking
+            eye.material.color.setHex(0xff9f43);
+            setTimeout(() => {
+                bubble.style.opacity = 0;
+                eye.material.color.setHex(0x00d2d3); // revert
+            }, 6000);
+        }
+
+        // Fetch Agent Status & Action Logs dynamically
+        function pollAgentData() {
+            fetch('/api/diagnostics')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('agent-status').innerText = `Ollama: ${data.ollama_status} | Model: ${data.model}`;
+                })
+                .catch(err => {
+                    document.getElementById('agent-status').innerText = "Status: API Unreachable";
+                });
+
+            fetch('/api/history')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.history && data.history.length > 0) {
+                        const list = document.getElementById('reminders-list');
+                        list.innerHTML = '';
+
+                        // Grab the latest 5 tasks or system actions
+                        let added = 0;
+                        for (let i = data.history.length - 1; i >= 0 && added < 5; i--) {
+                            let entry = data.history[i];
+                            if (entry.role === 'system' || entry.role === 'assistant') {
+                                // Clean up content slightly for presentation
+                                let snippet = entry.content.substring(0, 80) + (entry.content.length > 80 ? "..." : "");
+                                list.innerHTML += `<li class="reminder-item">${snippet}</li>`;
+                                added++;
+                            }
+                        }
+
+                        if (added === 0) {
+                            list.innerHTML = '<li class="reminder-item">Standing by for instructions...</li>';
+                        }
+                    }
+                });
+        }
+
+        // Initial bubble text
+        setTimeout(() => {
+            speakBubble("Welcome to the Command Center.");
+        }, 1000);
+
+        setInterval(pollAgentData, 5000); // Poll every 5s
+        pollAgentData();
+
+        // Random fun facts or status updates every 2 minutes
+        const randomPhrases = [
+            "All systems normal.",
+            "Analyzing network endpoints...",
+            "Awaiting your command.",
+            "Memory modules optimized.",
+            "Running background diagnostics.",
+            "Connection to ClawHub is stable."
+        ];
+        setInterval(() => {
+            const phrase = randomPhrases[Math.floor(Math.random() * randomPhrases.length)];
+            speakBubble(phrase);
+        }, 120000);
+
+    </script>
+</body>
+
+</html>
