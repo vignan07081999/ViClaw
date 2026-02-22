@@ -265,7 +265,11 @@ def browse_clawhub(q: str = ""):
         if res.status_code == 200:
             skills_list = res.json().get("skills", [])
     except Exception:
-        fallback_path = "skills/clawhub_index.json"
+        pass
+    
+    # Always fall back to local bundled index if remote fails or is empty
+    if not skills_list:
+        fallback_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "skills", "clawhub_index.json")
         if os.path.exists(fallback_path):
             with open(fallback_path, "r") as f:
                 skills_list = json.load(f).get("skills", [])

@@ -86,26 +86,32 @@ echo "Setting up global 'viclaw' command..."
 
 VICLAW_SHIM="/usr/local/bin/viclaw"
 
-# Write a real bash shim (not a symlink to a Python file).
-# This works regardless of whether python3 is in PATH at the shebang level.
-SHIM_CONTENT="#!/bin/bash
-exec \"$DIR/.venv/bin/python3\" \"$DIR/viclaw\" \"\$@\""
-
+# Write a real bash shim. We use a heredoc with a quoted sentinel (<<'EOF') so
+# the dollar signs are NOT expanded here -- the shim must contain the literal
+# $DIR path baked in via a separate step.
 _install_shim() {
     mkdir -p /usr/local/bin
-    printf '%s\n' "$SHIM_CONTENT" > "$VICLAW_SHIM"
+    cat > "$VICLAW_SHIM" << SHIMEOF
+#!/bin/bash
+# ViClaw global command shim - DO NOT EDIT
+exec "$DIR/.venv/bin/python3" "$DIR/viclaw" "\$@"
+SHIMEOF
     chmod +x "$VICLAW_SHIM"
 }
 
 if [ "$EUID" -eq 0 ]; then
     _install_shim
 elif command -v sudo &> /dev/null && sudo -n true 2>/dev/null; then
-    sudo bash -c "$(declare -f _install_shim); VICLAW_SHIM='$VICLAW_SHIM'; SHIM_CONTENT=$(printf '%q' "$SHIM_CONTENT"); _install_shim"
+    # Write shim to tmp, then move with sudo
+    TMP_SHIM=$(mktemp)
+    printf '#!/bin/bash\n# ViClaw global command shim - DO NOT EDIT\nexec "%s/.venv/bin/python3" "%s/viclaw" "$@"\n' "$DIR" "$DIR" > "$TMP_SHIM"
+    chmod +x "$TMP_SHIM"
+    sudo mv "$TMP_SHIM" "$VICLAW_SHIM"
 else
     # Fall back: write to $HOME/.local/bin and patch PATH
     mkdir -p "$HOME/.local/bin"
     VICLAW_SHIM="$HOME/.local/bin/viclaw"
-    printf '%s\n' "$SHIM_CONTENT" > "$VICLAW_SHIM"
+    printf '#!/bin/bash\n# ViClaw global command shim - DO NOT EDIT\nexec "%s/.venv/bin/python3" "%s/viclaw" "$@"\n' "$DIR" "$DIR" > "$VICLAW_SHIM"
     chmod +x "$VICLAW_SHIM"
     echo "WARNING: Could not write to /usr/local/bin. Installed to $HOME/.local/bin instead."
 fi

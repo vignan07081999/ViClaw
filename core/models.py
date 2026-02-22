@@ -148,9 +148,30 @@ class LLMRouter:
                 
             response = client.chat(model=model_name, messages=messages, **options)
             
-            message = response.get('message', {})
-            content = message.get('content', '')
-            tool_calls = message.get('tool_calls', [])
+            # ollama library returns a ChatResponse object, not a plain dict.
+            # Access attributes directly; fall back to dict-style for older versions.
+            try:
+                message = response.message
+                content = message.content or ''
+                tool_calls_raw = message.tool_calls or []
+            except AttributeError:
+                # Older ollama library or plain dict fallback
+                message = response.get('message', {})
+                content = message.get('content', '') if isinstance(message, dict) else ''
+                tool_calls_raw = message.get('tool_calls', []) if isinstance(message, dict) else []
+            
+            # Normalize tool_calls to the expected dict format
+            tool_calls = []
+            for tc in tool_calls_raw:
+                if hasattr(tc, 'function'):
+                    tool_calls.append({
+                        "function": {
+                            "name": tc.function.name,
+                            "arguments": tc.function.arguments if isinstance(tc.function.arguments, dict) else {}
+                        }
+                    })
+                elif isinstance(tc, dict):
+                    tool_calls.append(tc)
             
             return {
                 "content": content,

@@ -3,38 +3,93 @@
     {
       "id": "web_search",
       "name": "Web Search",
-      "description": "Search the web using DuckDuckGo.",
-      "author": "ViClaw Team",
-      "version": "1.0.0",
-      "url": "https://raw.githubusercontent.com/vignan07081999/ViClaw/main/skills/web_search.py",
-      "tags": ["search", "tools"]
+      "description": "DuckDuckGo web scraper skill. Lets the agent search the internet.",
+      "tags": [
+        "search",
+        "web",
+        "internet",
+        "duckduckgo"
+      ],
+      "url": "https://raw.githubusercontent.com/vignan07081999/ViClaw/main/skills/web_search.py"
     },
     {
-      "id": "homelab",
-      "name": "HomeLab Connector",
-      "description": "Integrate with Home Assistant, Proxmox, and more.",
-      "author": "ViClaw Team",
-      "version": "1.1.0",
-      "url": "https://raw.githubusercontent.com/vignan07081999/ViClaw/main/skills/homelab.py",
-      "tags": ["smarthome", "homelab"]
-    },
-    {
-      "id": "remote_ssh",
-      "name": "Remote SSH",
-      "description": "Execute commands on remote servers safely.",
-      "author": "ViClaw Team",
-      "version": "1.0.0",
-      "url": "https://raw.githubusercontent.com/vignan07081999/ViClaw/main/skills/remote_ssh.py",
-      "tags": ["ssh", "remote"]
+      "id": "shell_engine",
+      "name": "Shell Engine",
+      "description": "Execute bash shell commands safely from within the agent.",
+      "tags": [
+        "shell",
+        "bash",
+        "system",
+        "command"
+      ],
+      "url": "https://raw.githubusercontent.com/vignan07081999/ViClaw/main/skills/shell_engine.py"
     },
     {
       "id": "file_io",
       "name": "File I/O",
-      "description": "Read and write files on the local filesystem.",
-      "author": "ViClaw Team",
-      "version": "1.0.0",
-      "url": "https://raw.githubusercontent.com/vignan07081999/ViClaw/main/skills/file_io.py",
-      "tags": ["files", "system"]
+      "description": "Read, write, and generate files on the server filesystem.",
+      "tags": [
+        "file",
+        "io",
+        "read",
+        "write",
+        "filesystem"
+      ],
+      "url": "https://raw.githubusercontent.com/vignan07081999/ViClaw/main/skills/file_io.py"
+    },
+    {
+      "id": "remote_ssh",
+      "name": "Remote SSH",
+      "description": "Run commands on remote servers via SSH using Paramiko.",
+      "tags": [
+        "ssh",
+        "remote",
+        "network",
+        "paramiko",
+        "server"
+      ],
+      "url": "https://raw.githubusercontent.com/vignan07081999/ViClaw/main/skills/remote_ssh.py"
+    },
+    {
+      "id": "homelab",
+      "name": "HomeLab Connector",
+      "description": "REST API connector for Home Assistant, Proxmox, Sonarr, Radarr, Jellyfin, etc.",
+      "tags": [
+        "homelab",
+        "home assistant",
+        "proxmox",
+        "api",
+        "iot",
+        "smart home"
+      ],
+      "url": "https://raw.githubusercontent.com/vignan07081999/ViClaw/main/skills/homelab.py"
+    },
+    {
+      "id": "system_info",
+      "name": "System Info",
+      "description": "Reads CPU, RAM, disk usage, and OS platform details from the server.",
+      "tags": [
+        "system",
+        "cpu",
+        "ram",
+        "disk",
+        "info",
+        "monitor"
+      ],
+      "url": "https://raw.githubusercontent.com/vignan07081999/ViClaw/main/skills/system_info.py"
+    },
+    {
+      "id": "reminders",
+      "name": "Reminders",
+      "description": "Set persistent, schedule-based reminders that survive daemon restarts.",
+      "tags": [
+        "reminder",
+        "scheduler",
+        "cron",
+        "alert",
+        "timer"
+      ],
+      "url": "https://raw.githubusercontent.com/vignan07081999/ViClaw/main/skills/reminders.py"
     }
   ]
 }
