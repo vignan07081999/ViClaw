@@ -1,8 +1,24 @@
 #!/bin/bash
 set -e
 
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-cd "$DIR"
+# Auto-detect ViClaw directory if piped via curl
+if [ -f "viclaw" ] && [ -d ".venv" ]; then
+    echo "Detected ViClaw installation in current directory: $PWD"
+elif [ -d "ViClaw" ] && [ -f "ViClaw/viclaw" ]; then
+    echo "Detected ViClaw installation in ./ViClaw"
+    cd ViClaw
+elif [ -d "$HOME/ViClaw" ] && [ -f "$HOME/ViClaw/viclaw" ]; then
+    echo "Detected ViClaw installation in $HOME/ViClaw"
+    cd "$HOME/ViClaw"
+else
+    read -p "Could not auto-detect ViClaw folder. Enter the absolute path to your ViClaw installation directory: " custom_path
+    if [ -d "$custom_path" ] && [ -f "$custom_path/viclaw" ]; then
+        cd "$custom_path"
+    else
+        echo "Valid ViClaw installation not found at that path. Exiting."
+        exit 1
+    fi
+fi
 
 echo "========================================================"
 echo "          ViClaw (OpenClaw Clone) Uninstaller           "

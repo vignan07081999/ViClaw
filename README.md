@@ -45,7 +45,26 @@ bash <(curl -fsSL https://raw.githubusercontent.com/vignan07081999/ViClaw/main/s
 4. Builds an isolated `.venv` Python sandbox array natively avoiding global overlaps.
 5. Boots the Setup Wizard. If Ollama is missing, the wizard injects it naturally.
 
-### 3. Usage & Interacting
+### 3. Global Uninstaller Snippet
+
+If you want to completely wipe ViClaw, its virtual environment, the systemd daemon, and all User Data Memory databases interactively, run:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/vignan07081999/ViClaw/main/uninstall.sh)
+```
+
+### 4. Manual Clone & Execute
+
+If you prefer to review the source code manually before executing scripts, bypass the global setup snippet and clone manually:
+
+```bash
+git clone https://github.com/vignan07081999/ViClaw.git
+cd ViClaw
+chmod +x install.sh
+./install.sh
+```
+
+### 5. Usage & Interacting
 
 Once installed, we created a global wrapper script so you never have to mess with Python virtual environments manually. Everything is executed through `./viclaw`.
 
