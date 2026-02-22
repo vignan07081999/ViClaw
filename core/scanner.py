@@ -4,6 +4,10 @@ import concurrent.futures
 COMMON_PORTS = {
     8123: "Home Assistant",
     8006: "Proxmox VE",
+    8989: "Sonarr",
+    7878: "Radarr",
+    9696: "Prowlarr",
+    8096: "Jellyfin/Emby",
     22: "SSH Service",
     80: "HTTP Server",
     443: "HTTPS Server",

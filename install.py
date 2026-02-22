@@ -181,7 +181,8 @@ def main():
 
         config["models"].append(model_entry)
         
-        adding_models = questionary.confirm("Would you like to provision another AI model for a different role? (ViClaw automatically routes to the best model)", default=False).ask()
+        console.print("[dim]Note: ViClaw automatically parses your input and will autonomously route your prompts to the right model (e.g., using the Coding model for Python, or the Fast model for simple tasks) behind the scenes.[/dim]")
+        adding_models = questionary.confirm("Would you like to provision another AI model for a different capability? (ViClaw automatically routes between them)", default=False).ask()
 
     # Fallback if somehow empty
     if not config["models"]:
@@ -209,7 +210,19 @@ def main():
     # 4. WebUI Configuration
     console.print("\n[bold yellow]4. WebUI Setup[/bold yellow]")
     enable_webui = questionary.confirm("Enable local WebUI for 3D Dashboard & monitoring?", default=True).ask()
-    config["webui"] = {"enabled": enable_webui, "port": 8501}
+    
+    webui_port = 8501
+    if enable_webui:
+        # Detect open port to prevent CasaOS / Proxmox collisions (which often hog 8501 or 8006)
+        console.print("[dim]Scanning for an available port for the WebUI dashboard...[/dim]")
+        for port in range(8501, 8550):
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                if s.connect_ex(("127.0.0.1", port)) != 0:
+                    webui_port = port
+                    break
+        console.print(f"[green]✓ Assigned WebUI to port {webui_port}[/green]")
+        
+    config["webui"] = {"enabled": enable_webui, "port": webui_port}
     
     # 5. Agent Skills
     console.print("\n[bold yellow]5. Skills & ClawHub[/bold yellow]")
@@ -256,13 +269,42 @@ def main():
                         config["skills"]["auto_integrations"] = discovered_devices
                         console.print("[green]Awesome! I'll auto-configure the connection parameters for these endpoints on your first boot.[/green]")
                         
-                        # Add SSH Setup
+                        # Add SSH Setup & API Token Interception
                         config["ssh_hosts"] = {}
-                        console.print("\n[bold yellow]SSH Setup for Local Control[/bold yellow]")
+                        config["api_keys"] = {}
+                        
+                        console.print("\n[bold yellow]Authentication & Token Setup for Local Control[/bold yellow]")
                         for ip, info in discovered_devices.items():
                             svc_str = ", ".join(info["services"])
                             hostname = info.get("hostname", ip)
-                            if questionary.confirm(f"Do you want to setup remote SSH access for {ip} '{hostname}' ({svc_str})?", default=False).ask():
+                            
+                            # API Key Interception for HomeLab Software
+                            if "Home Assistant" in info["services"]:
+                                if questionary.confirm(f"Do you want to provide a Home Assistant Long-Lived API Token for {ip} '{hostname}'?", default=False).ask():
+                                    token = questionary.password(f"HA Token for {ip}:").ask()
+                                    config["api_keys"]["home_assistant"] = {"ip": ip, "token": token}
+                                    console.print("[green]Saved Home Assistant API context![/green]")
+                            
+                            if "Proxmox VE" in info["services"]:
+                                if questionary.confirm(f"Do you want to provide a Proxmox API Token ID/Secret for {ip} '{hostname}'?", default=False).ask():
+                                    token_id = questionary.text(f"Token ID for {ip} (e.g. root@pam!viclaw):").ask()
+                                    secret = questionary.password(f"Secret UUID for {ip}:").ask()
+                                    config["api_keys"]["proxmox"] = {"ip": ip, "token_id": token_id, "secret": secret}
+                                    console.print("[green]Saved Proxmox VE API context![/green]")
+                                    
+                            if any(svc in svc_str for svc in ["Radarr", "Sonarr", "Prowlarr", "Jellyfin"]):
+                                console.print(f"[cyan]Detected media servers on {ip}! ViClaw can integrate via API.[/cyan]")
+                                if "Radarr" in svc_str:
+                                    config["api_keys"]["radarr"] = {"ip": ip, "token": questionary.password(f"Radarr API Key for {ip}:").ask()}
+                                if "Sonarr" in svc_str:
+                                    config["api_keys"]["sonarr"] = {"ip": ip, "token": questionary.password(f"Sonarr API Key for {ip}:").ask()}
+                                if "Prowlarr" in svc_str:
+                                    config["api_keys"]["prowlarr"] = {"ip": ip, "token": questionary.password(f"Prowlarr API Key for {ip}:").ask()}
+                                if "Jellyfin" in svc_str:
+                                    config["api_keys"]["jellyfin"] = {"ip": ip, "token": questionary.password(f"Jellyfin API Key for {ip}:").ask()}
+                            
+                            # Fallback to SSH for OS-level control
+                            if questionary.confirm(f"Do you want to setup fallback OS-level SSH access for {ip} '{hostname}' ({svc_str})?", default=False).ask():
                                 username = questionary.text(f"SSH Username for {ip}:", default="root").ask()
                                 password = questionary.password(f"SSH Password (stored locally in config.json):").ask()
                                 
@@ -277,7 +319,7 @@ def main():
                                     config["ssh_hosts"][ip] = {"username": username, "password": password}
                                 except Exception as e:
                                     console.print(f"[bold red]✗ SSH connection failed: {e}[/bold red]")
-                                    if questionary.confirm("Do you still want to save these credentials?", default=False).ask():
+                                    if questionary.confirm("Do you still want to save these SSH credentials?", default=False).ask():
                                         config["ssh_hosts"][ip] = {"username": username, "password": password}
             except Exception as e:
                 console.print(f"[red]Error during AI analysis: {e}[/red]")
@@ -343,14 +385,14 @@ def main():
 
         cheat_sheet = f"""
 [bold cyan]Useful Commands:[/bold cyan]
-- [bold]python viclaw.py[/bold]      : Open the Super Master Menu (Chat, Diagnostics, Doctor)
-- [bold]python chat.py[/bold]        : Drop right into the CLI conversation
-- [bold]python diagnostics.py[/bold] : Run health checks
-- [bold]python doctor.py[/bold]      : Analyze daemon logs and fix crashes automatically
+- [bold]./viclaw[/bold]             : Open the Super Master Menu (Chat, Diagnostics, Doctor)
+- [bold]./viclaw chat[/bold]        : Drop right into the CLI conversation
+- [bold]./viclaw diagnostics[/bold] : Run health checks
+- [bold]./viclaw doctor[/bold]      : Analyze daemon logs and fix crashes automatically
 
 [bold cyan]WebUI & 3D Dashboard:[/bold cyan]
 Access your agent remotely from any browser on your network at:
-[bold yellow]http://{local_ip}:8501/dashboard[/bold yellow]
+[bold yellow]http://{local_ip}:{config['webui']['port']}/dashboard[/bold yellow]
 """
         console.print(Panel(cheat_sheet, title="ViClaw Cheat Sheet", border_style="cyan"))
 

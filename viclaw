@@ -1,0 +1,34 @@
+#!/bin/bash
+set -e
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+VENV_PYTHON="$DIR/.venv/bin/python3"
+
+if [ ! -f "$VENV_PYTHON" ]; then
+    echo "Error: Virtual environment not found at $VENV_PYTHON"
+    echo "Please run ./install.sh first to build the environment."
+    exit 1
+fi
+
+COMMAND="${1:-viclaw}"
+
+case "$COMMAND" in
+    "chat")
+        exec "$VENV_PYTHON" "$DIR/cli/chat.py" "${@:2}"
+        ;;
+    "diagnostics")
+        exec "$VENV_PYTHON" "$DIR/cli/diagnostics.py" "${@:2}"
+        ;;
+    "doctor")
+        exec "$VENV_PYTHON" "$DIR/cli/doctor.py" "${@:2}"
+        ;;
+    "main")
+        exec "$VENV_PYTHON" "$DIR/main.py" "${@:2}"
+        ;;
+    "launcher")
+        exec "$VENV_PYTHON" "$DIR/launcher.py" "${@:2}"
+        ;;
+    "viclaw"|*)
+        exec "$VENV_PYTHON" "$DIR/viclaw.py" "$@"
+        ;;
+esac
