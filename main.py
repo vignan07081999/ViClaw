@@ -17,12 +17,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from core.agent import OpenClawAgent
 import schedule
 from integrations.messaging import PlatformManager
-from integrations.telegram import TelegramConnector
-from integrations.whatsapp import WhatsAppConnector
-from integrations.discord import DiscordConnector
 from core.updater import UpdaterEngine
 from core.config import APP_CONFIG, setup_logging, get_config
-from core.skill_manager import SkillManager
+from skills.manager import SkillManager
 from webui.app import start_webui
 
 setup_logging()
@@ -79,15 +76,11 @@ def main():
     t_ota = threading.Thread(target=run_ota_auto_updater, daemon=True)
     t_ota.start()
 
-    # Load skills
-    skill_manager = SkillManager()
-
-    # Initialize Managers
     is_daemon = "--daemon" in sys.argv
     platform_manager = PlatformManager(is_daemon=is_daemon)
     
     # Initialize Core Agent
-    agent = OpenClawAgent(platform_manager, skill_manager) # Pass skill_manager to agent
+    agent = OpenClawAgent(platform_manager)
     
     # Start the WebUI (if enabled)
     start_webui(agent)
