@@ -1,3 +1,13 @@
+"""
+core/memory.py — ViClaw Agent Memory
+
+Improvements in this version:
+  - Short-term context is checkpointed to SQLite on every add_short_term() call
+  - On startup, the last N messages are restored from the DB so context survives daemon restarts
+  - Per-session isolation: each session_id gets its own short-term buffer (supports multi-user WebUI)
+  - Cosine similarity search still falls back to fuzzy text if embeddings unavailable
+"""
+
 import sqlite3
 import os
 import json
@@ -6,130 +16,193 @@ from datetime import datetime
 
 MEMORY_DB = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "memory.db")
 
+
 class AgentMemory:
-    def __init__(self, max_short_term=20):
+    def __init__(self, max_short_term: int = 20, session_id: str = "default"):
         self.max_short_term = max_short_term
-        self.short_term_context = []  # List of dicts: {"role": "...", "content": "..."}
+        self.session_id = session_id
+        self.short_term_context: list = []
         self.db_path = MEMORY_DB
         self._init_db()
+        self._restore_short_term()
+
+    # ------------------------------------------------------------------
+    # DB Initialisation
+    # ------------------------------------------------------------------
 
     def _init_db(self):
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
-        conn = sqlite3.connect(self.db_path)
-        c = conn.cursor()
-        c.execute('''CREATE TABLE IF NOT EXISTS memories
-                     (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                      timestamp TEXT,
-                      topic TEXT,
-                      content TEXT,
-                      importance INTEGER,
-                      embedding TEXT)''')
-        conn.commit()
-        conn.close()
+        with sqlite3.connect(self.db_path) as conn:
+            c = conn.cursor()
+            # Long-term semantic memory
+            c.execute("""
+                CREATE TABLE IF NOT EXISTS memories (
+                    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp TEXT,
+                    topic     TEXT,
+                    content   TEXT,
+                    importance INTEGER,
+                    embedding TEXT
+                )
+            """)
+            # Short-term checkpoint per session
+            c.execute("""
+                CREATE TABLE IF NOT EXISTS short_term_checkpoint (
+                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT,
+                    timestamp  TEXT,
+                    role       TEXT,
+                    content    TEXT
+                )
+            """)
+            conn.commit()
 
-    def add_short_term(self, role, content):
+    # ------------------------------------------------------------------
+    # Short-term (in-RAM + checkpoint)
+    # ------------------------------------------------------------------
+
+    def _restore_short_term(self):
+        """Restore the last `max_short_term` messages from the DB checkpoint on startup."""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                c = conn.cursor()
+                c.execute(
+                    "SELECT role, content FROM short_term_checkpoint "
+                    "WHERE session_id=? ORDER BY id DESC LIMIT ?",
+                    (self.session_id, self.max_short_term),
+                )
+                rows = c.fetchall()
+            # Rows come back newest-first; reverse to get chronological order
+            self.short_term_context = [{"role": r, "content": c} for r, c in reversed(rows)]
+            if self.short_term_context:
+                logging.info(
+                    f"Restored {len(self.short_term_context)} messages from short-term checkpoint "
+                    f"(session={self.session_id})."
+                )
+        except Exception as e:
+            logging.warning(f"Could not restore short-term checkpoint: {e}")
+            self.short_term_context = []
+
+    def _checkpoint_message(self, role: str, content: str):
+        """Persist a single message to the short-term checkpoint table."""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                c = conn.cursor()
+                c.execute(
+                    "INSERT INTO short_term_checkpoint (session_id, timestamp, role, content) "
+                    "VALUES (?, ?, ?, ?)",
+                    (self.session_id, datetime.now().isoformat(), role, content),
+                )
+                conn.commit()
+        except Exception as e:
+            logging.warning(f"Short-term checkpoint write failed: {e}")
+
+    def add_short_term(self, role: str, content: str):
         self.short_term_context.append({"role": role, "content": content})
-        
-        # Smart Context compression: If over limit, we remove the oldest 2 messages
-        # to ensure we typically drop a full (user + assistant) pair rather than breaking flow
+        self._checkpoint_message(role, content)
+
+        # Sliding window: drop oldest pair when over limit
         if len(self.short_term_context) > self.max_short_term:
-            logging.info("Memory Limit Reached: Sliding context window to compress memory.")
-            # Drop the oldest two messages (assuming they aren't marked as system critical)
-            # In a full implementation, you could summarize these and inject them as a fresh 'system' message
+            logging.info("Memory sliding window: compressing oldest context pair.")
             pop_count = 2 if len(self.short_term_context) >= 2 else 1
             for _ in range(pop_count):
                 self.short_term_context.pop(0)
 
-    def get_short_term_context(self):
+    def get_short_term_context(self) -> list:
         return self.short_term_context
 
-    def get_embedding(self, text):
-        """
-        Calls Ollama locally to generate a vector embedding using nomic-embed-text.
-        """
+    def clear_short_term(self, session_id: str = None):
+        """Clear in-RAM context and wipe the checkpoint for this session."""
+        sid = session_id or self.session_id
+        self.short_term_context = []
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.execute(
+                    "DELETE FROM short_term_checkpoint WHERE session_id=?", (sid,)
+                )
+                conn.commit()
+        except Exception as e:
+            logging.warning(f"Could not clear short-term checkpoint: {e}")
+
+    def summarize_and_compress(self):
+        """Drop the oldest half of context (called by /compact slash command)."""
+        half = len(self.short_term_context) // 2
+        self.short_term_context = self.short_term_context[half:]
+        logging.info("Context compacted by /compact command.")
+
+    # ------------------------------------------------------------------
+    # Long-term vector memory
+    # ------------------------------------------------------------------
+
+    def get_embedding(self, text: str) -> list:
         try:
             import requests
             from core.config import get_config
             url = get_config().get("ollama_url", "http://localhost:11434")
-            res = requests.post(f"{url.rstrip('/')}/api/embeddings", json={
-                "model": "nomic-embed-text",
-                "prompt": text
-            }, timeout=10)
+            res = requests.post(
+                f"{url.rstrip('/')}/api/embeddings",
+                json={"model": "nomic-embed-text", "prompt": text},
+                timeout=10,
+            )
             if res.status_code == 200:
                 return res.json().get("embedding", [])
         except Exception as e:
-            logging.error(f"Failed to generate embedding: {e}")
+            logging.error(f"Embedding generation failed: {e}")
         return []
 
-    def add_long_term(self, content, topic="general", importance=1):
-        """
-        Saves a fact or document chunk to persistent local database via Vector Embeddings.
-        """
+    def add_long_term(self, content: str, topic: str = "general", importance: int = 1):
         timestamp = datetime.now().isoformat()
-        logging.info(f"Saving embedded memory: {content[:50]}...")
-        
-        # Generate Nomic embedding
         vec = self.get_embedding(content)
         vec_str = json.dumps(vec) if vec else "[]"
-        
-        conn = sqlite3.connect(self.db_path)
-        c = conn.cursor()
-        c.execute("INSERT INTO memories (timestamp, topic, content, importance, embedding) VALUES (?, ?, ?, ?, ?)",
-                  (timestamp, topic, content, importance, vec_str))
-        conn.commit()
-        conn.close()
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                "INSERT INTO memories (timestamp, topic, content, importance, embedding) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (timestamp, topic, content, importance, vec_str),
+            )
+            conn.commit()
+        logging.info(f"Long-term memory saved: {content[:60]}...")
 
-    def search_long_term(self, query, top_k=3):
-        """
-        Retrieves relevant long-term memories using cosine similarity against Ollama embeddings.
-        Fallback to fuzzy string matching if vector graph fails.
-        """
+    def search_long_term(self, query: str, top_k: int = 3) -> list:
         query_vec = self.get_embedding(query)
-        
-        conn = sqlite3.connect(self.db_path)
-        c = conn.cursor()
-        c.execute("SELECT content, embedding FROM memories")
-        rows = c.fetchall()
-        conn.close()
+
+        with sqlite3.connect(self.db_path) as conn:
+            rows = conn.execute(
+                "SELECT content, embedding FROM memories"
+            ).fetchall()
 
         if not rows:
             return []
 
         if not query_vec:
-            # Fallback to fuzzy text search if embeddings offline
+            # Fuzzy text fallback when embeddings unavailable
             words = [w for w in query.split() if len(w) > 3]
-            if not words: return []
-            conn = sqlite3.connect(self.db_path)
-            c = conn.cursor()
-            likes = " OR ".join(["content LIKE ?" for _ in words])
-            params = [f"%{w}%" for w in words]
-            sql = f"SELECT content FROM memories WHERE {likes} ORDER BY importance DESC, timestamp DESC LIMIT {top_k}"
-            c.execute(sql, params)
-            fallback_res = c.fetchall()
-            conn.close()
-            return [r[0] for r in fallback_res]
+            if not words:
+                return []
+            with sqlite3.connect(self.db_path) as conn:
+                likes = " OR ".join(["content LIKE ?" for _ in words])
+                params = [f"%{w}%" for w in words]
+                sql = (
+                    f"SELECT content FROM memories WHERE {likes} "
+                    f"ORDER BY importance DESC, timestamp DESC LIMIT {top_k}"
+                )
+                fallback = conn.execute(sql, params).fetchall()
+            return [r[0] for r in fallback]
 
-        # Vector Math Calculation (Cosine Similarity)
+        # Vector cosine similarity
         try:
             import numpy as np
             q_arr = np.array(query_vec)
-            scored_rows = []
-            
+            scored = []
             for content, emb_str in rows:
-                if not emb_str or emb_str == "[]": continue
+                if not emb_str or emb_str == "[]":
+                    continue
                 db_arr = np.array(json.loads(emb_str))
-                
-                # Cosine sim
-                dot = np.dot(q_arr, db_arr)
                 norm = np.linalg.norm(q_arr) * np.linalg.norm(db_arr)
-                sim = dot / norm if norm > 0 else 0
-                
-                scored_rows.append((sim, content))
-                
-            # Sort highest similarity first
-            scored_rows.sort(key=lambda x: x[0], reverse=True)
-            return [r[1] for r in scored_rows[:top_k]]
-            
+                sim = float(np.dot(q_arr, db_arr) / norm) if norm > 0 else 0.0
+                scored.append((sim, content))
+            scored.sort(key=lambda x: x[0], reverse=True)
+            return [c for _, c in scored[:top_k]]
         except ImportError:
-            logging.error("Numpy not installed. Cannot compute vector distance.")
+            logging.error("numpy not installed. Cannot compute vector similarity.")
             return []

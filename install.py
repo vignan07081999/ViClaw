@@ -8,7 +8,7 @@ import subprocess
 
 # Auto-enforce virtual environment
 if sys.prefix == sys.base_prefix:
-    venv_python = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".venv", "bin", "python")
+    venv_python = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".venv", "bin", "python3")
     if os.path.exists(venv_python):
         os.execv(venv_python, [venv_python] + sys.argv)
 
@@ -219,10 +219,10 @@ def conf_platforms(config):
 
 def conf_webui(config):
     console.print("\n[bold yellow]--- 4. WebUI & Kiosk Dashboard ---[/bold yellow]")
-    
+
     enable_webui = questionary.confirm("Enable local WebUI for 3D Dashboard & monitoring?", default=True).ask()
     webui_port = config.get("webui", {}).get("port", 8501)
-    
+
     if enable_webui:
         console.print("[dim]Scanning for an available port to prevent collisions...[/dim]")
         for port in range(8501, 8550):
@@ -231,9 +231,36 @@ def conf_webui(config):
                     webui_port = port
                     break
         console.print(f"[green]✓ Assigned WebUI to port {webui_port}[/green]")
-        
-    config["webui"] = {"enabled": enable_webui, "port": webui_port}
-    
+
+        # ---- WebUI credential setup ------------------------------------------
+        console.print("\n[bold red]⚠ Security:[/bold red] Set a username and password for WebUI access.")
+        console.print("[dim]These replace the old hardcoded defaults. Store them safely.[/dim]")
+        existing_creds = config.get("webui", {}).get("credentials", {})
+        webui_user = questionary.text(
+            "WebUI Admin Username:",
+            default=existing_creds.get("username", "admin")
+        ).ask()
+        # Password with confirmation loop
+        while True:
+            webui_pass = questionary.password("WebUI Password (min 6 chars):").ask()
+            if not webui_pass or len(webui_pass) < 6:
+                console.print("[red]Password must be at least 6 characters. Try again.[/red]")
+                continue
+            webui_pass_confirm = questionary.password("Confirm password:").ask()
+            if webui_pass == webui_pass_confirm:
+                break
+            console.print("[red]Passwords do not match. Try again.[/red]")
+        # ---------------------------------------------------------------------
+
+        config["webui"] = {
+            "enabled": True,
+            "port": webui_port,
+            "credentials": {"username": webui_user, "password": webui_pass},
+        }
+        console.print(f"[green]✓ WebUI credentials saved for user '{webui_user}'.[/green]")
+    else:
+        config["webui"] = {"enabled": False, "port": webui_port}
+
     console.print("\n[bold yellow]Stream Deck Kiosk Desktop[/bold yellow]")
     console.print("[dim]Glassmorphic dashboard with HomeAssistant iframes and an animated 3D Deskbot.[/dim]")
     config["kiosk"] = {"enabled": questionary.confirm("Enable Kiosk Interface?", default=True).ask()}

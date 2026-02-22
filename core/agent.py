@@ -40,12 +40,12 @@ class OpenClawAgent:
         cmd = command_text.strip().lower()
         parts = cmd.split()
         base_cmd = parts[0]
-        
+
         if base_cmd in ["/reset", "/new"]:
-            self.memory.short_term = []
+            self.memory.clear_short_term()
             return "Session reset. Short-term memory cleared."
         elif base_cmd == "/status":
-            num_msgs = len(self.memory.short_term)
+            num_msgs = len(self.memory.short_term_context)
             fast_mod = getattr(self.router, 'fast_model', None)
             comp_mod = getattr(self.router, 'complex_model', None)
             fm_name = fast_mod['model'] if fast_mod else 'None'
@@ -369,24 +369,27 @@ class OpenClawAgent:
                         response = self.router.generate("[Heartbeat Check]", system_prompt=sys_prompt, context=context, tools=tools)
                         
                         if response["content"] and response["content"].strip():
-                            # Spontaneous message
+                            # Broadcast proactive message to all enabled platforms
                             self.memory.add_short_term("assistant", response["content"])
-                            self.platform_manager.send("cli", "local_user", response["content"])
-                            
+                            for platform_name, connector in self.platform_manager.connectors.items():
+                                if getattr(connector, 'enabled', False):
+                                    self.platform_manager.send(platform_name, "local_user", response["content"])
+
                         if response["tool_calls"]:
                             for tc in response["tool_calls"]:
                                 tool_name = tc.get("function", {}).get("name")
                                 tool_args = tc.get("function", {}).get("arguments", {})
                                 logging.info(f"Heartbeat requested tool: {tool_name} with {tool_args}")
                                 tool_result = self.skill_manager.execute_tool(tool_name, tool_args)
-                                
-                                # Process tool result proactively
+
                                 sys_prompt_pass2 = "You executed a proactive tool. If the user needs to know this result immediately, generate a message. Otherwise remain silent."
                                 final_res = self.router.generate(f"Tool Result: {tool_result}", system_prompt=sys_prompt_pass2, context=self.memory.get_short_term_context())
-                                
+
                                 if final_res["content"] and final_res["content"].strip():
-                                    self.platform_manager.send("cli", "local_user", final_res["content"])
                                     self.memory.add_short_term("assistant", final_res["content"])
+                                    for platform_name, connector in self.platform_manager.connectors.items():
+                                        if getattr(connector, 'enabled', False):
+                                            self.platform_manager.send(platform_name, "local_user", final_res["content"])
                                     
                     except Exception as e:
                         logging.error(f"Heartbeat proactive loop error: {e}")

@@ -16,7 +16,7 @@ import threading
 
 from core.config import is_webui_enabled, get_webui_port
 
-app = FastAPI(title="OpenClaw Clone WebUI")
+app = FastAPI(title="ViClaw Agent WebUI")
 
 # Global reference to the agent instance (set by main.py)
 agent_instance = None
@@ -24,6 +24,18 @@ agent_instance = None
 # In-memory session store mapping SessionToken -> {user_id, expires}
 ACTIVE_SESSIONS: dict = {}
 cookie_scheme = APIKeyCookie(name="viclaw_session", auto_error=False)
+
+
+def _evict_expired_sessions():
+    """Background task: remove sessions past their expiry every hour."""
+    while True:
+        now = time.time()
+        expired = [k for k, v in list(ACTIVE_SESSIONS.items()) if now > v["expires"]]
+        for k in expired:
+            ACTIVE_SESSIONS.pop(k, None)
+        if expired:
+            logging.info(f"Session cleanup: evicted {len(expired)} expired session(s).")
+        time.sleep(3600)
 
 def get_current_user(viclaw_session: str = Depends(cookie_scheme)):
     if not viclaw_session or viclaw_session not in ACTIVE_SESSIONS:
@@ -109,251 +121,37 @@ def index_login(request: Request, viclaw_session: str = Cookie(None)):
 
 @app.post("/api/login")
 def login(payload: LoginRequest, response: Response):
-    # In a full production system, pull from config.json 'users' array and hash passwords.
-    # For MVP, hardcode or basic checks.
-    valid_users = {
-        "admin": "claw",
-        "guest": "guest"
-    }
-    
-    if payload.username in valid_users and valid_users[payload.username] == payload.password:
+    """
+    Authenticate against credentials stored in data/config.json.
+    Falls back to a one-time random token printed to the daemon log on first boot
+    if no credentials have been configured via the install wizard.
+    """
+    from core.config import get_config
+    cfg = get_config()
+    creds = cfg.get("webui", {}).get("credentials", {})
+    admin_user = creds.get("username", "admin")
+    admin_pass = creds.get("password", "")
+
+    # If no password was ever set, block login and log a warning
+    if not admin_pass:
+        logging.warning("WebUI login attempted but no password is configured. Run ./install.sh to set credentials.")
+        return {"success": False, "error": "No credentials configured. Run the install wizard first."}
+
+    if payload.username == admin_user and payload.password == admin_pass:
         session_id = str(uuid.uuid4())
         ACTIVE_SESSIONS[session_id] = {
             "user_id": payload.username,
-            "expires": time.time() + (24 * 3600) # 24 hrs
+            "expires": time.time() + (24 * 3600),  # 24-hour session
         }
-        response.set_cookie(key="viclaw_session", value=session_id, httponly=True, max_age=86400)
+        response.set_cookie(
+            key="viclaw_session", value=session_id,
+            httponly=True, samesite="lax", max_age=86400
+        )
+        logging.info(f"WebUI login: user '{payload.username}' authenticated.")
         return {"success": True}
-        
-    return {"success": False}
-    html_content = """
-    <html>
-        <head>
-            <title>ViClaw Dashboard</title>
-            <style>
-                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f9; color: #333; }
-                h1 { color: #2c3e50; }
-                .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
-                .status-on { color: green; font-weight: bold; }
-                #chat-box { height: 300px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; border-radius: 4px; background: #fafafa;}
-                .msg-user { color: blue; margin-bottom: 10px; }
-                .msg-bot { color: purple; margin-bottom: 10px; }
-                input[type="text"] { width: 80%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
-                button { padding: 10px 20px; background-color: #2c3e50; color: white; border: none; border-radius: 4px; cursor: pointer; }
-                button:hover { background-color: #1a252f; }
-            </style>
-        </head>
-        <body>
-            <h1>ViClaw Dashboard</h1>
-            
-            <div class="card" style="display: flex; justify-content: space-between; gap: 20px;">
-                <div style="flex: 1;">
-                    <h2>Agent Status: <span class="status-on">Running</span></h2>
-                    <p>Background daemon active.</p>
-                    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                        <a href="/dashboard" style="display: inline-block; padding: 10px 15px; background: #0ea5e9; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Open 3D Dashboard →</a>
-                        <a href="/kiosk" style="display: inline-block; padding: 10px 15px; background: #8e44ad; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Launch Tablet Kiosk 📱</a>
-                        <a href="/wiki" style="display: inline-block; padding: 10px 15px; background: #27ae60; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">📖 Read Wiki</a>
-                    </div>
-                    
-                    <h3>ClawHub Setup</h3>
-                    <form id="clawhub-form" onsubmit="installSkill(event)" style="margin-bottom: 20px;">
-                        <input type="text" id="skill-url" placeholder="Enter ClawHub/GitHub URL..." required style="width: 60%;" />
-                        <button type="submit" id="install-btn">Install</button>
-                        <div id="install-msg" style="margin-top: 5px; font-size: 0.9em;"></div>
-                    </form>
 
-                    <h3>Loaded Skills</h3>
-                    <ul id="skills-list">Loading...</ul>
-                </div>
-                
-                <div style="flex: 2;">
-                    <h2>Chat Interface</h2>
-                    <div id="chat-box"></div>
-                    <form id="chat-form" onsubmit="sendMessage(event)">
-                        <input type="text" id="chat-input" placeholder="Type a message to ViClaw..." required />
-                        <button type="submit">Send</button>
-                    </form>
-                </div>
-            </div>
-
-            <div class="card">
-                <h2>System Diagnostics</h2>
-                <button onclick="loadDiagnostics()" style="margin-bottom: 10px;">Run Health Check</button>
-                <div id="diag-results" style="display: flex; gap: 20px; flex-wrap: wrap;">
-                    <!-- Diagnostics inserted here -->
-                </div>
-                <h3 style="margin-top:20px;">Recent Daemon Logs</h3>
-                <button onclick="loadLogs()" style="margin-bottom: 10px; background-color: #7f8c8d;">Fetch Logs</button>
-                <button onclick="window.location.href='/api/download_logs'" style="margin-bottom: 10px; background-color: #e67e22;">Download Complete Logs Archive (ZIP)</button>
-                <pre id="log-box" style="background:#2c3e50; color:#ecf0f1; padding:10px; border-radius:4px; max-height:200px; overflow-y:scroll; font-size:12px;">Waiting for logs...</pre>
-                
-                <h3 style="margin-top:20px;">Agent Action History & Raw Chat Data</h3>
-                <button onclick="loadHistory()" style="margin-bottom: 10px; background-color: #8e44ad;">Load Agent Memory DB</button>
-                <div id="history-box" style="background:#f9ebf9; color:#333; padding:10px; border: 1px solid #dcdde1; border-radius:4px; max-height:300px; overflow-y:scroll; font-size:13px;">
-                    <i>Click 'Load Agent Memory DB' to view the raw cognitive loops and action history...</i>
-                </div>
-            </div>
-            
-            <script>
-                // Load Skills
-                function loadSkills() {
-                    fetch('/api/skills')
-                        .then(response => response.json())
-                        .then(data => {
-                            const list = document.getElementById('skills-list');
-                            list.innerHTML = '';
-                            if (data.skills.length === 0) {
-                                list.innerHTML = '<li>No skills loaded.</li>';
-                            } else {
-                                data.skills.forEach(skill => {
-                                    const li = document.createElement('li');
-                                    li.innerHTML = '<strong>' + skill.name + '</strong>: ' + skill.description;
-                                    list.appendChild(li);
-                                });
-                            }
-                        });
-                }
-                
-                loadSkills();
-
-                function installSkill(event) {
-                    event.preventDefault();
-                    const urlInput = document.getElementById('skill-url');
-                    const msgDiv = document.getElementById('install-msg');
-                    const btn = document.getElementById('install-btn');
-                    
-                    const url = urlInput.value;
-                    if(!url) return;
-                    
-                    btn.innerText = "Installing...";
-                    btn.disabled = true;
-                    msgDiv.innerHTML = "<span style='color:blue;'>Downloading from ClawHub...</span>";
-                    
-                    fetch('/api/install_skill', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ url: url })
-                    })
-                    .then(res => res.json())
-                    .then(data => {
-                        btn.innerText = "Install";
-                        btn.disabled = false;
-                        if(data.success) {
-                            msgDiv.innerHTML = "<span style='color:green;'>Skill installed successfully! Reloading...</span>";
-                            urlInput.value = '';
-                            loadSkills();
-                        } else {
-                            msgDiv.innerHTML = "<span style='color:red;'>" + data.message + "</span>";
-                        }
-                    });
-                }
-
-                // Load Diagnostics
-                function loadDiagnostics() {
-                    const resDiv = document.getElementById('diag-results');
-                    resDiv.innerHTML = '<p>Running checks...</p>';
-                    fetch('/api/diagnostics')
-                        .then(res => res.json())
-                        .then(data => {
-                            resDiv.innerHTML = `
-                                <div style="flex: 1; min-width:200px; background:#e8f4f8; padding:15px; border-radius:8px;">
-                                    <b>Daemon Status:</b><br>${data.daemon_status}
-                                </div>
-                                <div style="flex: 1; min-width:200px; background:#e8f8f5; padding:15px; border-radius:8px;">
-                                    <b>Memory DB Size:</b><br>${data.db_size}
-                                </div>
-                                <div style="flex: 1; min-width:200px; background:#fef9e7; padding:15px; border-radius:8px;">
-                                    <b>Ollama Link:</b><br>${data.ollama_status}
-                                </div>
-                                <div style="flex: 1; min-width:200px; background:#f8d7da; padding:15px; border-radius:8px;">
-                                    <b>Main Model:</b><br>${data.model}
-                                </div>
-                            `;
-                        });
-                }
-
-                // Load Logs
-                function loadLogs() {
-                    const logBox = document.getElementById('log-box');
-                    logBox.innerHTML = 'Fetching...';
-                    fetch('/api/logs')
-                        .then(res => res.json())
-                        .then(data => {
-                            logBox.innerHTML = data.logs;
-                            logBox.scrollTop = logBox.scrollHeight;
-                        });
-                }
-                
-                // Load Memory History
-                function loadHistory() {
-                    const histBox = document.getElementById('history-box');
-                    histBox.innerHTML = 'Fetching Memory DB Context...';
-                    fetch('/api/history')
-                        .then(res => res.json())
-                        .then(data => {
-                            if (!data.history || data.history.length === 0) {
-                                histBox.innerHTML = 'No history recorded yet.';
-                                return;
-                            }
-                            let html = '';
-                            data.history.forEach(entry => {
-                                let role = entry.role.toUpperCase();
-                                let color = "black";
-                                if (role === "USER") color = "blue";
-                                if (role === "ASSISTANT") color = "purple";
-                                if (role === "SYSTEM") color = "#e67e22"; // Orange for internal action logs
-                                
-                                // Format line breaks for html
-                                let content = entry.content.replace(/\\n/g, "<br>");
-                                html += `<div style="margin-bottom: 15px; border-bottom: 1px dotted #ccc; padding-bottom: 5px;">
-                                    <strong style="color: ${color};">[${role}]</strong> 
-                                    <span style="white-space: pre-wrap;">${content}</span>
-                                </div>`;
-                            });
-                            histBox.innerHTML = html;
-                            histBox.scrollTop = histBox.scrollHeight;
-                        });
-                }
-
-                // Initial loads
-                loadDiagnostics();
-
-                // Handle Chat
-                function sendMessage(event) {
-                    event.preventDefault();
-                    const input = document.getElementById('chat-input');
-                    const message = input.value;
-                    input.value = '';
-                    
-                    const chatBox = document.getElementById('chat-box');
-                    chatBox.innerHTML += '<div class="msg-user"><b>You:</b> ' + message + '</div>';
-                    chatBox.scrollTop = chatBox.scrollHeight;
-                    
-                    // Show typing indicator
-                    const typingId = 'typing-' + Date.now();
-                    chatBox.innerHTML += '<div class="msg-bot" id="' + typingId + '"><i>ViClaw is typing...</i></div>';
-                    chatBox.scrollTop = chatBox.scrollHeight;
-                    
-                    fetch('/api/chat', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ message: message })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        const typingEl = document.getElementById(typingId);
-                        if(typingEl) typingEl.remove();
-                        
-                        chatBox.innerHTML += '<div class="msg-bot"><b>ViClaw:</b> ' + data.reply + '</div>';
-                        chatBox.scrollTop = chatBox.scrollHeight;
-                    });
-                }
-            </script>
-        </body>
-    </html>
-    """
-    return html_content
+    logging.warning(f"WebUI login: failed attempt for username '{payload.username}'.")
+    return {"success": False, "error": "Invalid credentials."}
 
 @app.post("/api/chat")
 def handle_chat(payload: ChatMessage, user_id: str = Depends(get_current_user)):
@@ -379,7 +177,6 @@ def handle_webhook(payload: WebhookPayload):
     if not agent_instance:
         return {"success": False, "message": "Agent offline."}
         
-    import json
     # Synthesize the event into a system memory chunk
     msg = f"[EXTERNAL WEBHOOK EVENT] Source: {payload.source} | Event: {payload.event} | Data: {json.dumps(payload.data)}"
     agent_instance.memory.add_short_term("system", msg)
@@ -435,14 +232,14 @@ def get_skills():
 def install_skill(payload: SkillInstallRequest):
     if not agent_instance:
         return {"success": False, "message": "Agent offline."}
-    
+
     from skills.clawhub_client import ClawHubClient
     client = ClawHubClient()
     success = client.download_and_install(payload.url)
     if success:
-        # Reload skills
-        agent_instance.skill_manager._load_all_skills()
-        return {"success": True, "message": "Installed perfectly."}
+        # Delta-load: only import the newly added skill file(s), preserving existing skill state
+        agent_instance.skill_manager._load_new_skills()
+        return {"success": True, "message": "Skill installed and hot-loaded."}
     return {"success": False, "message": "Failed to install. Check daemon logs."}
 
 @app.get("/api/memory")
@@ -556,6 +353,9 @@ def start_webui(agent):
 
     port = get_webui_port()
     logging.info(f"Starting WebUI on port {port} bound to 0.0.0.0...")
+
+    # Start session cleanup background thread
+    threading.Thread(target=_evict_expired_sessions, daemon=True).start()
 
     def run_server():
         # Use uvicorn.Server + isolated asyncio loop so signal handlers

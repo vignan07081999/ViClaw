@@ -52,18 +52,29 @@ def main():
         elif choice == "7":
             console.print("\n[bold cyan]--- Recent Agent Memory & Action Logs ---[/bold cyan]")
             try:
-                from core.memory import AgentMemory
-                mem = AgentMemory()
-                for entry in mem.short_term_context:
-                    role = entry.get("role", "unknown").upper()
-                    if role == "USER":
-                        console.print(f"[bold blue]USER:[/bold blue] {entry.get('content')}")
-                    elif role == "ASSISTANT":
-                        console.print(f"[bold magenta]VICLAW:[/bold magenta] {entry.get('content')}")
-                    elif role == "SYSTEM":
-                        console.print(f"[dim yellow]SYSTEM/TOOL:[/dim yellow] {entry.get('content')}")
+                from core.config import get_webui_port
+                port = get_webui_port()
+                import requests as req
+                res = req.get(f"http://localhost:{port}/api/history", timeout=3)
+                if res.status_code == 200:
+                    history = res.json().get("history", [])
+                    if not history:
+                        console.print("[dim]No chat history yet. Start a conversation first.[/dim]")
+                    else:
+                        for entry in history:
+                            role = entry.get("role", "unknown").upper()
+                            content = entry.get("content", "")
+                            if role == "USER":
+                                console.print(f"[bold blue]USER:[/bold blue] {content}")
+                            elif role == "ASSISTANT":
+                                console.print(f"[bold magenta]VICLAW:[/bold magenta] {content}")
+                            elif role == "SYSTEM":
+                                console.print(f"[dim yellow]SYSTEM/TOOL:[/dim yellow] {content}")
+                else:
+                    console.print(f"[red]Daemon returned HTTP {res.status_code}.[/red]")
             except Exception as e:
-                console.print(f"[red]Failed to load memory context: {e}[/red]")
+                console.print(f"[red]Could not reach daemon: {e}[/red]")
+                console.print("[dim]Is the background daemon running? Try option 2 to start it.[/dim]")
             Prompt.ask("\nPress Enter to return to menu...")
         elif choice == "8":
             subprocess.run(["bash", "scripts/reinstall.sh"])
