@@ -9,7 +9,7 @@ echo "          ViClaw (OpenClaw Clone) Installer             "
 echo "========================================================"
 
 echo "Checking for base OS dependencies..."
-if ! command -v curl &> /dev/null || ! command -v lshw &> /dev/null || ! dpkg -l | grep -q python3-venv; then
+if ! command -v curl &> /dev/null || ! command -v lshw &> /dev/null || ( command -v dpkg &> /dev/null && ! dpkg-query -W -f='${Status}' python3-venv 2>/dev/null | grep -q "ok installed" ); then
     echo "Attempting to install curl, lshw, and python3-venv..."
     
     SUDO=""
@@ -39,8 +39,16 @@ if ! command -v python3 &> /dev/null; then
 fi
 
 echo "Creating Python Virtual Environment..."
-python3 -m venv .venv
-source .venv/bin/activate
+rm -rf .venv
+if ! python3 -m venv .venv 2>/dev/null; then
+    echo "Standard venv creation failed or ensurepip is missing. Attempting robust fallback..."
+    rm -rf .venv
+    python3 -m venv .venv --without-pip || { echo "Fatal Error: Failed to create python environment even without pip. Ensure python3 is installed correctly."; exit 1; }
+    source .venv/bin/activate
+    curl -fsSL https://bootstrap.pypa.io/get-pip.py | python3
+else
+    source .venv/bin/activate
+fi
 
 echo "Installing Requirements..."
 pip install --upgrade pip
