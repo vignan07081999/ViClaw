@@ -5,12 +5,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ViClaw Premium Dashboard</title>
+    <!-- Use Inter font for a modern look -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
         :root {
             /* Dark Mode (Default) */
             --bg-color: #0f172a;
             --text-color: #f8fafc;
             --glass-bg: rgba(30, 41, 59, 0.7);
+            --glass-active: rgba(56, 189, 248, 0.2);
             --glass-border: rgba(255, 255, 255, 0.1);
             --accent: #38bdf8;
             --accent-hover: #0ea5e9;
@@ -21,23 +24,24 @@
         }
 
         [data-theme="light"] {
-            --bg-color: #f1f5f9;
+            --bg-color: #f8fafc;
             --text-color: #0f172a;
-            --glass-bg: rgba(255, 255, 255, 0.7);
-            --glass-border: rgba(0, 0, 0, 0.1);
+            --glass-bg: rgba(255, 255, 255, 0.8);
+            --glass-active: rgba(2, 132, 199, 0.15);
+            --glass-border: rgba(0, 0, 0, 0.05);
             --accent: #0284c7;
             --accent-hover: #0369a1;
             --msg-user: rgba(2, 132, 199, 0.15);
             --msg-bot: rgba(226, 232, 240, 0.8);
             --msg-sys: rgba(203, 213, 225, 0.5);
-            --card-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+            --card-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
         }
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+            font-family: 'Inter', sans-serif;
             transition: background-color 0.3s, color 0.3s;
         }
 
@@ -47,11 +51,12 @@
             height: 100vh;
             display: flex;
             overflow: hidden;
-            background-image: radial-gradient(circle at top right, rgba(56, 189, 248, 0.15), transparent 40%),
+            background-image:
+                radial-gradient(circle at top right, rgba(56, 189, 248, 0.15), transparent 40%),
                 radial-gradient(circle at bottom left, rgba(56, 189, 248, 0.05), transparent 30%);
         }
 
-        /* Sidebar Nav */
+        /* ---------------- Sidebar Nav ---------------- */
         nav {
             width: 280px;
             background: var(--glass-bg);
@@ -73,6 +78,18 @@
             align-items: center;
             gap: 10px;
             color: var(--accent);
+            letter-spacing: -0.5px;
+        }
+
+        .nav-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.6;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+            padding-left: 0.5rem;
+            font-weight: 600;
         }
 
         .nav-link {
@@ -84,8 +101,8 @@
             opacity: 0.8;
             display: flex;
             align-items: center;
-            gap: 10px;
-            transition: all 0.2s;
+            gap: 12px;
+            text-decoration: none;
         }
 
         .nav-link:hover {
@@ -95,8 +112,8 @@
 
         .nav-link.active {
             opacity: 1;
-            background: var(--accent);
-            color: #fff;
+            background: var(--glass-active);
+            color: var(--accent);
         }
 
         .spacer {
@@ -117,206 +134,20 @@
             gap: 10px;
         }
 
-        /* 3D Bot Head Custom CSS Restored */
-        .bot-container {
-            align-self: center;
-            position: relative;
-            width: 150px;
-            height: 150px;
-            margin: 1rem 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            animation: float 6s ease-in-out infinite;
-        }
-
-        .bot-head {
-            width: 110px;
-            height: 90px;
-            background: linear-gradient(135deg, #1e293b, #0f172a);
-            border-radius: 40%;
-            box-shadow: inset 0 0 15px var(--accent), 0 10px 25px rgba(0, 0, 0, 0.5);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            border: 2px solid var(--accent);
-        }
-
-        .eyes {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-
-        .eye {
-            width: 20px;
-            height: 8px;
-            background: var(--accent);
-            border-radius: 5px;
-            box-shadow: 0 0 10px var(--accent);
-            animation: blink 4s infinite;
-        }
-
-        .mouth {
-            width: 18px;
-            height: 3px;
-            background: var(--accent);
-            border-radius: 2px;
-            box-shadow: 0 0 5px var(--accent);
-            transition: width 0.1s;
-        }
-
-        .mouth.speaking {
-            animation: speak 0.2s infinite alternate;
-        }
-
-        @keyframes float {
-
-            0%,
-            100% {
-                transform: translateY(0px);
-            }
-
-            50% {
-                transform: translateY(-15px);
-            }
-        }
-
-        @keyframes blink {
-
-            0%,
-            96%,
-            98% {
-                transform: scaleY(1);
-            }
-
-            97% {
-                transform: scaleY(0.1);
-            }
-        }
-
-        @keyframes speak {
-            from {
-                width: 18px;
-            }
-
-            to {
-                width: 45px;
-                height: 5px;
-                border-radius: 3px;
-            }
-        }
-
-        /* End 3D Bot */
-
-        /* Companion Mode */
-        .bot-container.fullscreen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            width: 100vw;
-            height: 100vh;
-            margin: 0;
-            z-index: 999;
-            background: var(--bg-color);
-            background-image: radial-gradient(circle at center, rgba(56, 189, 248, 0.1), transparent 60%);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .bot-container.fullscreen .bot-head {
-            transform: scale(2.5);
-            transition: transform 0.5s ease;
-        }
-
-        .companion-overlay {
-            display: none;
-            position: absolute;
-            color: var(--text-color);
-            text-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-            animation: fadeIn 1s;
-        }
-
-        .bot-container.fullscreen .companion-overlay {
-            display: block;
-        }
-
-        .companion-time {
-            top: 60px;
-            font-size: 4rem;
-            font-weight: 800;
-            font-variant-numeric: tabular-nums;
-        }
-
-        .companion-weather {
-            top: 140px;
-            font-size: 1.5rem;
-            opacity: 0.8;
-        }
-
-        .companion-dialogue {
-            bottom: 120px;
-            font-size: 1.5rem;
-            font-style: italic;
-            max-width: 60%;
-            text-align: center;
-            background: var(--glass-bg);
-            padding: 15px 30px;
-            border-radius: 20px;
-            border: 1px solid var(--glass-border);
-            opacity: 0;
-            transition: opacity 1s;
-        }
-
-        .companion-dialogue.show {
-            opacity: 1;
-        }
-
-        .companion-close {
-            display: none;
-            position: absolute;
-            top: 40px;
-            right: 40px;
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            padding: 12px 24px;
-            color: var(--text-color);
-            font-weight: bold;
-            border-radius: 12px;
-            cursor: pointer;
-            z-index: 1000;
-            transition: background 0.2s;
-        }
-
-        .companion-close:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .bot-container.fullscreen .companion-close {
-            display: block;
-        }
-
-
-        /* Views */
+        /* ---------------- Main Content Area ---------------- */
         main {
             flex: 1;
-            padding: 2rem;
+            padding: 2.5rem;
             overflow-y: auto;
             position: relative;
         }
 
-        /* Views */
         .view-section {
             display: none;
-            height: 100%;
             flex-direction: column;
             animation: fadeIn 0.4s ease forwards;
+            max-width: 1200px;
+            margin: 0 auto;
         }
 
         .view-section.active {
@@ -335,7 +166,14 @@
             }
         }
 
-        /* Glass Cards */
+        .page-title {
+            font-size: 2rem;
+            margin-bottom: 2rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        /* ---------------- Glass Cards & Grids ---------------- */
         .glass-card {
             background: var(--glass-bg);
             backdrop-filter: blur(16px);
@@ -343,6 +181,13 @@
             border-radius: 16px;
             padding: 2rem;
             box-shadow: var(--card-shadow);
+            margin-bottom: 1.5rem;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
             margin-bottom: 1.5rem;
         }
 
@@ -357,14 +202,45 @@
             opacity: 0.9;
         }
 
-        /* Chat UI */
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: var(--accent);
+            margin-top: 0.5rem;
+        }
+
+        .btn {
+            background: var(--accent);
+            color: white;
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            gap: 8px;
+            align-items: center;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+        }
+
+        .btn-outline:hover {
+            background: var(--glass-active);
+        }
+
+        /* ---------------- Chat UI & History ---------------- */
         .chat-layout {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            max-width: 900px;
-            margin: 0 auto;
-            width: 100%;
+            height: calc(100vh - 5rem);
         }
 
         .chat-history {
@@ -373,8 +249,7 @@
             padding: 1rem 0;
             display: flex;
             flex-direction: column;
-            gap: 1.2rem;
-            scroll-behavior: smooth;
+            gap: 1rem;
         }
 
         .msg-container {
@@ -424,47 +299,8 @@
             border-radius: 8px;
         }
 
-        .raw-toggle-btn {
-            background: transparent;
-            border: 1px dashed var(--accent);
-            color: var(--accent);
-            padding: 4px 8px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.8rem;
-            margin-top: 8px;
-            align-self: flex-start;
-            transition: all 0.2s;
-        }
-
-        .raw-toggle-btn:hover {
-            background: var(--msg-user);
-        }
-
-        .raw-content {
-            display: none;
-            background: rgba(0, 0, 0, 0.2);
-            padding: 10px;
-            border-radius: 6px;
-            font-family: monospace;
-            font-size: 0.85rem;
-            margin-top: 8px;
-            white-space: pre-wrap;
-            border: 1px solid var(--glass-border);
-        }
-
-        [data-theme="light"] .raw-content {
-            background: rgba(255, 255, 255, 0.5);
-        }
-
-        .raw-content.visible {
-            display: block;
-        }
-
-        /* Input Area */
         .chat-input-wrapper {
             background: var(--glass-bg);
-            backdrop-filter: blur(16px);
             border: 1px solid var(--glass-border);
             border-radius: 12px;
             padding: 0.8rem;
@@ -484,43 +320,55 @@
             outline: none;
             padding: 0.5rem;
             min-height: 44px;
-            max-height: 150px;
         }
 
-        .chat-input-wrapper textarea::placeholder {
-            color: var(--text-color);
-            opacity: 0.5;
+        .raw-content {
+            display: none;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 10px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            margin-top: 8px;
+            white-space: pre-wrap;
+            border: 1px solid var(--glass-border);
         }
 
-        .send-btn {
-            background: var(--accent);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 0 1.5rem;
-            font-weight: 600;
+        .raw-toggle-btn {
+            background: transparent;
+            border: 1px dashed var(--accent);
+            color: var(--accent);
+            padding: 4px 8px;
+            border-radius: 4px;
             cursor: pointer;
-            transition: background 0.2s;
+            font-size: 0.8rem;
+            margin-top: 8px;
+            align-self: flex-start;
         }
 
-        .send-btn:hover {
-            background: var(--accent-hover);
+        /* ---------------- Misc Forms & Logs ---------------- */
+        pre {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            border: 1px solid var(--glass-border);
+            font-size: 0.9rem;
+            white-space: pre-wrap;
         }
 
-        /* Config / Forms */
+        [data-theme="light"] pre {
+            background: rgba(255, 255, 255, 0.8);
+        }
+
         .form-group {
-            margin-bottom: 1.5rem;
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
         }
 
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-            opacity: 0.9;
-        }
-
-        .form-group input[type="text"] {
-            width: 100%;
+        input[type="text"] {
+            flex: 1;
             padding: 0.8rem 1rem;
             background: rgba(0, 0, 0, 0.1);
             border: 1px solid var(--glass-border);
@@ -530,357 +378,361 @@
             outline: none;
         }
 
-        [data-theme="light"] .form-group input[type="text"] {
+        [data-theme="light"] input[type="text"] {
             background: rgba(255, 255, 255, 0.5);
-        }
-
-        .form-group input[type="text"]:focus {
-            border-color: var(--accent);
-        }
-
-        .btn {
-            background: var(--accent);
-            color: white;
-            padding: 0.8rem 1.5rem;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            display: inline-flex;
-            gap: 8px;
-            align-items: center;
-        }
-
-        .btn:hover {
-            background: var(--accent-hover);
-        }
-
-        .flex-row {
-            display: flex;
-            gap: 1rem;
-            flex-wrap: wrap;
-        }
-
-        .flex-card {
-            flex: 1;
-            min-width: 250px;
-        }
-
-        pre {
-            background: rgba(0, 0, 0, 0.3);
-            padding: 1rem;
-            border-radius: 8px;
-            overflow-x: auto;
-            border: 1px solid var(--glass-border);
-            font-size: 0.9rem;
-        }
-
-        [data-theme="light"] pre {
-            background: rgba(255, 255, 255, 0.8);
         }
 
         ul.skills-list {
             list-style: none;
-            padding: 0;
         }
 
         ul.skills-list li {
-            padding: 0.8rem;
+            padding: 1rem 0;
             border-bottom: 1px solid var(--glass-border);
         }
 
         ul.skills-list li:last-child {
             border-bottom: none;
         }
-
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: var(--glass-border);
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--accent);
-        }
-
-        .bot-indicator {
-            font-size: 0.8rem;
-            opacity: 0.6;
-            margin-bottom: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
     </style>
 </head>
 
 <body>
 
+    <!-- SIDEBAR NAV -->
     <nav>
         <div class="brand">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
             </svg>
             ViClaw
         </div>
 
-        <div class="nav-link active" onclick="switchView('chat')">
+        <div class="nav-label">Core</div>
+        <div class="nav-link active" onclick="switchView('overview')" id="nav-overview">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+            Overview
+        </div>
+        <div class="nav-link" onclick="switchView('chat')" id="nav-chat">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </svg>
-            Chat
+            Interactive Chat
         </div>
-        <div class="nav-link" onclick="switchView('diagnostics')">
+        <div class="nav-link" onclick="switchView('memory')" id="nav-memory">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
             </svg>
-            Diagnostics
+            Action Logs (Memory)
         </div>
-        <div class="nav-link" onclick="switchView('skills')">
+
+        <div class="nav-label">Capabilities</div>
+        <div class="nav-link" onclick="switchView('skills')" id="nav-skills">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polygon
                     points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
             </svg>
-            Skills & Config
+            Skills Marketplace
         </div>
+
+        <div class="nav-label">Dashboards & Help</div>
+        <a href="/kiosk" target="_blank" class="nav-link">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
+                <rect x="9" y="9" width="6" height="6"></rect>
+                <line x1="9" y1="1" x2="9" y2="4"></line>
+                <line x1="15" y1="1" x2="15" y2="4"></line>
+                <line x1="9" y1="20" x2="9" y2="23"></line>
+                <line x1="15" y1="20" x2="15" y2="23"></line>
+                <line x1="20" y1="9" x2="23" y2="9"></line>
+                <line x1="20" y1="14" x2="23" y2="14"></line>
+                <line x1="1" y1="9" x2="4" y2="9"></line>
+                <line x1="1" y1="14" x2="4" y2="14"></line>
+            </svg>
+            Launch Tablet Kiosk
+        </a>
+        <a href="/wiki" target="_blank" class="nav-link">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+            ViClaw Wiki / Manual
+        </a>
+        <a href="/api/download_logs" class="nav-link">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Download ZIP Logs
+        </a>
 
         <div class="spacer"></div>
-
-        <button class="theme-toggle" onclick="toggleTheme()">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="5" />
-                <line x1="12" y1="1" x2="12" y2="3" />
-                <line x1="12" y1="21" x2="12" y2="23" />
-                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-                <line x1="1" y1="12" x2="3" y2="12" />
-                <line x1="21" y1="12" x2="23" y2="12" />
-                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-            </svg>
-            Toggle Theme
-        </button>
+        <button class="theme-toggle" onclick="toggleTheme()">Toggle Theme</button>
     </nav>
 
+    <!-- CONTENT VIEWS -->
     <main>
-        <!-- Chat View -->
-        <div id="view-chat" class="view-section active chat-layout">
-            <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
-                <button class="btn" onclick="toggleCompanionMode()"
-                    style="background: var(--glass-bg); border: 1px solid var(--glass-border); color: var(--text-color); font-size: 0.85rem; padding: 6px 14px;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        style="margin-right: 5px;">
-                        <path
-                            d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3">
-                        </path>
-                    </svg>
-                    Companion Standby Mode
-                </button>
-            </div>
 
-            <div class="bot-container" id="bot-container-main">
-                <button class="companion-close" onclick="toggleCompanionMode()">Exit Standby</button>
-                <div class="companion-overlay companion-time" id="comp-time">00:00</div>
-                <div class="companion-overlay companion-weather" id="comp-weather">Scanning environment...</div>
+        <!-- 1. OVERVIEW -->
+        <div id="view-overview" class="view-section active">
+            <div class="page-title">System Overview</div>
 
-                <div class="bot-head" id="bot-head">
-                    <div class="eyes">
-                        <div class="eye"></div>
-                        <div class="eye"></div>
+            <div class="grid-3">
+                <div class="glass-card">
+                    <h3>Background Daemon</h3>
+                    <div id="diag-daemon" class="stat-value">Loading...</div>
+                    <div style="font-size:0.85rem; opacity:0.7; margin-top:10px;">The core execution loop backing
+                        ViClaw.</div>
+                </div>
+                <div class="glass-card">
+                    <h3>Active Brain Model</h3>
+                    <div id="diag-model" class="stat-value">Loading...</div>
+                    <div id="diag-provider" style="font-size:0.85rem; opacity:0.7; margin-top:10px;">Provider:
+                        Loading...</div>
+                </div>
+                <div class="glass-card">
+                    <h3>Memory DB Size</h3>
+                    <div id="diag-db" class="stat-value">Loading...</div>
+                    <div style="font-size:0.85rem; opacity:0.7; margin-top:10px;">The SQLite short-term vector chunk.
                     </div>
-                    <div class="mouth" id="mouth"></div>
-                </div>
-
-                <div class="companion-overlay companion-dialogue" id="comp-dialogue">Hello there!</div>
-            </div>
-
-            <div class="chat-history" id="chat-box">
-                <!-- Messages populated here -->
-            </div>
-
-            <form class="chat-input-wrapper" id="chat-form">
-                <textarea id="chat-input" placeholder="Type a message or use /slash commands..." rows="1"
-                    onkeydown="handleEnter(event)"></textarea>
-                <button type="submit" class="send-btn">Send</button>
-            </form>
-        </div>
-
-        <!-- Diagnostics View -->
-        <div id="view-diagnostics" class="view-section">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h2>System Diagnostics</h2>
-                <div id="ota-badge"
-                    style="display: none; background: #f59e0b; color: white; padding: 0.5rem 1rem; border-radius: 8px; font-weight: bold; cursor: pointer; animation: pulse 2s infinite;"
-                    onclick="triggerOTAUpdate()">
-                    New OTA Update Available! Click to Install.
-                </div>
-            </div>
-
-            <style>
-                @keyframes pulse {
-                    0% {
-                        transform: scale(1);
-                    }
-
-                    50% {
-                        transform: scale(1.05);
-                    }
-
-                    100% {
-                        transform: scale(1);
-                    }
-                }
-            </style>
-
-            <div class="flex-row">
-                <div class="glass-card flex-card" id="diag-daemon">
-                    <h3>Daemon Status</h3>
-                    <p>Loading...</p>
-                </div>
-                <div class="glass-card flex-card" id="diag-model">
-                    <h3>Model Architecture</h3>
-                    <p>Loading...</p>
-                </div>
-                <div class="glass-card flex-card" id="diag-db">
-                    <h3>Memory Allocation</h3>
-                    <p>Loading...</p>
                 </div>
             </div>
 
             <div class="glass-card">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h3 style="margin: 0;">Tail Logs (backend)</h3>
-                    <div>
-                        <button class="btn" onclick="fetchLogs()"
-                            style="padding: 0.5rem 1rem; font-size: 0.9rem; margin-right: 5px;">Refresh</button>
-                        <a href="/api/download_logs" target="_blank" class="btn"
-                            style="padding: 0.5rem 1rem; font-size: 0.9rem; background: var(--glass-border); text-decoration: none;">Download
-                            Full Log</a>
-                    </div>
+                    <h3 style="margin: 0;">Tail Daemon System Logs</h3>
+                    <button class="btn btn-outline" onclick="fetchLogs()">Refresh</button>
                 </div>
-                <pre id="sys-logs" style="max-height: 400px; overflow-y: auto;">Awaiting log stream...</pre>
+                <pre id="sys-logs" style="height: 300px;">Awaiting log stream...</pre>
             </div>
         </div>
 
-        <!-- Skills & Config View -->
-        <div id="view-skills" class="view-section">
-            <h2>ClawHub & Integrations</h2>
+        <!-- 2. INTERACTIVE CHAT -->
+        <div id="view-chat" class="view-section chat-layout">
+            <div class="page-title" style="margin-bottom:0.5rem;">Interactive Terminal</div>
+            <div style="opacity:0.7; font-size:0.9rem; margin-bottom:1rem;">Send direct slash commands like `/clear` or
+                `/status` to debug.</div>
+
+            <div class="chat-history" id="chat-box"></div>
+
+            <form class="chat-input-wrapper" id="chat-form" onsubmit="sendMessage(event)">
+                <textarea id="chat-input" placeholder="Give ViClaw an instruction..."
+                    onkeydown="handleEnter(event)"></textarea>
+                <button type="submit" class="btn">Send</button>
+            </form>
+        </div>
+
+        <!-- 3. ACTION LOGS (MEMORY DB) -->
+        <div id="view-memory" class="view-section">
+            <div class="page-title">Agent Action History (Memory DB)</div>
+            <p style="margin-bottom:2rem; opacity:0.8;">Below is the raw SQLite context window natively pulled from
+                `data/memory.db`. Watch the AI think, generate tools, and automatically resolve dependencies natively
+                without needing the chat window.</p>
 
             <div class="glass-card">
-                <h3>Install New Skill</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 style="margin: 0;">Raw Cognitive Loops</h3>
+                    <button class="btn btn-outline" onclick="loadHistory()">Force Refresh DB</button>
+                </div>
+                <div id="history-box"
+                    style="background:#0f172a; color:#ecf0f1; padding:20px; border-radius:8px; height:500px; overflow-y:auto; font-family:monospace; line-height:1.6; border:1px solid #334155;">
+                    <i>Loading memory...</i>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. SKILLS MARKETPLACE -->
+        <div id="view-skills" class="view-section">
+            <div class="page-title">ClawHub Skills Marketplace</div>
+            <p style="margin-bottom:2rem; opacity:0.8;">ViClaw's Dynamic Skill Resolver can automatically request
+                missing skills during chat by hitting the ClawHub API map. You can also manually inject skills below.
+            </p>
+
+            <div class="glass-card">
+                <h3>Force Install Custom Skill</h3>
                 <form id="clawhub-form" onsubmit="installSkill(event)">
-                    <div class="form-group flex-row">
-                        <input type="text" id="skill-url" placeholder="https://github.com/user/viclaw-skill..."
-                            style="flex: 1;" required>
-                        <button type="submit" class="btn" id="install-btn">Install Skill</button>
+                    <div class="form-group">
+                        <input type="text" id="skill-url" placeholder="Paste raw GitHub python URL..." required>
+                        <button type="submit" class="btn" id="install-btn">Inject to Memory</button>
                     </div>
-                    <div id="install-msg" style="font-size: 0.9rem; margin-top: 0.5rem;"></div>
+                    <div id="install-msg" style="font-weight:bold;"></div>
                 </form>
             </div>
 
-            <div class="glass-card">
-                <h3>Loaded Agent Skills</h3>
+            <div class="glass-card" style="margin-top:20px;">
+                <h3>Currently Loaded Skills in Memory</h3>
                 <ul class="skills-list" id="skills-list">
                     <li>Loading skills payload...</li>
                 </ul>
             </div>
         </div>
+
     </main>
 
     <script>
-        // ==== UI State ====
-        let isDarkMode = true;
-        let lastMemoryCount = 0;
-
+        // Theme Management
+        let darkTheme = true;
         function toggleTheme() {
-            isDarkMode = !isDarkMode;
-            document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
+            darkTheme = !darkTheme;
+            document.body.setAttribute('data-theme', darkTheme ? 'dark' : 'light');
         }
 
-        function switchView(viewName) {
+        // View Router
+        function switchView(viewId) {
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.getElementById(`view-${viewId}`).classList.add('active');
+
             document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+            document.getElementById(`nav-${viewId}`).classList.add('active');
 
-            document.getElementById(`view-${viewName}`).classList.add('active');
-            event.currentTarget.classList.add('active');
-
-            if (viewName === 'diagnostics') loadDiagnostics();
-            if (viewName === 'skills') loadSkills();
+            // Lazy load specific data chunks
+            if (viewId === 'overview') {
+                loadDiagnostics();
+                fetchLogs();
+            } else if (viewId === 'skills') {
+                loadSkills();
+            } else if (viewId === 'memory') {
+                loadHistory();
+            }
         }
 
-        function toggleRaw(id) {
-            const el = document.getElementById(id);
-            if (el) el.classList.toggle('visible');
+        // ---------------- API Calls ----------------
+
+        function loadDiagnostics() {
+            fetch('/api/diagnostics')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('diag-daemon').innerText = data.daemon_status;
+                    document.getElementById('diag-model').innerText = data.model;
+                    document.getElementById('diag-provider').innerText = `Ollama Link: ${data.ollama_status}`;
+                    document.getElementById('diag-db').innerText = data.db_size;
+                });
         }
+
+        function fetchLogs() {
+            const logBox = document.getElementById('sys-logs');
+            logBox.innerText = 'Fetching...';
+            fetch('/api/logs')
+                .then(res => res.json())
+                .then(data => {
+                    logBox.innerText = data.logs;
+                    logBox.scrollTop = logBox.scrollHeight;
+                });
+        }
+
+        function loadSkills() {
+            fetch('/api/skills')
+                .then(response => response.json())
+                .then(data => {
+                    const list = document.getElementById('skills-list');
+                    list.innerHTML = '';
+                    if (data.skills.length === 0) list.innerHTML = '<li>No skills loaded. Try the marketplace!</li>';
+                    data.skills.forEach(skill => {
+                        list.innerHTML += `<li><strong>${skill.name}</strong>: ${skill.description}</li>`;
+                    });
+                });
+        }
+
+        function installSkill(event) {
+            event.preventDefault();
+            const btn = document.getElementById('install-btn');
+            const msgDiv = document.getElementById('install-msg');
+            btn.innerText = "Injecting..."; msgDiv.innerText = "Downloading...";
+
+            fetch('/api/install_skill', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: document.getElementById('skill-url').value })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    btn.innerText = "Inject to Memory";
+                    document.getElementById('skill-url').value = '';
+                    if (data.success) {
+                        msgDiv.innerHTML = "<span style='color:#4cd137;'>Skill hot-swapped successfully! Reloading...</span>";
+                        loadSkills();
+                    } else {
+                        msgDiv.innerHTML = `<span style='color:#e84118;'>${data.message}</span>`;
+                    }
+                });
+        }
+
+        function loadHistory() {
+            const histBox = document.getElementById('history-box');
+            fetch('/api/history')
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.history || data.history.length === 0) {
+                        histBox.innerHTML = 'No history recorded yet.';
+                        return;
+                    }
+                    let html = '';
+                    data.history.forEach(entry => {
+                        let role = entry.role.toUpperCase();
+                        let color = "#e2e8f0";
+                        if (role === "USER") color = "#38bdf8";
+                        if (role === "ASSISTANT") color = "#a78bfa";
+                        if (role === "SYSTEM") color = "#f59e0b";
+
+                        let content = entry.content.replace(/\\n/g, "<br>");
+                        html += `<div style="margin-bottom: 12px; border-bottom: 1px dotted rgba(255,255,255,0.1); padding-bottom: 8px;">
+                            <strong style="color: ${color}; width:100px; display:inline-block;">[${role}]</strong> 
+                            <span style="opacity:0.9;">${content}</span>
+                        </div>`;
+                    });
+                    histBox.innerHTML = html;
+                    histBox.scrollTop = histBox.scrollHeight;
+                });
+        }
+
+        // ---------------- Chat Implementation ----------------
 
         function handleEnter(e) {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                document.getElementById('chat-form').dispatchEvent(new Event('submit'));
+                sendMessage(e);
             }
         }
 
-        // ==== Chat Engine ====
-        const chatBox = document.getElementById('chat-box');
-
-        function appendMessage(role, content, rawJSON = null) {
-            const container = document.createElement('div');
-            container.className = `msg-container ${role}`;
-
-            let nameTag = '';
-            if (role === 'user') nameTag = '<div class="bot-indicator">You</div>';
-            if (role === 'bot') nameTag = '<div class="bot-indicator">ViClaw Intelligence</div>';
-
-            // Format line breaks
-            let formattedContent = content.replace(/\\n/g, '<br>').replace(/\n/g, '<br>');
-
-            let rawUI = '';
-            if (rawJSON) {
-                const uniqueId = 'raw-' + Math.random().toString(36).substr(2, 9);
-                let rawStr = typeof rawJSON === 'string' ? rawJSON : JSON.stringify(rawJSON, null, 2);
-                rawUI = `
-                    <button class="raw-toggle-btn" onclick="toggleRaw('${uniqueId}')">Show/Hide Raw Tool JSON</button>
-                    <div class="raw-content" id="${uniqueId}">${rawStr}</div>
-                `;
+        function toggleRawData(id) {
+            const el = document.getElementById(id);
+            if (el.classList.contains('visible')) {
+                el.classList.remove('visible');
+            } else {
+                el.classList.add('visible');
             }
-
-            container.innerHTML = `
-                ${nameTag}
-                <div class="bubble">${formattedContent}</div>
-                ${rawUI}
-            `;
-
-            chatBox.appendChild(container);
-            chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        document.getElementById('chat-form').addEventListener('submit', (e) => {
+        function sendMessage(e) {
             e.preventDefault();
             const input = document.getElementById('chat-input');
             const message = input.value.trim();
             if (!message) return;
-
             input.value = '';
-            input.style.height = 'auto'; // reset textarea
 
-            appendMessage('user', message);
+            const chatBox = document.getElementById('chat-box');
 
+            // Add user message to UI
+            chatBox.innerHTML += `
+                <div class="msg-container user">
+                    <div class="bubble">${message}</div>
+                </div>
+            `;
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            // Typing indicator
             const typingId = 'typing-' + Date.now();
-            const typingContainer = document.createElement('div');
-            typingContainer.className = 'msg-container bot';
-            typingContainer.id = typingId;
-            typingContainer.innerHTML = `<div class="bot-indicator">ViClaw</div><div class="bubble"><i>Processing request...</i></div>`;
-            chatBox.appendChild(typingContainer);
+            chatBox.innerHTML += `
+                <div class="msg-container bot" id="${typingId}">
+                    <div class="bubble">...</div>
+                </div>
+            `;
             chatBox.scrollTop = chatBox.scrollHeight;
 
             fetch('/api/chat', {
@@ -890,237 +742,32 @@
             })
                 .then(res => res.json())
                 .then(data => {
-                    document.getElementById(typingId)?.remove();
+                    document.getElementById(typingId).remove();
 
-                    // Fetch memory to sync local count so async poller skips it
-                    fetch('/api/memory').then(r => r.json()).then(m => {
-                        lastMemoryCount = m.short_term ? m.short_term.length : 0;
-                    });
+                    const rawId = "raw-" + Date.now();
+                    let rawBtn = '';
+                    let rawContent = '';
 
-                    appendMessage('bot', data.reply, data.raw_content);
-                })
-                .catch(err => {
-                    document.getElementById(typingId)?.remove();
-                    appendMessage('sys', `Network Error: Could not reach daemon. [${err}]`);
-                });
-        });
-
-        function animateSpeaking() {
-            const mouth = document.getElementById('mouth');
-            if (mouth) {
-                mouth.classList.add('speaking');
-                setTimeout(() => {
-                    mouth.classList.remove('speaking');
-                }, 4000);
-            }
-        }
-
-        // Background Async Poller
-        setInterval(() => {
-            fetch('/api/memory')
-                .then(res => res.json())
-                .then(data => {
-                    if (data.short_term && data.short_term.length > lastMemoryCount) {
-                        const newMessages = data.short_term.slice(lastMemoryCount);
-                        lastMemoryCount = data.short_term.length;
-
-                        // To prevent duplication of out-of-sync messages from form submit
-                        // we ignore "user" messages that exactly match what was just rendered locally.
-
-                        newMessages.forEach(msg => {
-                            if (msg.role === 'assistant') {
-                                appendMessage('bot', msg.content, msg.raw);
-                                animateSpeaking();
-                            } else if (msg.role === 'user') {
-                                // Check if this is a tool execution block disguised inside "user" to fix hallucinations
-                                if (msg.content.includes('[TOOL EXECUTION RESULT:')) {
-                                    appendMessage('sys', "Tool execution completed.", msg.content);
-                                } else {
-                                    // Normally we don't render user messages from memory if the local UI already injected them.
-                                    // For now, we omit re-rendering raw 'user' payloads from the background poller 
-                                    // if it's the active tab, because local JS already rendered it instantly.
-                                }
-                            } else if (msg.role === 'system') {
-                                appendMessage('sys', msg.content);
-                            }
-                        });
+                    if (data.raw_content && data.raw_content.trim() !== "") {
+                        rawBtn = `<button class="raw-toggle-btn" onclick="toggleRawData('${rawId}')">&lt;/&gt; View Backend Tool Payload</button>`;
+                        rawContent = `<div class="raw-content" id="${rawId}">${data.raw_content.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`;
                     }
-                });
-        }, 2000);
 
-        // ==== Diagnostics Engine ====
-        function loadDiagnostics() {
-            fetch('/api/diagnostics')
-                .then(r => r.json())
-                .then(data => {
-                    document.getElementById('diag-daemon').querySelector('p').innerText = data.daemon_status;
-                    document.getElementById('diag-model').querySelector('p').innerHTML = `<b>Provider:</b> ${data.provider}<br><b>Model:</b> ${data.model}<br><b>Link:</b> ${data.ollama_status}`;
-                    document.getElementById('diag-db').querySelector('p').innerText = data.db_size;
-                });
-            fetchLogs();
-        }
-
-        function fetchLogs() {
-            fetch('/api/logs').then(r => r.json()).then(d => {
-                const el = document.getElementById('sys-logs');
-                el.innerText = d.logs || 'No recent logs.';
-                el.scrollTop = el.scrollHeight;
-            });
-        }
-
-        // ==== OTA Update Engine ====
-        function checkOTAUpdates() {
-            fetch('/api/check_update')
-                .then(r => r.json())
-                .then(data => {
-                    const badge = document.getElementById('ota-badge');
-                    if (data.has_update) {
-                        badge.style.display = 'block';
-                        badge.title = data.message + ` (${data.local_hash} -> ${data.remote_hash})`;
-                    } else {
-                        badge.style.display = 'none';
-                    }
+                    chatBox.innerHTML += `
+                    <div class="msg-container bot">
+                        <div class="bubble">${data.reply.replace(/\\n/g, "<br>")}</div>
+                        ${rawBtn}
+                        ${rawContent}
+                    </div>
+                `;
+                    chatBox.scrollTop = chatBox.scrollHeight;
                 });
         }
 
-        function triggerOTAUpdate() {
-            if (!confirm("Are you sure you want to pull the latest GitHub update? The daemon will restart.")) return;
+        // Initialize Data
+        loadDiagnostics();
+        fetchLogs();
 
-            const badge = document.getElementById('ota-badge');
-            badge.innerText = "Installing... Please wait.";
-            badge.style.background = "var(--accent)";
-            badge.style.animation = "none";
-
-            fetch('/api/trigger_update', { method: 'POST' })
-                .then(r => r.json())
-                .then(data => {
-                    if (data.success) {
-                        badge.style.background = "#10b981";
-                        badge.innerText = "Update successful! Restarting daemon...";
-                        setTimeout(() => window.location.reload(), 3000); // Reload page after daemon restarts
-                    } else {
-                        badge.style.background = "#ef4444";
-                        badge.innerText = "Update Failed: " + data.message;
-                    }
-                });
-        }
-
-        // Check for updates every 10 minutes
-        setInterval(checkOTAUpdates, 600000);
-
-        // ==== Skills Engine ====
-        function loadSkills() {
-            fetch('/api/skills').then(r => r.json()).then(data => {
-                const list = document.getElementById('skills-list');
-                list.innerHTML = '';
-                if (data.skills && data.skills.length > 0) {
-                    data.skills.forEach(s => {
-                        list.innerHTML += `<li><b>${s.name}</b>: ${s.description}</li>`;
-                    });
-                } else {
-                    list.innerHTML = '<li>No skills located.</li>';
-                }
-            });
-        }
-
-        function installSkill(e) {
-            e.preventDefault();
-            const btn = document.getElementById('install-btn');
-            const msg = document.getElementById('install-msg');
-            const url = document.getElementById('skill-url').value;
-
-            btn.innerText = "Downloading...";
-            btn.disabled = true;
-            msg.innerHTML = "Connecting to ClawHub...";
-            msg.style.color = "var(--text-color)";
-
-            fetch('/api/install_skill', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: url })
-            }).then(r => r.json()).then(d => {
-                btn.innerText = "Install Skill";
-                btn.disabled = false;
-                if (d.success) {
-                    msg.style.color = "#10b981"; // success green
-                    msg.innerHTML = "Skill installed! Agent memory reloaded.";
-                    document.getElementById('skill-url').value = '';
-                    loadSkills();
-                } else {
-                    msg.style.color = "#ef4444"; // error red
-                    msg.innerHTML = "Failed: " + d.message;
-                }
-            });
-        }
-
-        // Auto-sizing textarea
-        const tx = document.getElementById('chat-input');
-        tx.setAttribute('style', 'height:' + (tx.scrollHeight) + 'px;overflow-y:hidden;');
-        tx.addEventListener("input", OnInput, false);
-        function OnInput() {
-            this.style.height = 'auto';
-            this.style.height = (this.scrollHeight) + 'px';
-        }
-
-        // ==== Companion Standby Mode ====
-        let companionActive = false;
-        let companionInterval = null;
-
-        const facts = [
-            "Did you know I can control Proxmox nodes natively via SSH?",
-            "I'm keeping an eye on your local agents and network devices.",
-            "If you need to search the web, just ask! I have a DuckDuckGo scraper.",
-            "My JSON extraction engines are fully operational.",
-            "I'm resting, but my subprocesses are actively monitoring."
-        ];
-
-        function toggleCompanionMode() {
-            const container = document.getElementById('bot-container-main');
-            companionActive = !companionActive;
-
-            if (companionActive) {
-                container.classList.add('fullscreen');
-                updateCompanionTime();
-                companionInterval = setInterval(updateCompanionTick, 1000);
-            } else {
-                container.classList.remove('fullscreen');
-                clearInterval(companionInterval);
-                document.getElementById('comp-dialogue').classList.remove('show');
-            }
-        }
-
-        function updateCompanionTime() {
-            const now = new Date();
-            document.getElementById('comp-time').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        }
-
-        function updateCompanionTick() {
-            updateCompanionTime();
-
-            // Every 15 seconds randomly show a thought bubble
-            if (Math.random() < 0.05) {
-                const diag = document.getElementById('comp-dialogue');
-                diag.innerText = facts[Math.floor(Math.random() * facts.length)];
-                diag.classList.add('show');
-
-                // Head tilt animation
-                const head = document.getElementById('bot-head');
-                head.style.transform = `scale(2.5) rotate(${Math.random() > 0.5 ? 10 : -10}deg)`;
-                setTimeout(() => {
-                    head.style.transform = 'scale(2.5) rotate(0deg)';
-                    diag.classList.remove('show');
-                }, 5000);
-            }
-        }
-
-        // Init
-        fetch('/api/memory').then(r => r.json()).then(m => {
-            lastMemoryCount = m.short_term ? m.short_term.length : 0;
-            appendMessage('bot', "Connection established. ViClaw Intelligence active.");
-        });
-
-        // Check for OTA payload on startup
-        checkOTAUpdates();
     </script>
 </body>
 
