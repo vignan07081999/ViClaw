@@ -7,6 +7,11 @@
     <title>ViClaw Premium Dashboard</title>
     <!-- Use Inter font for a modern look -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <!-- Markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+    <!-- Syntax highlighting -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github-dark.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/highlight.min.js"></script>
     <style>
         :root {
             /* Dark Mode (Default) */
@@ -54,6 +59,123 @@
             background-image:
                 radial-gradient(circle at top right, rgba(56, 189, 248, 0.15), transparent 40%),
                 radial-gradient(circle at bottom left, rgba(56, 189, 248, 0.05), transparent 30%);
+        }
+
+        /* ---- Markdown Rendered Body (.md-body) ---- */
+        .md-body {
+            line-height: 1.7;
+            word-break: break-word;
+        }
+
+        .md-body h1,
+        .md-body h2,
+        .md-body h3,
+        .md-body h4 {
+            margin: 1em 0 0.4em;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .md-body h1 {
+            font-size: 1.4em;
+        }
+
+        .md-body h2 {
+            font-size: 1.2em;
+        }
+
+        .md-body h3 {
+            font-size: 1.05em;
+        }
+
+        .md-body p {
+            margin: 0.5em 0;
+        }
+
+        .md-body ul,
+        .md-body ol {
+            padding-left: 1.6em;
+            margin: 0.4em 0;
+        }
+
+        .md-body li {
+            margin: 0.2em 0;
+        }
+
+        .md-body blockquote {
+            border-left: 3px solid var(--accent);
+            margin: 0.6em 0;
+            padding: 0.4em 1em;
+            opacity: 0.8;
+            background: rgba(56, 189, 248, 0.07);
+            border-radius: 4px;
+        }
+
+        .md-body code:not(pre code) {
+            background: rgba(56, 189, 248, 0.15);
+            color: var(--accent);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.88em;
+            font-family: 'Fira Code', 'Courier New', monospace;
+        }
+
+        .md-body pre {
+            position: relative;
+            border-radius: 10px;
+            margin: 0.8em 0;
+            overflow-x: auto;
+        }
+
+        .md-body pre code {
+            font-family: 'Fira Code', 'Courier New', monospace;
+            font-size: 0.85em;
+        }
+
+        .md-body .copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ccc;
+            border-radius: 5px;
+            padding: 2px 8px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .md-body pre:hover .copy-btn {
+            opacity: 1;
+        }
+
+        .md-body table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 0.6em 0;
+        }
+
+        .md-body th,
+        .md-body td {
+            border: 1px solid var(--glass-border);
+            padding: 6px 12px;
+        }
+
+        .md-body th {
+            background: rgba(56, 189, 248, 0.1);
+            font-weight: 600;
+        }
+
+        .md-body a {
+            color: var(--accent);
+        }
+
+        .md-body hr {
+            border: none;
+            border-top: 1px solid var(--glass-border);
+            margin: 1em 0;
         }
 
         /* ---------------- Sidebar Nav ---------------- */
@@ -1059,7 +1181,9 @@
                         if (role === "ASSISTANT") color = "#a78bfa";
                         if (role === "SYSTEM") color = "#f59e0b";
 
-                        let content = entry.content.replace(/\\n/g, "<br>");
+                        let content = role === 'ASSISTANT'
+                            ? renderMarkdown(entry.content)
+                            : entry.content.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
                         html += `<div style="margin-bottom: 12px; border-bottom: 1px dotted rgba(255,255,255,0.1); padding-bottom: 8px;">
                             <strong style="color: ${color}; width:100px; display:inline-block;">[${role}]</strong> 
                             <span style="opacity:0.9;">${content}</span>
@@ -1251,8 +1375,14 @@
                             const data = line.slice(6);
 
                             if (data === '[DONE]') {
-                                if (cursor) cursor.remove();
-                                // Append tool results if any
+                                                                if (cursor) cursor.remove();
+                                // Render final accumulated text as markdown
+                                if (bubble) {
+                                    bubble.classList.add('md-body');
+                                    bubble.innerHTML = renderMarkdown(accumText);
+                                    bubble.querySelectorAll('pre code').forEach(el => hljs.highlightElement(el));
+                                }
+                                                                // Append tool results if any
                                 if (toolResultHtml) {
                                     const rawId = 'raw-' + Date.now();
                                     bubble.insertAdjacentHTML('afterend',
@@ -1260,6 +1390,7 @@
                                         `<div class="raw-content" id="${rawId}">${toolResultHtml}</div>`
                                     );
                                 }
+                                chatBox.scrollTop = chatBox.scrollHeight;
                                 return;
                             }
 
@@ -1303,10 +1434,33 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 }).then(r => r.json()).then(data => {
-                    if (bubble) bubble.innerHTML = (data.reply || '').replace(/\n/g, '<br>');
+                    if (bubble) {
+                        bubble.classList.add('md-body');
+                        bubble.innerHTML = renderMarkdown(data.reply || '');
+                        bubble.querySelectorAll('pre code').forEach(el => hljs.highlightElement(el));
+                    }
                     chatBox.scrollTop = chatBox.scrollHeight;
                 });
             });
+        }
+
+        // ---- Markdown rendering helper ----
+        function renderMarkdown(text) {
+            if (typeof marked === 'undefined') {
+                // Fallback if CDN failed
+                return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+            }
+            marked.setOptions({
+                gfm: true,
+                breaks: true,
+                headerIds: false,
+                mangle: false,
+            });
+            const html = marked.parse(text || '');
+            // Inject copy buttons into every <pre> block
+            return html.replace(/<pre>/g,
+                '<pre><button class="copy-btn" onclick="this.nextElementSibling&&navigator.clipboard.writeText(this.nextElementSibling.innerText).then(()=>{this.innerText=\'✓\';setTimeout(()=>this.innerText=\'Copy\',1500)})">Copy</button>'
+            );
         }
 
         // Initialize Data
