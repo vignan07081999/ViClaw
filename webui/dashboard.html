@@ -1182,13 +1182,11 @@
 
             const chatBox = document.getElementById('chat-box');
 
-            // Construct preview of user message
+            // User message
             let attachmentsHtml = '';
             if (base64Images.length > 0) {
                 attachmentsHtml = '<div style="margin-top:10px;">' + document.getElementById('image-preview-zone').innerHTML + '</div>';
             }
-
-            // Add user message to UI
             chatBox.innerHTML += `
                 <div class="msg-container user">
                     <div class="bubble">${message}${attachmentsHtml}</div>
@@ -1200,51 +1198,115 @@
             document.getElementById('image-preview-zone').innerHTML = '';
             document.getElementById('image-upload').value = '';
 
-            // Typing indicator
-            const typingId = 'typing-' + Date.now();
+            // Create streaming bot bubble with blinking cursor
+            const bubbleId = 'stream-bubble-' + Date.now();
+            const cursorId = 'stream-cursor-' + Date.now();
             chatBox.innerHTML += `
-                <div class="msg-container bot" id="${typingId}">
-                    <div class="bubble">...</div>
+                <div class="msg-container bot" id="msg-${bubbleId}">
+                    <div class="bubble" id="${bubbleId}"><span id="${cursorId}" style="display:inline-block;width:2px;height:1em;background:currentColor;margin-left:2px;animation:blink 1s step-end infinite;vertical-align:text-bottom;"></span></div>
                 </div>
             `;
+            // Inject blink keyframe once
+            if (!document.getElementById('blink-style')) {
+                const s = document.createElement('style');
+                s.id = 'blink-style';
+                s.textContent = '@keyframes blink { 50% { opacity: 0; } }';
+                document.head.appendChild(s);
+            }
             chatBox.scrollTop = chatBox.scrollHeight;
 
-            const payload = { message: message };
-            if (base64Images.length > 0) {
-                payload.images = base64Images;
-            }
-
-            // Reset image store before fetch completes to allow pipelining
-            const tempImages = [...base64Images];
+            const payload = { message };
+            if (base64Images.length > 0) payload.images = [...base64Images];
             base64Images = [];
 
-            fetch('/api/chat', {
+            let accumText = '';
+            let toolResultHtml = '';
+
+            fetch('/api/chat/stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
-            })
-                .then(res => res.json())
-                .then(data => {
-                    document.getElementById(typingId).remove();
+            }).then(res => {
+                if (!res.ok || !res.body) throw new Error('Stream unavailable');
 
-                    const rawId = "raw-" + Date.now();
-                    let rawBtn = '';
-                    let rawContent = '';
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                const bubble = document.getElementById(bubbleId);
+                const cursor = document.getElementById(cursorId);
 
-                    if (data.raw_content && data.raw_content.trim() !== "") {
-                        rawBtn = `<button class="raw-toggle-btn" onclick="toggleRawData('${rawId}')">&lt;/&gt; View Backend Tool Payload</button>`;
-                        rawContent = `<div class="raw-content" id="${rawId}">${data.raw_content.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`;
-                    }
+                function processChunk() {
+                    return reader.read().then(({ done, value }) => {
+                        if (done) {
+                            if (cursor) cursor.remove();
+                            return;
+                        }
 
-                    chatBox.innerHTML += `
-                    <div class="msg-container bot">
-                        <div class="bubble">${data.reply.replace(/\\n/g, "<br>")}</div>
-                        ${rawBtn}
-                        ${rawContent}
-                    </div>
-                `;
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split('\n\n');
+                        buffer = lines.pop(); // keep incomplete chunk
+
+                        for (const line of lines) {
+                            if (!line.startsWith('data: ')) continue;
+                            const data = line.slice(6);
+
+                            if (data === '[DONE]') {
+                                if (cursor) cursor.remove();
+                                // Append tool results if any
+                                if (toolResultHtml) {
+                                    const rawId = 'raw-' + Date.now();
+                                    bubble.insertAdjacentHTML('afterend',
+                                        `<button class="raw-toggle-btn" onclick="toggleRawData('${rawId}')">&#60;/&#62; View Tool Results</button>` +
+                                        `<div class="raw-content" id="${rawId}">${toolResultHtml}</div>`
+                                    );
+                                }
+                                return;
+                            }
+
+                            if (data.startsWith('[TOOL_RESULT]')) {
+                                try {
+                                    const results = JSON.parse(data.slice(13));
+                                    toolResultHtml = results.map(r =>
+                                        `<b>${r.tool}:</b> ${String(r.result).replace(/</g, '&lt;').replace(/>/g, '&gt;')}`
+                                    ).join('<br>');
+                                } catch (_) { }
+                                continue;
+                            }
+
+                            if (data.startsWith('[Error:')) {
+                                accumText += data;
+                            } else {
+                                // Unescape \n back to real newlines, then render as <br>
+                                accumText += data.replace(/\\n/g, '\n');
+                            }
+
+                            // Render current accumulated text (escape HTML, convert \n to <br>)
+                            const safeHtml = accumText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+                            if (bubble) {
+                                bubble.innerHTML = safeHtml + (cursor ? `<span id="${cursorId}" style="display:inline-block;width:2px;height:1em;background:currentColor;margin-left:2px;animation:blink 1s step-end infinite;vertical-align:text-bottom;"></span>` : '');
+                            }
+                            chatBox.scrollTop = chatBox.scrollHeight;
+                        }
+
+                        return processChunk();
+                    });
+                }
+
+                return processChunk();
+            }).catch(() => {
+                // Fallback to blocking /api/chat on stream error
+                const bubble = document.getElementById(bubbleId);
+                const cursor = document.getElementById(cursorId);
+                if (cursor) cursor.remove();
+                fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                }).then(r => r.json()).then(data => {
+                    if (bubble) bubble.innerHTML = (data.reply || '').replace(/\n/g, '<br>');
                     chatBox.scrollTop = chatBox.scrollHeight;
                 });
+            });
         }
 
         // Initialize Data

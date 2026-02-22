@@ -53,10 +53,109 @@ def index_dashboard(response: Response):
 @app.post("/api/chat")
 def handle_chat(payload: ChatMessage):
     if agent_instance:
-        # Bind the specific authenticated user to the agent processing pipeline
         reply, raw_content = agent_instance.process_immediate_message("web", DEFAULT_USER, payload.message, images=payload.images)
         return {"reply": reply, "raw_content": raw_content}
     return {"reply": "Agent is offline.", "raw_content": None}
+
+from fastapi.responses import StreamingResponse as FastAPIStreamingResponse
+
+@app.post("/api/chat/stream")
+def handle_chat_stream(payload: ChatMessage):
+    """
+    Server-Sent Events endpoint — streams LLM tokens in real time.
+    Each token is emitted as:   data: <token text>\n\n
+    After all tokens, emits:    data: [DONE]\n\n
+    If tool calls are detected, emits before [DONE]:
+                                data: [TOOL_RESULT]<json>\n\n
+    """
+    if not agent_instance:
+        def _offline():
+            yield "data: Agent is offline.\n\n"
+            yield "data: [DONE]\n\n"
+        return FastAPIStreamingResponse(_offline(), media_type="text/event-stream")
+
+    def _stream_generator():
+        import json as _json
+
+        agent = agent_instance
+        message_text = payload.message
+        images = payload.images or []
+
+        # Add user message to memory
+        agent.memory.add_short_term("user", message_text)
+
+        # Build system prompt (same logic as process_immediate_message)
+        from skills.clawhub_bridge import get_installed_skills_context
+        system_prompt = agent.personality.construct_system_prompt(current_query=message_text)
+        context = agent.memory.get_short_term_context()[:-1]
+
+        tools = agent.skill_manager.get_all_tools()
+        tools_xml = "\n\nAVAILABLE TOOLS:\nYou have access to the following tools. To use a tool, you MUST output an XML block like this: <tool name=\"tool_name\">{\"arg_name\": \"arg_value\"}</tool>. Do NOT output any raw JSON outside of the XML block. If you do not need a tool, just answer normally.\nTools available:\n"
+        for t in tools:
+            tools_xml += f"- {t['function']['name']}: {t['function'].get('description', '')}\n  Schema: {_json.dumps(t['function'].get('parameters', {}))}\n"
+        system_prompt += tools_xml
+
+        clawhub_ctx = get_installed_skills_context()
+        if clawhub_ctx:
+            system_prompt += clawhub_ctx
+
+        related = agent.memory.search_long_term(message_text, top_k=3, router=agent.router)
+        if related:
+            system_prompt += "\n\n[RELEVANT LONG-TERM MEMORIES (RAG)]:\n"
+            for i, r in enumerate(related):
+                system_prompt += f"{i+1}. {r}\n"
+
+        # Stream tokens
+        full_text = []
+        try:
+            for token in agent.router.generate_stream(
+                message_text,
+                system_prompt=system_prompt,
+                context=context,
+                images=images if images else None
+            ):
+                full_text.append(token)
+                # SSE format: escape newlines inside text so each event is one line
+                safe_token = token.replace("\n", "\\n")
+                yield f"data: {safe_token}\n\n"
+        except Exception as e:
+            yield f"data: [Error: {e}]\n\n"
+            yield "data: [DONE]\n\n"
+            return
+
+        assembled = "".join(full_text)
+        agent.memory.add_short_term("assistant", assembled)
+
+        # Detect + execute any tool calls in the assembled text
+        import re as _re
+        pattern = r"<tool\s+name=[\"']([^\"']+)[\"']>([\s\S]*?)</tool>"
+        tool_matches = list(_re.finditer(pattern, assembled))
+        if tool_matches:
+            tool_results = []
+            for match in tool_matches:
+                func_name = match.group(1)
+                try:
+                    args = _json.loads(match.group(2).strip())
+                except Exception:
+                    args = {}
+                try:
+                    skill = agent.skill_manager.skills.get(func_name)
+                    result = skill.execute(func_name, args) if skill else f"Unknown tool: {func_name}"
+                except Exception as e:
+                    result = f"Tool error: {e}"
+                tool_results.append({"tool": func_name, "result": str(result)})
+            yield f"data: [TOOL_RESULT]{_json.dumps(tool_results)}\n\n"
+
+        yield "data: [DONE]\n\n"
+
+    return FastAPIStreamingResponse(
+        _stream_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # Disable nginx buffering
+        }
+    )
 
 class WebhookPayload(BaseModel):
     source: str

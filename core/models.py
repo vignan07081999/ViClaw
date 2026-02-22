@@ -215,3 +215,59 @@ class LLMRouter:
         except Exception as e:
             logging.error(f"LiteLLM inference failed: {e}")
             return {"content": "I encountered an error connecting to the API.", "tool_calls": []}
+
+    # ------------------------------------------------------------------
+    # Streaming API (for WebUI SSE)
+    # ------------------------------------------------------------------
+
+    def generate_stream(self, prompt, system_prompt=None, context=None, images=None):
+        """
+        Generator that yields text token chunks progressively.
+        Used by the /api/chat/stream SSE endpoint.
+        Yields: str chunks (raw token text)
+        After all tokens are yielded, checks for XML tool calls in the assembled text
+        and yields a final JSON event with tool results if tools were triggered.
+        """
+        is_complex = self.evaluate_complexity(prompt, context)
+        is_code = self.is_coding_task(prompt)
+        selected_model = self.default_model
+        if is_code and self.coding_model:
+            selected_model = self.coding_model
+        elif is_complex and self.complex_model:
+            selected_model = self.complex_model
+        elif not is_complex and not is_code and self.fast_model:
+            selected_model = self.fast_model
+
+        messages = [{"role": "system", "content": system_prompt or ""}]
+        if context:
+            messages.extend(context)
+        user_msg = {"role": "user", "content": prompt}
+        if images and selected_model["provider"] == "ollama":
+            user_msg["images"] = images
+        messages.append(user_msg)
+
+        if selected_model["provider"] == "ollama":
+            url = selected_model.get("ollama_url", "http://localhost:11434")
+            yield from self._call_ollama_stream(messages, selected_model["model"], url)
+        else:
+            # LiteLLM: non-streaming fallback — yield whole response as single chunk
+            res = self._call_litellm(messages, selected_model["model"],
+                                     os.environ.get(selected_model.get("api_key_env", "OPENAI_API_KEY")))
+            yield res.get("content", "")
+
+    def _call_ollama_stream(self, messages, model_name, url):
+        """Stream tokens from Ollama using the ollama library's stream=True mode."""
+        logging.info(f"Stream routing to Ollama (Model: {model_name}) at {url}")
+        try:
+            client = ollama.Client(host=url)
+            stream = client.chat(model=model_name, messages=messages, stream=True)
+            for chunk in stream:
+                try:
+                    token = chunk.message.content
+                except AttributeError:
+                    token = chunk.get("message", {}).get("content", "") if isinstance(chunk, dict) else ""
+                if token:
+                    yield token
+        except Exception as e:
+            logging.error(f"Ollama stream failed: {e}")
+            yield f"[Stream error: {e}]"
