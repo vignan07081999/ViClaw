@@ -57,23 +57,78 @@ pip install -r requirements.txt
 echo "Starting Guided Configuration Wizard..."
 .venv/bin/python3 install.py
 
-# Map global CLI wrapper
+# ── Global CLI wrapper ──────────────────────────────────────────────────────
 echo "Setting up global 'viclaw' command..."
-if [ -d "/usr/local/bin" ]; then
-    if [ "$EUID" -eq 0 ]; then
-        ln -sf "$DIR/viclaw" /usr/local/bin/viclaw
-    elif command -v sudo &> /dev/null && [ -n "$SUDO_USER" ] || sudo -n true 2>/dev/null; then
-        sudo ln -sf "$DIR/viclaw" /usr/local/bin/viclaw
-    fi
-    echo "✓ Global command configured. You can now type 'viclaw' from anywhere."
+
+VICLAW_SHIM="/usr/local/bin/viclaw"
+
+# Write a real bash shim (not a symlink to a Python file).
+# This works regardless of whether python3 is in PATH at the shebang level.
+SHIM_CONTENT="#!/bin/bash
+exec \"$DIR/.venv/bin/python3\" \"$DIR/viclaw\" \"\$@\""
+
+_install_shim() {
+    mkdir -p /usr/local/bin
+    printf '%s\n' "$SHIM_CONTENT" > "$VICLAW_SHIM"
+    chmod +x "$VICLAW_SHIM"
+}
+
+if [ "$EUID" -eq 0 ]; then
+    _install_shim
+elif command -v sudo &> /dev/null && sudo -n true 2>/dev/null; then
+    sudo bash -c "$(declare -f _install_shim); VICLAW_SHIM='$VICLAW_SHIM'; SHIM_CONTENT=$(printf '%q' "$SHIM_CONTENT"); _install_shim"
+else
+    # Fall back: write to $HOME/.local/bin and patch PATH
+    mkdir -p "$HOME/.local/bin"
+    VICLAW_SHIM="$HOME/.local/bin/viclaw"
+    printf '%s\n' "$SHIM_CONTENT" > "$VICLAW_SHIM"
+    chmod +x "$VICLAW_SHIM"
+    echo "WARNING: Could not write to /usr/local/bin. Installed to $HOME/.local/bin instead."
 fi
 
-# Setup Systemd Service if root/sudo is available, else provide manual instructions
+echo "✓ Global command installed at: $VICLAW_SHIM"
+
+# ── Ensure /usr/local/bin is in PATH ────────────────────────────────────────
+# CasaOS root does not include /usr/local/bin in its default PATH.
+# We patch every relevant profile so it persists after reboot.
+_patch_path() {
+    local FILE="$1"
+    local LINE='export PATH="$PATH:/usr/local/bin:$HOME/.local/bin"'
+    if [ -f "$FILE" ] && ! grep -q "/usr/local/bin" "$FILE" 2>/dev/null; then
+        echo "" >> "$FILE"
+        echo "# Added by ViClaw installer" >> "$FILE"
+        echo "$LINE" >> "$FILE"
+        echo "✓ PATH updated in $FILE"
+    fi
+}
+
+_patch_path "/root/.bashrc"
+_patch_path "/root/.profile"
+_patch_path "/root/.bash_profile"
+_patch_path "$HOME/.bashrc"
+_patch_path "$HOME/.profile"
+
+# Patch /etc/environment for system-wide PATH (works on Debian/CasaOS)
+if [ -f /etc/environment ]; then
+    if ! grep -q "/usr/local/bin" /etc/environment; then
+        # Read current PATH from /etc/environment and append
+        if grep -q "^PATH=" /etc/environment; then
+            sed -i 's|^PATH="\(.*\)"|PATH="\1:/usr/local/bin"|' /etc/environment 2>/dev/null || true
+        fi
+        echo "✓ /etc/environment updated"
+    fi
+fi
+
+# Make the shim immediately available in the current shell session
+export PATH="$PATH:/usr/local/bin:$HOME/.local/bin"
+echo "✓ viclaw is available in this shell. New shells will pick it up automatically."
+echo "  (If still not found, run: source ~/.bashrc)"
+
+# ── Systemd Service ──────────────────────────────────────────────────────────
 echo "Setting up systemd service to run ViClaw automatically..."
 SERVICE_FILE="/etc/systemd/system/viclaw.service"
 
-# Generate the service file content
-cat << EOF > /tmp/viclaw.service
+cat <<EOF > /tmp/viclaw.service
 [Unit]
 Description=ViClaw AI Agent Daemon
 After=network.target
@@ -85,6 +140,7 @@ WorkingDirectory=$DIR
 ExecStart=$DIR/.venv/bin/python3 $DIR/main.py
 Restart=always
 RestartSec=10
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
 
 [Install]
 WantedBy=multi-user.target
@@ -96,7 +152,7 @@ if [ "$EUID" -eq 0 ]; then
     systemctl enable viclaw
     systemctl start viclaw
     echo "Service installed and started. Check status with 'systemctl status viclaw'."
-elif command -v sudo &> /dev/null && [ -n "$SUDO_USER" ] || sudo -n true 2>/dev/null; then
+elif command -v sudo &> /dev/null && sudo -n true 2>/dev/null; then
     sudo mv /tmp/viclaw.service $SERVICE_FILE
     sudo systemctl daemon-reload
     sudo systemctl enable viclaw
@@ -104,6 +160,6 @@ elif command -v sudo &> /dev/null && [ -n "$SUDO_USER" ] || sudo -n true 2>/dev/
     echo "Service installed and started via sudo. Check status with 'sudo systemctl status viclaw'."
 else
     echo "Not running as root. To install the service manually so the agent auto-starts on reboot, run:"
-    echo "sudo mv /tmp/viclaw.service /etc/systemd/system/viclaw.service"
-    echo "sudo systemctl daemon-reload && sudo systemctl enable viclaw && sudo systemctl start viclaw"
+    echo "  sudo mv /tmp/viclaw.service /etc/systemd/system/viclaw.service"
+    echo "  sudo systemctl daemon-reload && sudo systemctl enable viclaw && sudo systemctl start viclaw"
 fi

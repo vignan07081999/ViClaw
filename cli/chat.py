@@ -17,13 +17,14 @@ from rich.markdown import Markdown
 
 # Ensure we're running from the root of OpenClawClone
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from core.config import get_webui_port
+from core.config import get_webui_port, get_local_api_key
 
 console = Console()
 
 def main():
     port = get_webui_port()
     base_url = f"http://localhost:{port}"
+    api_key = get_local_api_key()
 
     console.clear()
     console.print(Panel.fit("[bold magenta]ViClaw Interactive Local Client[/bold magenta]", border_style="magenta"))
@@ -60,7 +61,11 @@ def main():
             # Send to daemon via a new API endpoint we'll create in WebUI app.py
             with console.status("[bold cyan]ViClaw is thinking...[/bold cyan]", spinner="dots"):
                 try:
-                    res = requests.post(f"{base_url}/api/chat", json={"message": user_input})
+                    res = requests.post(
+                        f"{base_url}/api/chat",
+                        json={"message": user_input},
+                        headers={"X-Local-Auth": api_key},
+                    )
                     if res.status_code == 200:
                         data = res.json()
                         reply = data.get("reply", "")

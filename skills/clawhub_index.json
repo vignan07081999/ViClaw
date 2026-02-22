@@ -1,0 +1,40 @@
+{
+  "skills": [
+    {
+      "id": "web_search",
+      "name": "Web Search",
+      "description": "Search the web using DuckDuckGo.",
+      "author": "ViClaw Team",
+      "version": "1.0.0",
+      "url": "https://raw.githubusercontent.com/vignan07081999/ViClaw/main/skills/web_search.py",
+      "tags": ["search", "tools"]
+    },
+    {
+      "id": "homelab",
+      "name": "HomeLab Connector",
+      "description": "Integrate with Home Assistant, Proxmox, and more.",
+      "author": "ViClaw Team",
+      "version": "1.1.0",
+      "url": "https://raw.githubusercontent.com/vignan07081999/ViClaw/main/skills/homelab.py",
+      "tags": ["smarthome", "homelab"]
+    },
+    {
+      "id": "remote_ssh",
+      "name": "Remote SSH",
+      "description": "Execute commands on remote servers safely.",
+      "author": "ViClaw Team",
+      "version": "1.0.0",
+      "url": "https://raw.githubusercontent.com/vignan07081999/ViClaw/main/skills/remote_ssh.py",
+      "tags": ["ssh", "remote"]
+    },
+    {
+      "id": "file_io",
+      "name": "File I/O",
+      "description": "Read and write files on the local filesystem.",
+      "author": "ViClaw Team",
+      "version": "1.0.0",
+      "url": "https://raw.githubusercontent.com/vignan07081999/ViClaw/main/skills/file_io.py",
+      "tags": ["files", "system"]
+    }
+  ]
+}

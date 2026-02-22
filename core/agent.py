@@ -176,34 +176,32 @@ class OpenClawAgent:
                         # Attempt to use sudo if available
                         result = subprocess.run(f"sudo apt-get install -y {target}", shell=True, capture_output=True, text=True)
                     elif act_type == "clawhub_skill":
-                        # Autonomous ClawHub Resolution
-                        # Normally we'd search an API. For the clone, we'll map a few keywords to raw GitHub URLs or just fail gracefully.
                         self.memory.add_short_term("system", f"Fetching {target} from ClawHub...")
-                        client = ClawHubClient()
                         
-                        # Mock Catalog mapping
-                        catalog = {
-                            "web scraper": "https://raw.githubusercontent.com/vignan07081999/ViClaw/main/skills/web_scraper.py",
-                            "github": "https://raw.githubusercontent.com/vignan07081999/ViClaw/main/skills/github_integration.py",
-                            "twitter": "https://raw.githubusercontent.com/vignan07081999/ViClaw/main/skills/twitter_bot.py"
-                        }
+                        # 1. Fetch available skills from index
+                        from webui.app import browse_clawhub
+                        index = browse_clawhub()
+                        skill_info = next((s for s in index.get("skills", []) if s["id"] == target or s["name"].lower() == target.lower()), None)
                         
-                        resolve_url = catalog.get(target.lower(), None)
-                        if not resolve_url:
-                            # If we don't have a hardcoded map, we can just pretend to search a real API
-                            # by constructing a fake URL to see if it exists
-                            resolve_url = f"https://raw.githubusercontent.com/vignan07081999/ClawHub-Community/main/skills/{target.lower().replace(' ', '_')}.py"
-                            
-                        success = client.download_and_install(resolve_url)
-                        if success:
-                            self.skill_manager._load_all_skills()
-                            self.memory.add_short_term("system", f"Skill {target} installed dynamically. Retrying prompt: '{original_msg}'")
-                            message_text = original_msg
-                            # Fall through to re-execute the original message natively
-                            result = type('obj', (object,), {'returncode': 0})()
+                        if not skill_info:
+                            # Try fuzzy match
+                            skill_info = next((s for s in index.get("skills", []) if target.lower() in s["name"].lower()), None)
+
+                        if skill_info:
+                            client = ClawHubClient()
+                            success = client.download_and_install(skill_info["url"])
+                            if success:
+                                self.skill_manager._load_new_skills()
+                                self.memory.add_short_term("system", f"Skill {skill_info['name']} installed dynamically. Retrying prompt: '{original_msg}'")
+                                message_text = original_msg
+                                # Continue to process original message
+                                result = type('obj', (object,), {'returncode': 0})()
+                            else:
+                                self.memory.add_short_term("system", f"Failed to install {skill_info['name']} from {skill_info['url']}.")
+                                return f"I tried to install `{skill_info['name']}` but the download failed. Check my logs.", []
                         else:
-                            self.memory.add_short_term("system", f"Could not locate {target} natively in ClawHub.")
-                            return f"I searched ClawHub but could not find a verified skill matching `{target}`. Let me know if you have a direct GitHub URL.", []
+                            self.memory.add_short_term("system", f"Could not locate {target} in ClawHub.")
+                            return f"I searched the ClawHub marketplace but could not find a skill matching `{target}`. Would you like to check the marketplace manualy in the dashboard?", []
 
                     
                     if act_type in ["pip_install", "apt_install"]:
@@ -242,16 +240,27 @@ class OpenClawAgent:
         final_reply = response.get("content", "") or ""
         raw_tools = []
         
+        if ("install" in message_text.lower() or "add" in message_text.lower() or "download" in message_text.lower()) and "skill" in message_text.lower():
+            # Try to catch "install the Web Search skill"
+            match = re.search(r"(?:install|add|download)(?:\s+the)?\s+(.*?)\s+skill", message_text, re.IGNORECASE)
+            if not match:
+                # Try "install skill Web Search"
+                match = re.search(r"(?:install|add|download)\s+skill\s+(.*)", message_text, re.IGNORECASE)
+            
+            if match:
+                target_skill = match.group(1).strip()
+                self.memory.add_short_term("system", f"[PENDING_ACTION] type:clawhub_skill target:{target_skill} original_msg:{message_text}")
+                return f"I see you want to install a new capability. Should I search ClawHub for the `{target_skill}` skill and install it?", []
+
+        final_reply = response.get("content", "") or ""
+        raw_tools = []
+        
         # *** DYNAMIC SKILL RESOLVER ***
-        # The LLM is instructed in its personality prompt to request skills if it can't fulfill the user's prompt. 
-        # Alternatively, if it hallucinates a tool call that doesn't exist, we catch it here.
         if "I need the" in final_reply and "skill" in final_reply.lower() and "?" in final_reply:
-            # E.g. "I need the Web Scraper skill to do this. May I install it?"
             match = re.search(r"I need the (.*?) skill", final_reply, re.IGNORECASE)
             if match:
                 missing_skill = match.group(1).strip()
                 self.memory.add_short_term("system", f"[PENDING_ACTION] type:clawhub_skill target:{missing_skill} original_msg:{message_text}")
-                # We overwrite the reply to be an explicit permission prompt in the exact format ClawHub requires
                 final_reply = f"To accomplish this, I need the `{missing_skill}` skill from ClawHub. May I dynamically download and install it now?"
                 return final_reply, []
         

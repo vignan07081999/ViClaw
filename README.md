@@ -190,11 +190,13 @@ sudo systemctl stop viclaw && sudo systemctl disable viclaw
 sudo rm /etc/systemd/system/viclaw.service && sudo systemctl daemon-reload
 ```
 
-### Full Wipe
+### One-Line Uninstall (Clean Slate)
 
 ```bash
-rm -rf ~/ViClaw
+bash <(curl -fsSL https://raw.githubusercontent.com/vignan07081999/ViClaw/main/uninstall.sh)
 ```
+
+### Manual Kill & Wipe
 
 ### Remove Ollama Models (Optional — get disk space back)
 

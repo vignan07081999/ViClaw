@@ -84,13 +84,32 @@ fi
 
 echo ""
 echo "========================================================"
-read -p "5. **DANGER**: Do you want to completely delete this entire ViClaw repository folder? (y/N) " -n 1 -r
+echo "          TOTAL WIPEOUT MODE (CLEAN SLATE)             "
+echo "========================================================"
+read -p "6. Do you want to wipe ALL footprints (temp files, caches, logs)? (y/N) " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    echo "Wiping temporary files..."
+    rm -rf /tmp/viclaw_* 2>/dev/null || true
+    echo "Wiping python caches..."
+    find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+    echo "Wiping data folder..."
+    rm -rf data 2>/dev/null || true
+    echo "✓ System footprints wiped."
+fi
+
+echo ""
+echo "========================================================"
+read -p "7. **DANGER**: Do you want to completely delete this entire ViClaw repository folder? (y/N) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     LOCAL_DIR=$PWD
     cd ..
+    # Clean up any residual /tmp items before self-destructing
+    rm -rf /tmp/viclaw_* 2>/dev/null || true
     rm -rf "$LOCAL_DIR"
     echo "✓ ViClaw repository completely deleted from disk."
+    echo "A TRUE FRESH START HAS BEEN PREPARED."
     exit 0
 fi
 

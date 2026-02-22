@@ -12,6 +12,7 @@ import os
 import json
 import logging
 import threading
+import uuid
 from logging.handlers import RotatingFileHandler
 
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "config.json")
@@ -77,6 +78,11 @@ class ConfigManager:
                 logging.info("Config reloaded from disk.")
             except json.JSONDecodeError:
                 logging.error(f"Failed to parse {self._path}. Keeping previous config.")
+            
+            # Auto-generate local_api_key if missing
+            if "local_api_key" not in self._data:
+                self._data["local_api_key"] = str(uuid.uuid4())
+                self.save(self._data)
 
     def save(self, data: dict) -> None:
         """Persist a new config dict to disk and update in-memory state."""
@@ -178,3 +184,8 @@ def is_webui_enabled() -> bool:
 
 def get_webui_port() -> int:
     return _manager.get("webui", {}).get("port", 8501)
+
+
+def get_local_api_key() -> str:
+    """Return the shared secret for local CLI tools to authenticate."""
+    return _manager.get("local_api_key", "insecure_fallback")

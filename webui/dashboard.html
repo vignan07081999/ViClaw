@@ -382,17 +382,88 @@
             background: rgba(255, 255, 255, 0.5);
         }
 
-        ul.skills-list {
-            list-style: none;
-        }
-
-        ul.skills-list li {
-            padding: 1rem 0;
-            border-bottom: 1px solid var(--glass-border);
-        }
-
         ul.skills-list li:last-child {
             border-bottom: none;
+        }
+
+        /* ---------------- Marketplace Grid ---------------- */
+        .marketplace-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .skill-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        .skill-card:hover {
+            transform: translateY(-4px);
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--accent);
+        }
+
+        .skill-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .skill-name {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--accent);
+        }
+
+        .skill-version {
+            font-size: 0.75rem;
+            opacity: 0.6;
+            background: var(--glass-border);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .skill-desc {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            line-height: 1.4;
+            flex: 1;
+        }
+
+        .skill-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .skill-tag {
+            font-size: 0.7rem;
+            background: var(--glass-active);
+            color: var(--accent);
+            padding: 2px 8px;
+            border-radius: 12px;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .marketplace-search {
+            width: 100%;
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+        .marketplace-search input {
+            width: 100%;
+            padding: 1rem 1.2rem;
+            padding-right: 3rem;
         }
     </style>
 </head>
@@ -441,7 +512,7 @@
         </div>
 
         <div class="nav-label">Dashboards & Help</div>
-        <a href="/kiosk" target="_blank" class="nav-link">
+        <a href="/kiosk?v=31.1" target="_blank" class="nav-link">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
                 <rect x="9" y="9" width="6" height="6"></rect>
@@ -585,25 +656,40 @@
         <!-- 4. SKILLS MARKETPLACE -->
         <div id="view-skills" class="view-section">
             <div class="page-title">ClawHub Skills Marketplace</div>
-            <p style="margin-bottom:2rem; opacity:0.8;">ViClaw's Dynamic Skill Resolver can automatically request
-                missing skills during chat by hitting the ClawHub API map. You can also manually inject skills below.
-            </p>
+            <p style="margin-bottom:2rem; opacity:0.8;">Browse, discover, and install new AI capabilities directly into
+                ViClaw's memory. Hot-swapping ensures skills are active immediately without a restart.</p>
 
-            <div class="glass-card">
-                <h3>Force Install Custom Skill</h3>
+            <div class="marketplace-search">
+                <input type="text" id="marketplace-search-input"
+                    placeholder="Search ClawHub for skills (e.g. 'HomeLab', 'Search', 'SSH')..."
+                    oninput="filterMarketplace()">
+            </div>
+
+            <div id="marketplace-loading" style="text-align:center; padding: 2rem; display:none;">
+                <div class="stat-value">Fetching ClawHub...</div>
+            </div>
+
+            <div class="marketplace-grid" id="marketplace-grid">
+                <!-- Skills injected here -->
+            </div>
+
+            <div class="glass-card" style="margin-top:2.5rem;">
+                <h3>Inject via Direct URL</h3>
+                <p style="font-size:0.9rem; opacity:0.7; margin-bottom:1rem;">Have a community skill URL? Paste the raw
+                    Python file link below.</p>
                 <form id="clawhub-form" onsubmit="installSkill(event)">
                     <div class="form-group">
                         <input type="text" id="skill-url" placeholder="Paste raw GitHub python URL..." required>
-                        <button type="submit" class="btn" id="install-btn">Inject to Memory</button>
+                        <button type="submit" class="btn" id="install-btn">Direct Add</button>
                     </div>
-                    <div id="install-msg" style="font-weight:bold;"></div>
+                    <div id="install-msg" style="font-weight:bold; font-size:0.9rem;"></div>
                 </form>
             </div>
 
-            <div class="glass-card" style="margin-top:20px;">
-                <h3>Currently Loaded Skills in Memory</h3>
+            <div class="glass-card" style="margin-top:2rem;">
+                <h3>Currently Active Skills</h3>
                 <ul class="skills-list" id="skills-list">
-                    <li>Loading skills payload...</li>
+                    <li>Loading...</li>
                 </ul>
             </div>
         </div>
@@ -632,6 +718,7 @@
                 fetchLogs();
             } else if (viewId === 'skills') {
                 loadSkills();
+                browseClawHub();
             } else if (viewId === 'memory') {
                 loadHistory();
             }
@@ -667,10 +754,93 @@
                 .then(data => {
                     const list = document.getElementById('skills-list');
                     list.innerHTML = '';
-                    if (data.skills.length === 0) list.innerHTML = '<li>No skills loaded. Try the marketplace!</li>';
+                    if (!data.skills || data.skills.length === 0) {
+                        list.innerHTML = '<li>No third-party skills loaded.</li>';
+                        return;
+                    }
                     data.skills.forEach(skill => {
                         list.innerHTML += `<li><strong>${skill.name}</strong>: ${skill.description}</li>`;
                     });
+                });
+        }
+
+        let fullMarketplace = [];
+        function browseClawHub() {
+            const grid = document.getElementById('marketplace-grid');
+            const loader = document.getElementById('marketplace-loading');
+            grid.innerHTML = '';
+            loader.style.display = 'block';
+
+            fetch('/api/clawhub/browse')
+                .then(res => res.json())
+                .then(data => {
+                    loader.style.display = 'none';
+                    fullMarketplace = data.skills || [];
+                    renderMarketplace(fullMarketplace);
+                })
+                .catch(err => {
+                    loader.style.display = 'none';
+                    grid.innerHTML = `<div style="color:#ef4444; grid-column:1/-1; text-align:center;">Failed to connect to ClawHub. Check internet connection.</div>`;
+                });
+        }
+
+        function renderMarketplace(skills) {
+            const grid = document.getElementById('marketplace-grid');
+            grid.innerHTML = '';
+
+            skills.forEach(skill => {
+                const tagsRaw = skill.tags || [];
+                const tagsHtml = tagsRaw.map(t => `<span class="skill-tag">${t}</span>`).join('');
+
+                grid.innerHTML += `
+                    <div class="skill-card">
+                        <div class="skill-header">
+                            <span class="skill-name">${skill.name}</span>
+                            <span class="skill-version">v${skill.version}</span>
+                        </div>
+                        <div class="skill-desc">${skill.description}</div>
+                        <div class="skill-tags">${tagsHtml}</div>
+                        <button class="btn" style="margin-top:10px; width:100%; justify-content:center;" id="btn-ins-${skill.id}" onclick="installMarketplaceSkill('${skill.id}')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            Install Skill
+                        </button>
+                    </div>
+                `;
+            });
+        }
+
+        function filterMarketplace() {
+            const term = document.getElementById('marketplace-search-input').value.toLowerCase();
+            const filtered = fullMarketplace.filter(s =>
+                s.name.toLowerCase().includes(term) ||
+                s.description.toLowerCase().includes(term) ||
+                (s.tags && s.tags.some(t => t.toLowerCase().includes(term)))
+            );
+            renderMarketplace(filtered);
+        }
+
+        function installMarketplaceSkill(id) {
+            const btn = document.getElementById(`btn-ins-${id}`);
+            const oldHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerText = "Installing...";
+
+            fetch('/api/clawhub/install', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ skill_id: id })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        btn.style.background = "#22c55e";
+                        btn.innerText = "✓ Installed";
+                        loadSkills();
+                    } else {
+                        btn.disabled = false;
+                        btn.innerHTML = oldHtml;
+                        alert("Error: " + data.message);
+                    }
                 });
         }
 
