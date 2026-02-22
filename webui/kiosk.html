@@ -243,6 +243,11 @@
             <div id="avatar-container"></div>
             <div style="margin-top: 20px; font-weight: 300; font-size: 1.2em; letter-spacing: 2px;">ViClaw AI</div>
             <div style="font-size: 0.8em; opacity: 0.6; margin-top: 5px;" id="agent-status">Status: Connecting...</div>
+
+            <button id="mic-btn" onclick="toggleMic()"
+                style="margin-top: 20px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 12px 24px; color: white; border-radius: 50px; font-size: 1.1em; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+                🎤 Tap to Speak
+            </button>
         </div>
 
         <!-- Right Column: Stream Deck Grid -->
@@ -479,16 +484,39 @@
 
         // --- 6. ViClaw API Integrations ---
         const bubble = document.getElementById('speech-bubble');
+        let currentUtterance = null;
 
         function speakBubble(text) {
             bubble.innerText = text;
             bubble.style.opacity = 1;
             // Turn eye color to active (orange/pink) while speaking
             eye.material.color.setHex(0xff9f43);
-            setTimeout(() => {
-                bubble.style.opacity = 0;
-                eye.material.color.setHex(0x00d2d3); // revert
-            }, 6000);
+
+            // TTS
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel(); // Stop current
+                currentUtterance = new SpeechSynthesisUtterance(text);
+
+                // Try to find a good English voice
+                const voices = window.speechSynthesis.getVoices();
+                const preferredVoice = voices.find(v => v.name.includes('Google UK English Male') || v.name.includes('Daniel') || v.name.includes('Arthur') || v.lang === 'en-GB' || v.lang === 'en-US');
+                if (preferredVoice) currentUtterance.voice = preferredVoice;
+
+                currentUtterance.rate = 1.0;
+                currentUtterance.pitch = 0.9;
+
+                currentUtterance.onend = () => {
+                    bubble.style.opacity = 0;
+                    eye.material.color.setHex(0x00d2d3); // revert to blue idle
+                };
+
+                window.speechSynthesis.speak(currentUtterance);
+            } else {
+                setTimeout(() => {
+                    bubble.style.opacity = 0;
+                    eye.material.color.setHex(0x00d2d3); // revert
+                }, 6000);
+            }
         }
 
         // Fetch Agent Status & Action Logs dynamically
@@ -549,6 +577,82 @@
             const phrase = randomPhrases[Math.floor(Math.random() * randomPhrases.length)];
             speakBubble(phrase);
         }, 120000);
+
+        // --- 7. Voice Recognition (Jarvis Mode) ---
+        let recognition;
+        let isListening = false;
+        const micBtn = document.getElementById('mic-btn');
+
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = function () {
+                isListening = true;
+                if (micBtn) micBtn.style.color = '#ff4757'; // Red recording indicator
+                if (micBtn) micBtn.innerHTML = `🎤 Listening...`;
+                eye.material.color.setHex(0xff4757); // Red eye when listening
+            };
+
+            recognition.onresult = function (event) {
+                const transcript = event.results[0][0].transcript;
+                if (micBtn) {
+                    micBtn.innerHTML = `🎤 Processing...`;
+                    micBtn.style.color = 'inherit';
+                }
+                eye.material.color.setHex(0xffb8b8);
+
+                // Send transcribed voice to Agent backend
+                fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: transcript })
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        // Make the robot speak the LLM response natively
+                        speakBubble(data.reply);
+                        if (micBtn) micBtn.innerHTML = `🎤 Tap to Speak`;
+                    })
+                    .catch(err => {
+                        if (micBtn) micBtn.innerHTML = `🎤 Tap to Speak`;
+                        console.error("Voice chat error", err);
+                    });
+            };
+
+            recognition.onerror = function (event) {
+                isListening = false;
+                if (micBtn) {
+                    micBtn.style.color = 'inherit';
+                    micBtn.innerHTML = `🎤 Tap to Speak`;
+                }
+                eye.material.color.setHex(0x00d2d3);
+                console.error('Speech recognition error', event.error);
+            };
+
+            recognition.onend = function () {
+                isListening = false;
+                if (micBtn) micBtn.innerHTML = `🎤 Tap to Speak`;
+            };
+        } else {
+            if (micBtn) micBtn.style.display = 'none'; // Browser doesn't support Web Speech API
+        }
+
+        function toggleMic() {
+            if (isListening) {
+                recognition.stop();
+            } else {
+                if (currentUtterance) window.speechSynthesis.cancel(); // Interrupt the robot if it's talking
+                recognition.start();
+            }
+        }
+
+        // Ensure voices are loaded (Chrome bug workaround)
+        window.speechSynthesis.onvoiceschanged = () => {
+            console.log("TTS Voices Loaded");
+        };
 
     </script>
 </body>

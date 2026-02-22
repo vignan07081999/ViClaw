@@ -12,14 +12,119 @@ app = FastAPI(title="OpenClaw Clone WebUI")
 # Global reference to the agent instance to fetch status (set by main.py)
 agent_instance = None
 
+from fastapi import Request, Depends, HTTPException, status, Response, Cookie
+from fastapi.security import APIKeyCookie
+import uuid
+import time
+from typing import Optional, List
+
+# Extremely simple in-memory session store mapping SessionUUID -> dict(user_id, role)
+ACTIVE_SESSIONS = {}
+cookie_scheme = APIKeyCookie(name="viclaw_session", auto_error=False)
+
+def get_current_user(viclaw_session: str = Depends(cookie_scheme)):
+    if not viclaw_session or viclaw_session not in ACTIVE_SESSIONS:
+        # For API routes we can raise 401. For HTML routes we'd redirect.
+        return None
+    
+    session = ACTIVE_SESSIONS[viclaw_session]
+    if time.time() > session["expires"]:
+        del ACTIVE_SESSIONS[viclaw_session]
+        return None
+        
+    return session["user_id"]
+
 class ChatMessage(BaseModel):
     message: str
+    images: Optional[List[str]] = None
 
 class SkillInstallRequest(BaseModel):
     url: str
 
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
 @app.get("/", response_class=HTMLResponse)
-def index():
+def index_login(request: Request, viclaw_session: str = Cookie(None)):
+    if viclaw_session and viclaw_session in ACTIVE_SESSIONS and time.time() < ACTIVE_SESSIONS[viclaw_session]["expires"]:
+        # Already logged in, serve dashboard
+        import os
+        dash_path = os.path.join(os.path.dirname(__file__), "dashboard.html")
+        if os.path.exists(dash_path):
+            with open(dash_path, "r") as f:
+                return f.read()
+                
+    # Serve Login Page
+    html_content = """
+    <html>
+        <head>
+            <title>ViClaw Login</title>
+            <style>
+                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; background-color: #0f172a; color: #f8fafc; display:flex; justify-content:center; align-items:center; height:100vh; }
+                .login-box { background: #1e293b; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); width: 350px; text-align: center; border: 1px solid #334155;}
+                h1 { color: #38bdf8; margin-top:0;}
+                input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #334155; border-radius: 6px; background: #0f172a; color:white; box-sizing: border-box; }
+                button { width: 100%; padding: 12px; background-color: #38bdf8; color: #0f172a; border: none; border-radius: 6px; cursor: pointer; font-weight:bold; margin-top:15px; }
+                button:hover { background-color: #0ea5e9; }
+                #error-msg { color: #ef4444; margin-top: 10px; font-size: 0.9em; height: 20px;}
+            </style>
+        </head>
+        <body>
+            <div class="login-box">
+                <h1>ViClaw Agent Gateway</h1>
+                <p style="opacity:0.7; font-size:14px; margin-bottom:20px;">Secure Swarm System Authentication</p>
+                <form id="login-form" onsubmit="doLogin(event)">
+                    <input type="text" id="username" placeholder="Username (Default: admin)" required autofocus />
+                    <input type="password" id="password" placeholder="Password (Default: claw)" required />
+                    <button type="submit">Initialize Session</button>
+                    <div id="error-msg"></div>
+                </form>
+            </div>
+            
+            <script>
+                function doLogin(e) {
+                    e.preventDefault();
+                    const u = document.getElementById('username').value;
+                    const p = document.getElementById('password').value;
+                    
+                    fetch('/api/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({username: u, password: p})
+                    }).then(res => res.json()).then(data => {
+                        if(data.success) {
+                            window.location.reload(); // Reloads root logic (which now serves dashboard due to cookie)
+                        } else {
+                            document.getElementById('error-msg').innerText = "Access Denied.";
+                        }
+                    });
+                }
+            </script>
+        </body>
+    </html>
+    """
+    return html_content
+
+@app.post("/api/login")
+def login(payload: LoginRequest, response: Response):
+    # In a full production system, pull from config.json 'users' array and hash passwords.
+    # For MVP, hardcode or basic checks.
+    valid_users = {
+        "admin": "claw",
+        "guest": "guest"
+    }
+    
+    if payload.username in valid_users and valid_users[payload.username] == payload.password:
+        session_id = str(uuid.uuid4())
+        ACTIVE_SESSIONS[session_id] = {
+            "user_id": payload.username,
+            "expires": time.time() + (24 * 3600) # 24 hrs
+        }
+        response.set_cookie(key="viclaw_session", value=session_id, httponly=True, max_age=86400)
+        return {"success": True}
+        
+    return {"success": False}
     html_content = """
     <html>
         <head>
@@ -250,14 +355,45 @@ def index():
     return html_content
 
 @app.post("/api/chat")
-def handle_chat(payload: ChatMessage):
-    if agent_instance:
-        # Pushing this via the local API so it routes properly through agent state memory
-        # We need a synchronous response for HTTP, wait for agent logic.
+def handle_chat(payload: ChatMessage, user_id: str = Depends(get_current_user)):
+    if not user_id:
+        return {"reply": "Unauthorized. Please refresh and log back in.", "raw_content": None}
         
-        reply, raw_content = agent_instance.process_immediate_message("web", "local_web_user", payload.message)
+    if agent_instance:
+        # Bind the specific authenticated user to the agent processing pipeline
+        reply, raw_content = agent_instance.process_immediate_message("web", user_id, payload.message, images=payload.images)
         return {"reply": reply, "raw_content": raw_content}
     return {"reply": "Agent is offline.", "raw_content": None}
+
+class WebhookPayload(BaseModel):
+    source: str
+    event: str
+    data: dict
+
+@app.post("/api/webhook")
+def handle_webhook(payload: WebhookPayload):
+    """
+    Generic webhook ingestor for external system events (Home Assistant, Frigate, Node-RED).
+    """
+    if not agent_instance:
+        return {"success": False, "message": "Agent offline."}
+        
+    import json
+    # Synthesize the event into a system memory chunk
+    msg = f"[EXTERNAL WEBHOOK EVENT] Source: {payload.source} | Event: {payload.event} | Data: {json.dumps(payload.data)}"
+    agent_instance.memory.add_short_term("system", msg)
+    logging.info(f"Webhook Ingested: {msg}")
+    
+    # Trigger a silent background inference pass to let the Agent react to the webhook
+    def process_webhook():
+        try:
+            agent_instance.process_immediate_message("webhook", payload.source, f"New system event received: {payload.event}. Check memory for details. If this requires immediate attention, use a tool or send a proactive message. Otherwise, remain silent.")
+        except Exception as e:
+            logging.error(f"Webhook background reasoning error: {e}")
+            
+    threading.Thread(target=process_webhook, daemon=True).start()
+    
+    return {"success": True, "message": "Event ingested and agent notified."}
 
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard():

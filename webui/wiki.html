@@ -157,6 +157,9 @@
                 <li><a href="#auto-healing">Auto-Dependency Healing</a></li>
                 <li><a href="#network-scanner">Network Discovery Scanner</a></li>
                 <li><a href="#webui-dashboards">Dashboards (3D & Kiosk)</a></li>
+                <li><a href="#voice-vision">Voice, Vision & Webhooks</a></li>
+                <li><a href="#rag-memory">RAG Memory & Time Scheduling</a></li>
+                <li><a href="#swarm-auth">Swarm Architecture & Authentication</a></li>
             </ul>
             <a href="/"
                 style="display: block; margin-top: 30px; text-align: center; background: #3b82f6; color: white; padding: 10px; border-radius: 6px;">←
@@ -265,6 +268,46 @@
                     docked next to a PC. It features an animated WebGL 3D Robot that speaks agent statuses dynamically,
                     backed by a changing CSS gradient bound to the actual atmospheric time of day. It contains
                     interactive Pomodoro timers, clocks, and live iFrames.</p>
+            </section>
+
+            <section id="voice-vision">
+                <h2>Voice, Vision & Webhooks (Phase 21)</h2>
+                <p>ViClaw now sees, hears, and speaks.</p>
+                <ul>
+                    <li><strong>Continuous Ambient Voice:</strong> The 3D Kiosk utilizes the native Web Speech API to
+                        continuously transcribe your speech bridging local audio to Ollama, and utilizes text-to-speech
+                        to make the WebGL avatar talk.</li>
+                    <li><strong>Vision:</strong> Images attached to the CLI or the Dashboard's chat UI are locally
+                        Base64 string encoded and beamed to multimodal models (e.g. <code>llava</code>) bypassing data
+                        extraction layers.</li>
+                    <li><strong>Webhooks:</strong> Remote triggers and IoT devices (like Home Assistant) can POST raw
+                        JSON events to <code>/api/webhook</code>, violently forcing the AI into a "System Event"
+                        inference pass.</li>
+                </ul>
+            </section>
+
+            <section id="rag-memory">
+                <h2>RAG Memory & Time Scheduling (Phase 22)</h2>
+                <div class="cmd-box">
+                    <strong>Memory Vault:</strong> Instead of forgetting you on reboot, ViClaw now extracts facts and
+                    auto-commits them to an internal SQLite Vector DB using the <code>nomic-embed-text</code> model. It
+                    performs mathematical <code>numpy</code> Cosine Similarity lookups prior to generating any response.
+                </div>
+                <h3>Natural Language Cron Engine</h3>
+                <p>Tell the AI, "Every 15 minutes, scrape Google News and tell me the summary." A detached Python
+                    multithreading logic bomb (<code>core/scheduler.py</code>) tracks UTC timestamps and natively
+                    schedules Swarm generations independent of human triggering.</p>
+            </section>
+
+            <section id="swarm-auth">
+                <h2>Swarm Architecture & Secure Auth (Phase 23)</h2>
+                <p>ViClaw supports <strong>Login Context</strong>. The WebUI dashboard operates behind an encrypted
+                    <code>HTTPOnly Cookie / JWT</code> authentication gate mapping directly to your User Identifier.</p>
+                <h3>Child Generative Agency</h3>
+                <p>The core `OpenClawAgent` contains a massive feature allowed via <code>core/swarm.py</code>
+                    orchestrator. Depending on task complexity, the parent node can programmatically spawn highly
+                    localized <strong>Sub-Agents</strong> containing their own restricted tool access schemas and nested
+                    inference loops, and then natively merge those results!</p>
             </section>
 
         </main>

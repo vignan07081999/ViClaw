@@ -39,10 +39,11 @@ class LLMRouter:
         coding_keywords = ["code", "script", "python", "bash", "javascript", "function", "debug", "html", "css", "docker", "api"]
         return any(word in prompt.lower() for word in coding_keywords)
 
-    def generate(self, prompt, system_prompt=None, context=None, tools=None):
+    def generate(self, prompt, system_prompt=None, context=None, tools=None, images=None):
         """
         Generates a response from the configured LLM.
         Note: `tools` is ignored here as we've moved to XML-based tool execution.
+        `images` accepts a list of base64 encoded image strings.
         """
         is_complex = self.evaluate_complexity(prompt, context)
         is_code = self.is_coding_task(prompt)
@@ -56,6 +57,13 @@ class LLMRouter:
         elif not is_complex and not is_code and self.fast_model:
             selected_model = self.fast_model
             
+        # Overwrite if we have images, require a vision model. Currently assuming complex model for vision if not specified.
+        # In a generic environment we might map a dedicated "vision" model role.
+        if images and "vision" not in selected_model["model"].lower() and "llava" not in selected_model["model"].lower():
+             logging.info("Images detected in prompt. Forcing a vision capable model evaluation...")
+             # Optionally default to llava if forced, but for now we pass it through to the complex model
+             # In production, we'd add a "vision" role to config.json.
+            
         role_printed = selected_model.get('role', 'default')
         logging.info(f"Smart Routing -> Task: {'Coding' if is_code else ('Complex' if is_complex else 'Simple')} -> Selected Model: {selected_model['model']} ({selected_model['provider']} - {role_printed})")
         
@@ -65,7 +73,12 @@ class LLMRouter:
         if context:
             messages.extend(context)
             
-        messages.append({"role": "user", "content": prompt})
+        # Bind images specifically to the final User prompt for Vision handling
+        user_msg = {"role": "user", "content": prompt}
+        if images and selected_model["provider"] == "ollama":
+            user_msg["images"] = images
+            
+        messages.append(user_msg)
 
         # Route to provider (native tools parameter is intentionally None to force XML behavior)
         if selected_model["provider"] == "ollama":
@@ -75,6 +88,15 @@ class LLMRouter:
         elif selected_model["provider"] == "litellm":
             env_key = selected_model.get("api_key_env", "OPENAI_API_KEY")
             api_key = os.environ.get(env_key)
+            
+            # Format Litellm vision structure
+            if images:
+               litellm_msg = []
+               litellm_msg.append({"type": "text", "text": prompt})
+               for img in images:
+                   litellm_msg.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img}"}})
+               messages[-1]["content"] = litellm_msg
+               
             res = self._call_litellm(messages, selected_model["model"], api_key, tools=None)
 
         else:

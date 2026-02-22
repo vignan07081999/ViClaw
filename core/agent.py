@@ -6,6 +6,8 @@ import threading
 from core.models import LLMRouter
 from core.memory import AgentMemory
 from core.personality import PersonalityProfile
+from core.scheduler import TaskScheduler
+from core.swarm import SwarmOrchestrator
 from skills.manager import SkillManager
 from skills.clawhub_client import ClawHubClient
 from core.config import APP_CONFIG
@@ -23,6 +25,11 @@ class OpenClawAgent:
             client = ClawHubClient()
             client.install_default_skills()
             self.skill_manager._load_all_skills()
+
+        self.scheduler = TaskScheduler(self)
+        self.scheduler.start()
+        
+        self.swarm = SwarmOrchestrator(self)
 
         self.running = False
 
@@ -79,6 +86,13 @@ class OpenClawAgent:
         
         system_prompt += tools_xml_prompt
         
+        # Inject RAG Vector Memory Context
+        related_memories = self.memory.search_long_term(message_text, top_k=3)
+        if related_memories:
+            system_prompt += "\n\n[RELEVANT LONG-TERM MEMORIES (RAG)]:\n"
+            for i, r in enumerate(related_memories):
+                system_prompt += f"{i+1}. {r}\n"
+        
         # Query Model (no native tools parameter)
         response = self.router.generate(message_text, system_prompt=system_prompt, context=context)
         
@@ -128,7 +142,7 @@ class OpenClawAgent:
                 logging.error(f"Error formulating summary pass: {e}")
                 self.platform_manager.send(platform_name, user_id, "I executed the operations successfully, but encountered an error translating the logs.")
 
-    def process_immediate_message(self, platform_name, user_id, message_text):
+    def process_immediate_message(self, platform_name, user_id, message_text, images=None):
         """
         Processes a message synchronously and returns the string response. 
         Used by the local WebUI and CLI chat script.
@@ -215,7 +229,14 @@ class OpenClawAgent:
         
         system_prompt += tools_xml_prompt
         
-        response = self.router.generate(message_text, system_prompt=system_prompt, context=context)
+        # Inject RAG Vector Memory Context
+        related_memories = self.memory.search_long_term(message_text, top_k=3)
+        if related_memories:
+            system_prompt += "\n\n[RELEVANT LONG-TERM MEMORIES (RAG)]:\n"
+            for i, r in enumerate(related_memories):
+                system_prompt += f"{i+1}. {r}\n"
+        
+        response = self.router.generate(message_text, system_prompt=system_prompt, context=context, images=images)
         
         final_reply = response.get("content", "") or ""
         raw_tools = []

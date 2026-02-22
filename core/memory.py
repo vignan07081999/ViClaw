@@ -22,7 +22,8 @@ class AgentMemory:
                       timestamp TEXT,
                       topic TEXT,
                       content TEXT,
-                      importance INTEGER)''')
+                      importance INTEGER,
+                      embedding TEXT)''')
         conn.commit()
         conn.close()
 
@@ -42,41 +43,93 @@ class AgentMemory:
     def get_short_term_context(self):
         return self.short_term_context
 
+    def get_embedding(self, text):
+        """
+        Calls Ollama locally to generate a vector embedding using nomic-embed-text.
+        """
+        try:
+            import requests
+            from core.config import get_config
+            url = get_config().get("ollama_url", "http://localhost:11434")
+            res = requests.post(f"{url.rstrip('/')}/api/embeddings", json={
+                "model": "nomic-embed-text",
+                "prompt": text
+            }, timeout=10)
+            if res.status_code == 200:
+                return res.json().get("embedding", [])
+        except Exception as e:
+            logging.error(f"Failed to generate embedding: {e}")
+        return []
+
     def add_long_term(self, content, topic="general", importance=1):
         """
-        Saves a fact, summary, or user preference to persistent local database.
+        Saves a fact or document chunk to persistent local database via Vector Embeddings.
         """
         timestamp = datetime.now().isoformat()
-        logging.info(f"Saving long-term memory: {content[:50]}...")
+        logging.info(f"Saving embedded memory: {content[:50]}...")
+        
+        # Generate Nomic embedding
+        vec = self.get_embedding(content)
+        vec_str = json.dumps(vec) if vec else "[]"
+        
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
-        c.execute("INSERT INTO memories (timestamp, topic, content, importance) VALUES (?, ?, ?, ?)",
-                  (timestamp, topic, content, importance))
+        c.execute("INSERT INTO memories (timestamp, topic, content, importance, embedding) VALUES (?, ?, ?, ?, ?)",
+                  (timestamp, topic, content, importance, vec_str))
         conn.commit()
         conn.close()
 
-    def search_long_term(self, query, top_k=5):
+    def search_long_term(self, query, top_k=3):
         """
-        Retrieves relevant long-term memories.
-        In a full clone utilizing vector embeddings, this would do a cosine similarity search.
-        Using a simple LIKE approach for this baseline.
+        Retrieves relevant long-term memories using cosine similarity against Ollama embeddings.
+        Fallback to fuzzy string matching if vector graph fails.
         """
-        words = [w for w in query.split() if len(w) > 3]
-        if not words:
-            return []
-
+        query_vec = self.get_embedding(query)
+        
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
-        
-        # Build simple OR query for keywords
-        likes = " OR ".join(["content LIKE ?" for _ in words])
-        params = [f"%{w}%" for w in words]
-        
-        # Order by importance and recency
-        sql = f"SELECT content FROM memories WHERE {likes} ORDER BY importance DESC, timestamp DESC LIMIT {top_k}"
-        
-        c.execute(sql, params)
-        results = c.fetchall()
+        c.execute("SELECT content, embedding FROM memories")
+        rows = c.fetchall()
         conn.close()
 
-        return [r[0] for r in results]
+        if not rows:
+            return []
+
+        if not query_vec:
+            # Fallback to fuzzy text search if embeddings offline
+            words = [w for w in query.split() if len(w) > 3]
+            if not words: return []
+            conn = sqlite3.connect(self.db_path)
+            c = conn.cursor()
+            likes = " OR ".join(["content LIKE ?" for _ in words])
+            params = [f"%{w}%" for w in words]
+            sql = f"SELECT content FROM memories WHERE {likes} ORDER BY importance DESC, timestamp DESC LIMIT {top_k}"
+            c.execute(sql, params)
+            fallback_res = c.fetchall()
+            conn.close()
+            return [r[0] for r in fallback_res]
+
+        # Vector Math Calculation (Cosine Similarity)
+        try:
+            import numpy as np
+            q_arr = np.array(query_vec)
+            scored_rows = []
+            
+            for content, emb_str in rows:
+                if not emb_str or emb_str == "[]": continue
+                db_arr = np.array(json.loads(emb_str))
+                
+                # Cosine sim
+                dot = np.dot(q_arr, db_arr)
+                norm = np.linalg.norm(q_arr) * np.linalg.norm(db_arr)
+                sim = dot / norm if norm > 0 else 0
+                
+                scored_rows.append((sim, content))
+                
+            # Sort highest similarity first
+            scored_rows.sort(key=lambda x: x[0], reverse=True)
+            return [r[1] for r in scored_rows[:top_k]]
+            
+        except ImportError:
+            logging.error("Numpy not installed. Cannot compute vector distance.")
+            return []

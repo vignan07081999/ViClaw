@@ -12,8 +12,10 @@ It acts as an intelligent, proactive daemon running invisibly on your server—c
 - **Proactive Heartbeat**: ViClaw doesn't just respond mechanically—it thinks. A background heartbeat occasionally wakes the LLM up, allowing it to spontaneously message you on Telegram/Discord if a server goes down or if it has an idle thought.
 - **Over-The-Air Git Updates**: Built-in OTA functionality safely checks Github for pushes, downloads new skills, and restarts the daemon automatically without wiping your private `data/config.json`.
 - **Dynamic 3D Web Dashboard**: Access a stunning 3D Glassmorphism UI hosted locally to chat with the agent, view diagnostic metrics, and read the raw JSON reasoning logs parsing in real-time.
-
----
+- **Swarm Sub-agents**: Deploy dynamic, persona-driven child agents to run sub-tasks natively with constrained permissions.
+- **RAG Memory Vault**: ViClaw remembers. It commits facts to an internal SQLite vector graph via `nomic-embed-text` and performs Cosine Similarity lookups.
+- **Natural Language Cron**: "Remind me to check the oven in 15 minutes". A background python daemon natively tracks and schedules future LLM generations.
+- **Multimodal Vision & Voice**: The Kiosk supports native Text-to-Speech avatars, and the web app accepts Base64 image drops seamlessly piped into models like `llava`.
 
 ## 🚀 Installation & Setup
 
