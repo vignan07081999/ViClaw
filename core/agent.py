@@ -13,6 +13,7 @@ from core.scheduler import TaskScheduler
 from core.swarm import SwarmOrchestrator
 from skills.manager import SkillManager
 from skills.clawhub_client import ClawHubClient
+from skills.clawhub_bridge import get_installed_skills_context
 from core.config import APP_CONFIG
 
 class ViClawAgent:
@@ -89,6 +90,11 @@ class ViClawAgent:
         
         system_prompt += tools_xml_prompt
         
+        # Inject ClawHub SKILL.md context (makes SKILL.md-based skills active)
+        clawhub_context = get_installed_skills_context()
+        if clawhub_context:
+            system_prompt += clawhub_context
+
         # Inject RAG Vector Memory Context
         related_memories = self.memory.search_long_term(message_text, top_k=3)
         if related_memories:
@@ -189,16 +195,15 @@ class ViClawAgent:
 
                         if skill_info:
                             client = ClawHubClient()
-                            success = client.download_and_install(skill_info["url"])
-                            if success:
+                            result = client.install_skill(skill_info["slug"] if "slug" in skill_info else skill_info.get("id", target))
+                            if result.get("success"):
                                 self.skill_manager._load_new_skills()
-                                self.memory.add_short_term("system", f"Skill {skill_info['name']} installed dynamically. Retrying prompt: '{original_msg}'")
+                                self.memory.add_short_term("system", f"Skill {skill_info.get('displayName', skill_info.get('name', target))} installed dynamically. Retrying prompt: '{original_msg}'")
                                 message_text = original_msg
-                                # Continue to process original message
                                 result = type('obj', (object,), {'returncode': 0})()
                             else:
-                                self.memory.add_short_term("system", f"Failed to install {skill_info['name']} from {skill_info['url']}.")
-                                return f"I tried to install `{skill_info['name']}` but the download failed. Check my logs.", []
+                                self.memory.add_short_term("system", f"Failed to install skill: {result.get('message', 'unknown error')}")
+                                return f"I tried to install `{target}` but the download failed. Check my logs.", []
                         else:
                             self.memory.add_short_term("system", f"Could not locate {target} in ClawHub.")
                             return f"I searched the ClawHub marketplace but could not find a skill matching `{target}`. Would you like to check the marketplace manualy in the dashboard?", []
@@ -228,6 +233,11 @@ class ViClawAgent:
         
         system_prompt += tools_xml_prompt
         
+        # Inject ClawHub SKILL.md context (makes SKILL.md-based skills active)
+        clawhub_context = get_installed_skills_context()
+        if clawhub_context:
+            system_prompt += clawhub_context
+
         # Inject RAG Vector Memory Context
         related_memories = self.memory.search_long_term(message_text, top_k=3)
         if related_memories:

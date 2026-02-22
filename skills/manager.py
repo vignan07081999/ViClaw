@@ -52,10 +52,19 @@ class SkillManager:
         self.tools_schema.clear()
         self._loaded_modules.clear()
 
-        _SKIP = {"__init__.py", "manager.py", "clawhub_client.py"}
+        _SKIP = {"__init__.py", "manager.py", "clawhub_client.py", "clawhub_bridge.py"}
+        # Top-level .py files
         for filename in sorted(os.listdir(SKILLS_DIR)):
             if filename.endswith(".py") and filename not in _SKIP:
                 self._import_skill_file(filename)
+        # Deep-scan subdirectories installed via ClawHub
+        for subdir in sorted(os.listdir(SKILLS_DIR)):
+            subdir_path = os.path.join(SKILLS_DIR, subdir)
+            if not os.path.isdir(subdir_path) or subdir.startswith('__') or subdir.startswith('.'):
+                continue
+            for fname in sorted(os.listdir(subdir_path)):
+                if fname.endswith(".py") and fname not in _SKIP:
+                    self._import_skill_subdir(subdir, fname)
 
     # ------------------------------------------------------------------
     # Delta load (used after ClawHub installs a new skill at runtime)
@@ -66,17 +75,24 @@ class SkillManager:
         Only load skill files that have not been processed yet.
         Existing skills are left untouched so their state is preserved.
         """
-        _SKIP = {"__init__.py", "manager.py", "clawhub_client.py"}
+        _SKIP = {"__init__.py", "manager.py", "clawhub_client.py", "clawhub_bridge.py"}
         new_files = [
             f for f in sorted(os.listdir(SKILLS_DIR))
             if f.endswith(".py") and f not in _SKIP and f not in self._loaded_modules
         ]
-        if not new_files:
-            logging.info("No new skill files detected.")
-            return
         for filename in new_files:
             logging.info(f"Delta-loading new skill: {filename}")
             self._import_skill_file(filename)
+        # Also check for new subdirectory skills
+        for subdir in sorted(os.listdir(SKILLS_DIR)):
+            subdir_path = os.path.join(SKILLS_DIR, subdir)
+            if not os.path.isdir(subdir_path) or subdir.startswith('__') or subdir.startswith('.'):
+                continue
+            for fname in sorted(os.listdir(subdir_path)):
+                module_key = f"{subdir}/{fname}"
+                if fname.endswith(".py") and fname not in _SKIP and module_key not in self._loaded_modules:
+                    logging.info(f"Delta-loading new subdir skill: {module_key}")
+                    self._import_skill_subdir(subdir, fname)
 
     # ------------------------------------------------------------------
     # Internal: import one skill file and register its BaseSkill subclasses
@@ -105,6 +121,32 @@ class SkillManager:
             self._loaded_modules.add(filename)
         except Exception as e:
             logging.error(f"Failed to load skill module '{module_name}': {e}")
+
+    def _import_skill_subdir(self, subdir: str, filename: str):
+        """Import a Python skill file from a ClawHub skill subdirectory."""
+        module_key = f"{subdir}/{filename}"
+        if module_key in self._loaded_modules:
+            return
+        py_path = os.path.join(SKILLS_DIR, subdir, filename)
+        module_name = f"clawhub_skill_{subdir}_{filename[:-3]}"
+        try:
+            spec = importlib.util.spec_from_file_location(module_name, py_path)
+            if spec is None:
+                return
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            for _, obj in inspect.getmembers(module, inspect.isclass):
+                if issubclass(obj, BaseSkill) and obj is not BaseSkill:
+                    instance = obj()
+                    if instance.name not in self.skills:
+                        self.skills[instance.name] = instance
+                        self.tools_schema.extend(instance.get_tools())
+                        logging.info(f"Loaded ClawHub subdir skill: {instance.name} from {module_key}")
+                    else:
+                        logging.debug(f"Skill '{instance.name}' already registered — skipping.")
+            self._loaded_modules.add(module_key)
+        except Exception as e:
+            logging.error(f"Failed to load ClawHub subdir skill '{module_key}': {e}")
 
     # ------------------------------------------------------------------
     # Public API
