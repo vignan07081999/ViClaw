@@ -68,6 +68,25 @@ def main():
     import subprocess
     has_ollama = subprocess.run(["command", "-v", "ollama"], shell=True, capture_output=True).returncode == 0
     
+    # Check if daemon is running and try to start
+    if has_ollama:
+        try:
+            requests.get("http://localhost:11434", timeout=2)
+        except:
+            console.print("[yellow]Ollama is installed but the service isn't running. Attempting to start 'ollama serve'...[/yellow]")
+            subprocess.Popen(["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            time.sleep(3)
+            
+    # Fetch existing models
+    existing_models = []
+    if has_ollama:
+        try:
+            res = requests.get("http://localhost:11434/api/tags", timeout=2)
+            if res.status_code == 200:
+                existing_models = [m["name"] for m in res.json().get("models", [])]
+        except:
+            pass
+            
     opt_install_ollama = False
     if not has_ollama:
         console.print("[dim]Ollama engine is not installed on this system.[/dim]")
@@ -84,9 +103,9 @@ def main():
     
     adding_models = True
     while adding_models:
-        provider_choices = ["Ollama (Local/Self-hosted)", "LiteLLM (API-based)"]
+        provider_choices = ["External Ollama (Remote API)", "LiteLLM (OpenAI API/Anthropic)"]
         if has_ollama:
-            provider_choices.insert(0, "ViClaw Native (Local Ollama Turnkey)")
+            provider_choices.insert(0, "Local AI Models (Requires Local Ollama)")
             
         provider_choice = questionary.select(
             "Which AI provider architecture do you want to configure?",
@@ -94,10 +113,10 @@ def main():
         ).ask()
         
         model_entry = {}
-        if "Native" in provider_choice or "Ollama" in provider_choice:
+        if "Local AI Models" in provider_choice or "External Ollama" in provider_choice:
             model_entry["provider"] = "ollama"
             
-            if "Native" in provider_choice:
+            if "Local AI Models" in provider_choice:
                 model_entry["ollama_url"] = "http://localhost:11434"
                 
                 # Guided Model Selection
@@ -105,36 +124,50 @@ def main():
                     "General/Fast (qwen2.5:3b)": "qwen2.5:3b",
                     "Advanced Reasoning (llama3.2:3b)": "llama3.2:3b",
                     "Heavy Reasoning (llama3.1:8b)": "llama3.1:8b",
-                    "Coding / DevOps (qwen2.5-coder)": "qwen2.5-coder",
-                    "Custom Model Name": "custom"
+                    "Coding / DevOps (qwen2.5-coder)": "qwen2.5-coder"
                 }
                 
+                choices = []
+                if existing_models:
+                    choices.append(questionary.Separator("--- Already Installed Models ---"))
+                    choices.extend([f"Use Installed: {m}" for m in existing_models])
+                    choices.append(questionary.Separator("--- Download New Models ---"))
+                    
+                choices.extend(list(preset_models.keys()))
+                choices.append("Custom Model Name")
+                
                 selection = questionary.select(
-                    "Select a curated local model payload to pull:",
-                    choices=list(preset_models.keys())
+                    "Select an AI model to use for this role (we'll download it if you don't have it):",
+                    choices=choices
                 ).ask()
                 
-                if selection == "Custom Model Name":
+                if not selection or str(selection).startswith("---"):
+                    selection = "Custom Model Name"
+                
+                if str(selection).startswith("Use Installed: "):
+                    model_name = str(selection).replace("Use Installed: ", "")
+                elif selection == "Custom Model Name":
                     model_name = questionary.text("Enter the exact Ollama registry tag (e.g. deepseek-r1:7b):").ask()
                 else:
                     model_name = preset_models[selection]
                 
-                # Auto-Pull with progress bar
-                console.print(f"\n[cyan]Downloading and initializing {model_name} (This may take several minutes)...[/cyan]")
-                try:
-                    # Using subprocess Popen to stream output to console if we want, or just wait
-                    subprocess.run(["ollama", "pull", model_name], check=True)
-                    console.print(f"[bold green]✓ {model_name} successfully provisioned into local registry![/bold green]")
-                    
-                    # Test connection locally just to verify daemon is answering
-                    success, msg = test_ollama_connection(model_entry["ollama_url"], model_name)
-                    if not success:
-                        console.print(f"[bold red]Warning: {msg}[/bold red]")
-                        
-                except subprocess.CalledProcessError as e:
-                    console.print(f"[bold red]Failed to pull {model_name}: {e}[/bold red]")
-                    if not questionary.confirm("Do you want to proceed anyway?", default=False).ask():
-                        continue
+                # Check if we need to pull
+                if model_name not in existing_models:
+                    console.print(f"\n[cyan]Downloading and initializing {model_name} (This may take several minutes)...[/cyan]")
+                    try:
+                        # Using subprocess Popen to stream output to console if we want, or just wait
+                        subprocess.run(["ollama", "pull", model_name], check=True)
+                        console.print(f"[bold green]✓ {model_name} successfully provisioned into local registry![/bold green]")
+                        existing_models.append(model_name)
+                    except subprocess.CalledProcessError as e:
+                        console.print(f"[bold red]Failed to pull {model_name}. The Ollama daemon may have crashed: {e}[/bold red]")
+                        if not questionary.confirm("Do you want to proceed anyway?", default=False).ask():
+                            continue
+                            
+                # Test connection locally just to verify daemon is answering
+                success, msg = test_ollama_connection(model_entry["ollama_url"], model_name)
+                if not success:
+                    console.print(f"[bold red]Warning: {msg}[/bold red]")
                         
                 model_entry["model"] = model_name
                 
