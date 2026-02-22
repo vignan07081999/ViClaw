@@ -19,7 +19,7 @@ then
     fi
 
     echo "Removing venv..."
-    rm -rf venv/
+    rm -rf .venv/
 
     echo "Re-running install shell script..."
     ./install.sh

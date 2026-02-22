@@ -39,8 +39,8 @@ if ! command -v python3 &> /dev/null; then
 fi
 
 echo "Creating Python Virtual Environment..."
-python3 -m venv venv
-source venv/bin/activate
+python3 -m venv .venv
+source .venv/bin/activate
 
 echo "Installing Requirements..."
 pip install --upgrade pip
@@ -63,7 +63,7 @@ After=network.target
 Type=simple
 User=$USER
 WorkingDirectory=$DIR
-ExecStart=$DIR/venv/bin/python $DIR/main.py
+ExecStart=$DIR/.venv/bin/python $DIR/main.py
 Restart=always
 RestartSec=10
 

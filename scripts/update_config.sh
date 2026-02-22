@@ -13,7 +13,7 @@ if [ ! -d "venv" ]; then
     exit 1
 fi
 
-source venv/bin/activate
+source .venv/bin/activate
 python install.py
 
 # Restart the service if it exists to apply new config
