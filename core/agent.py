@@ -34,6 +34,10 @@ class ViClawAgent:
         self.scheduler.start()
         
         self.swarm = SwarmOrchestrator(self)
+        
+        from core.hooks import HookManager
+        self.hooks = HookManager(self)
+        self.hooks.start()
 
         self.running = False
 
