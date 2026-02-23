@@ -15,6 +15,8 @@ if sys.prefix == sys.base_prefix:
 # Ensure we can import core modules
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from core.config import setup_logging
+from litellm import completion
+import ollama
 setup_logging()
 
 from rich.console import Console
@@ -51,6 +53,62 @@ def save_config(config):
     os.makedirs("data", exist_ok=True)
     with open(CONFIG_FILE, "w") as f:
         json.dump(config, f, indent=2)
+
+def _test_model_inference(model_entry, identity):
+    # Test a newly added model to confirm it can speak using the configured persona
+    name = identity.get("name", "ViClaw")
+    persona = identity.get("personality", "helpful and concise")
+    
+    prompt = f"You are an AI agent named {name}. Your personality is {persona}. The user just installed you and configured you successfully. Please say a quick, one-sentence hello to the user to confirm you are online and working!"
+    
+    console.print(f"[dim]Sending test prompt to {model_entry.get('model')}...[/dim]")
+    try:
+        reply = ""
+        if model_entry.get("provider") == "ollama":
+            url = model_entry.get("ollama_url", "http://localhost:11434")
+            client = ollama.Client(host=url)
+            res = client.chat(model=model_entry["model"], messages=[{"role": "user", "content": prompt}])
+            reply = res["message"]["content"]
+        elif model_entry.get("provider") == "litellm":
+            os.environ[model_entry.get("api_key_env", "OPENAI_API_KEY")] = os.environ.get(model_entry.get("api_key_env", "OPENAI_API_KEY"), "")
+            res = completion(model=model_entry["model"], messages=[{"role": "user", "content": prompt}])
+            reply = res.choices[0].message.content
+            
+        console.print(f"\n[bold magenta]{name} ({model_entry['model']}):[/bold magenta] {reply}\n")
+        return True
+    except Exception as e:
+        console.print(f"[bold red]Inference check failed for {model_entry.get('model')}: {e}[/bold red]")
+        return False
+
+def ai_guide(config, context_prompt):
+    # Use the fast model (or first available) to guide the next setup step
+    models = config.get("models", [])
+    if not models:
+        return
+        
+    # Find fast model
+    model = next((m for m in models if m.get("role") == "fast"), models[0])
+    identity = config.get("identity", {})
+    name = identity.get("name", "ViClaw")
+    persona = identity.get("personality", "helpful and concise")
+    
+    prompt = f"You are {name}, an AI assistant ({persona}). We are in the middle of a CLI setup wizard. The next step is: {context_prompt}. Provide a very brief 1-2 sentence contextual introduction to guide the user through this step."
+    
+    console.print(f"\n[dim]Asking {name} ({model.get('model')}) for guidance...[/dim]")
+    try:
+        reply = ""
+        if model.get("provider") == "ollama":
+            url = model.get("ollama_url", "http://localhost:11434")
+            client = ollama.Client(host=url)
+            res = client.chat(model=model["model"], messages=[{"role": "user", "content": prompt}])
+            reply = res["message"]["content"]
+        elif model.get("provider") == "litellm":
+            res = completion(model=model["model"], messages=[{"role": "user", "content": prompt}])
+            reply = res.choices[0].message.content
+            
+        console.print(f"[bold magenta]🤖 {name}:[/bold magenta] {reply}\n")
+    except Exception as e:
+        pass # fail silently for guidance
 
 def conf_identity(config):
     console.print("\n[bold yellow]--- 1. Agent Identity ---[/bold yellow]")
@@ -164,6 +222,10 @@ def conf_models(config):
                     console.print(f"[bold red]Warning: {msg}[/bold red]")
                 model_entry["model"] = model_name
                 
+                # Feature: Test Inference
+                if success:
+                    _test_model_inference(model_entry, config.get("identity", {}))
+                
             else:
                 model_name = questionary.text("Enter Ollama model name (e.g. qwen2.5:3b):", default="qwen2.5:3b").ask()
                 model_entry["model"] = model_name
@@ -182,6 +244,7 @@ def conf_models(config):
             model_entry["provider"] = "litellm"
             model_entry["model"] = questionary.text("LiteLLM model name (e.g. gpt-4o-mini):").ask()
             model_entry["api_key_env"] = questionary.text("Environment variable holding API key:", default="OPENAI_API_KEY").ask()
+            _test_model_inference(model_entry, config.get("identity", {}))
             
         role = questionary.select(
             f"What role should '{model_entry['model']}' handle?",
@@ -214,6 +277,7 @@ def conf_models(config):
 
 def conf_platforms(config):
     console.print("\n[bold yellow]--- 3. Messaging Integration Setup ---[/bold yellow]")
+    ai_guide(config, "We are setting up messaging platforms like Telegram and Discord.")
     if "platforms" not in config: config["platforms"] = {}
     
     config["platforms"]["cli"] = {"enabled": questionary.confirm("Enable CLI Terminal interaction?", default=True).ask()}
@@ -235,6 +299,7 @@ def conf_platforms(config):
 
 def conf_webui(config):
     console.print("\n[bold yellow]--- 4. WebUI & Kiosk Dashboard ---[/bold yellow]")
+    ai_guide(config, "We are setting up the local WebUI and Kiosk Dashboard for the user.")
 
     enable_webui = questionary.confirm("Enable local WebUI for 3D Dashboard & monitoring?", default=True).ask()
     webui_port = config.get("webui", {}).get("port", 8501)
