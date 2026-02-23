@@ -210,6 +210,65 @@ class ViClawAgent:
                 logging.error(f"Error formulating summary pass: {e}")
                 self.platform_manager.send(platform_name, user_id, "I executed the operations successfully, but encountered an error translating the logs.")
 
+    def _handle_pending_action(self, message_text):
+        last_msg = self.memory.short_term[-1] if self.memory.short_term else None
+        if not (last_msg and last_msg["role"] == "system" and "[PENDING_ACTION]" in last_msg["content"]):
+            return None, None
+            
+        pending_action = last_msg["content"]
+        import re
+        act_type = re.search(r"type:(.*?)\s", pending_action).group(1)
+        target = re.search(r"target:(.*?)\s", pending_action).group(1)
+        original_msg = re.search(r"original_msg:(.*)", pending_action).group(1)
+        
+        if message_text.lower().strip() not in ["yes", "y", "sure", "do it", "ok", "okay"]:
+            self.memory.add_short_term("system", "User denied the pending installation.")
+            return f"Okay, I've cancelled the automatic installation of `{target}`. Let me know what else I can do.", []
+            
+        import subprocess
+        self.memory.add_short_term("system", f"User approved installation of {target}.")
+        try:
+            if act_type == "pip_install":
+                import sys
+                result = subprocess.run([sys.executable, "-m", "pip", "install", target], capture_output=True, text=True)
+            elif act_type == "apt_install":
+                result = subprocess.run(f"sudo apt-get install -y {target}", shell=True, capture_output=True, text=True)
+            elif act_type == "clawhub_skill":
+                self.memory.add_short_term("system", f"Fetching {target} from ClawHub...")
+                from webui.app import browse_clawhub
+                from skills.clawhub_client import ClawHubClient
+                index = browse_clawhub()
+                skill_info = next((s for s in index.get("skills", []) if s["id"] == target or s["name"].lower() == target.lower()), None)
+                if not skill_info:
+                    skill_info = next((s for s in index.get("skills", []) if target.lower() in s["name"].lower()), None)
+
+                if skill_info:
+                    client = ClawHubClient()
+                    res = client.install_skill(skill_info.get("slug", skill_info.get("id", target)))
+                    if res.get("success"):
+                        self.skill_manager._load_new_skills()
+                        self.memory.add_short_term("system", f"Skill {skill_info.get('displayName', target)} installed dynamically. Retrying prompt: '{original_msg}'")
+                        message_text = original_msg
+                        result = type('obj', (object,), {'returncode': 0, 'stderr': ''})()
+                    else:
+                        self.memory.add_short_term("system", f"Failed to install skill: {res.get('message', 'unknown error')}")
+                        return f"I tried to install `{target}` but the download failed.", []
+                else:
+                    self.memory.add_short_term("system", f"Could not locate {target} in ClawHub.")
+                    return f"I searched the ClawHub marketplace but could not find `{target}`.", []
+
+            if act_type in ["pip_install", "apt_install"]:
+                if hasattr(result, 'returncode') and result.returncode == 0:
+                    self.memory.add_short_term("system", f"Installation of {target} succeeded. Retrying prompt: '{original_msg}'")
+                    message_text = original_msg
+                else:
+                    self.memory.add_short_term("system", f"Failed to install {target}. Error: {getattr(result, 'stderr', 'unknown')}")
+                    return f"I tried to install `{target}` but it failed. Error:\n```\n{getattr(result, 'stderr', 'unknown')}\n```", []
+            
+            return None, message_text
+        except Exception as e:
+            return f"Critical error during installation of {target}: {str(e)}", []
+
     def process_immediate_message(self, platform_name, user_id, message_text, images=None):
         """
         Processes a message synchronously and returns the string response. 
