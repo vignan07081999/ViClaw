@@ -719,14 +719,16 @@
             <div class="page-title"
                 style="margin-bottom:0.5rem; display:flex; justify-content:space-between; align-items:center;">
                 Interactive Terminal
-                <div style="font-size:0.85rem; display:flex; gap:8px;">
-                    <select id="session-dropdown" onchange="switchSession(this.value)"
-                        style="background:var(--card-bg); color:var(--text); border:1px solid rgba(255,255,255,0.1); border-radius:4px; padding:4px 8px; outline:none;">
+                <div style="font-size:0.85rem; display:flex; gap:12px; align-items:center;">
+                    <label style="display:flex; align-items:center; gap:4px; cursor:pointer;" title="Narrator voice for replies">
+                        <input type="checkbox" id="autoplay-tts" style="accent-color:var(--accent);"> Voice
+                    </label>
+                    <select id="session-dropdown" onchange="switchSession(this.value)" style="background:var(--card-bg); color:var(--text); border:1px solid rgba(255,255,255,0.1); border-radius:4px; padding:4px 8px; outline:none;">
                         <option value="default">Session: default</option>
                     </select>
-                    <button class="btn btn-outline" style="padding:4px 8px;" onclick="createNewSession()">+ New
-                        Session</button>
+                    <button class="btn btn-outline" style="padding:4px 8px;" onclick="createNewSession()">+ New</button>
                 </div>
+                <audio id="tts-player" style="display:none;"></audio>
             </div>
             <div style="opacity:0.7; font-size:0.9rem; margin-bottom:1rem;">Send direct slash commands like `/clear` or
                 `/status` to debug.</div>
@@ -1523,6 +1525,25 @@
                                     bubble.classList.add('md-body');
                                     bubble.innerHTML = renderMarkdown(accumText);
                                     bubble.querySelectorAll('pre code').forEach(el => hljs.highlightElement(el));
+
+                                    // Play TTS if enabled
+                                    const ttsCheck = document.getElementById('autoplay-tts');
+                                    if (ttsCheck && ttsCheck.checked && accumText.trim().length > 0) {
+                                        fetch('/api/tts', {
+                                            method: 'POST',
+                                            headers: {'Content-Type': 'application/json'},
+                                            body: JSON.stringify({text: accumText})
+                                        }).then(r => r.json()).then(d => {
+                                            if (d.success && d.url) {
+                                                const player = document.getElementById('tts-player');
+                                                if (player) {
+                                                    // add timestamp to bypass cache
+                                                    player.src = d.url + '?t=' + Date.now();
+                                                    player.play().catch(e => console.warn("TTS auto-play prevented:", e));
+                                                }
+                                            }
+                                        }).catch(e => console.error("TTS fetch error:", e));
+                                    }
                                 }
                                 // Append tool results if any
                                 if (toolResultHtml) {

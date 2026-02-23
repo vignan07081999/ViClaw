@@ -268,6 +268,27 @@ def kiosk():
             return f.read()
     return "Kiosk HTML missing"
 
+# Mount static frontend directory
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+if os.path.isdir(STATIC_DIR):
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+# Expose TTS audio directory
+TTS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "tts")
+os.makedirs(TTS_DIR, exist_ok=True)
+app.mount("/static/tts", StaticFiles(directory=TTS_DIR), name="static_tts")
+
+# Models for the API payload
+class ChatRequest(BaseModel):
+    message: str
+    images: Optional[List[str]] = None
+
+class SkillInstallRequest(BaseModel):
+    url: str
+
+class KioskLayout(BaseModel):
+    layout: List[Dict]
+
 @app.get("/wiki", response_class=HTMLResponse)
 def wiki():
     wiki_path = os.path.join(os.path.dirname(__file__), "wiki.html")
@@ -340,6 +361,19 @@ def clear_usage():
     from core.usage import UsageTracker
     UsageTracker.instance().clear_history()
     return {"success": True}
+
+@app.post("/api/tts")
+def generate_tts(payload: dict):
+    """Generates TTS audio and returns the URL path."""
+    text = payload.get("text", "")
+    if not text.strip():
+        return {"success": False, "message": "No text provided"}
+        
+    from core.tts import TTSManager
+    url = TTSManager.instance().generate_audio(text)
+    if url:
+        return {"success": True, "url": url}
+    return {"success": False, "message": "Failed to generate TTS audio"}
 
 @app.get("/api/sessions")
 def get_sessions():
