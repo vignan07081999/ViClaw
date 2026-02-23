@@ -30,6 +30,12 @@ class BaseConnector:
         """
         raise NotImplementedError
 
+    def send_typing(self, user_id):
+        """
+        Sends a typing indicator to the user on this platform.
+        """
+        pass
+
 class CLIConnector(BaseConnector):
     def __init__(self):
         super().__init__("cli")

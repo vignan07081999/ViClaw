@@ -117,6 +117,12 @@ class ViClawAgent:
             for i, r in enumerate(related_memories):
                 system_prompt += f"{i+1}. {r}\n"
         
+        # Feature 12: Typing Indicators
+        try:
+            self.platform_manager.send_typing(platform_name, user_id)
+        except Exception as e:
+            logging.debug(f"Typing indicator failed: {e}")
+
         # Query Model (no native tools parameter)
         response = self.router.generate(message_text, system_prompt=system_prompt, context=context)
         
@@ -268,6 +274,12 @@ class ViClawAgent:
             for i, r in enumerate(related_memories):
                 system_prompt += f"{i+1}. {r}\n"
         
+        # Feature 12: Typing Indicators
+        try:
+            self.platform_manager.send_typing(platform_name, user_id)
+        except Exception as e:
+            logging.debug(f"Typing indicator failed: {e}")
+
         response = self.router.generate(message_text, system_prompt=system_prompt, context=context, images=images)
         
         final_reply = response.get("content", "") or ""
