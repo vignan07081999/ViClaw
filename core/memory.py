@@ -113,6 +113,19 @@ class AgentMemory:
         self._restore_short_term()
         self._start_background_indexer()
 
+    @classmethod
+    def get_all_sessions(cls) -> list:
+        """Returns a list of all unique session IDs that have checkpoints."""
+        try:
+            with sqlite3.connect(cls(session_id="dummy_for_query").db_path) as conn:
+                c = conn.cursor()
+                c.execute("SELECT DISTINCT session_id FROM short_term_checkpoint WHERE session_id != 'dummy_for_query' ORDER BY id DESC")
+                rows = c.fetchall()
+            return [r[0] for r in rows if r[0]]
+        except Exception as e:
+            logging.warning(f"Failed to list sessions: {e}")
+            return []
+
     # ------------------------------------------------------------------
     # DB Initialisation
     # ------------------------------------------------------------------

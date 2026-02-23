@@ -341,6 +341,21 @@ def clear_usage():
     UsageTracker.instance().clear_history()
     return {"success": True}
 
+@app.get("/api/sessions")
+def get_sessions():
+    """Returns a list of all historical session IDs."""
+    from core.memory import AgentMemory
+    return {"sessions": AgentMemory.get_all_sessions()}
+
+@app.post("/api/sessions/switch")
+def switch_session(payload: dict):
+    """Switches the active agent session."""
+    session_id = payload.get("session_id", "default")
+    if agent_instance:
+        msg = agent_instance.switch_session(session_id)
+        return {"success": True, "message": msg}
+    return {"success": False, "message": "Agent offline"}
+
 @app.get("/api/diagnostics")
 def get_diagnostics():
     from core.config import get_config

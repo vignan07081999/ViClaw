@@ -37,14 +37,25 @@ class ViClawAgent:
 
         self.running = False
 
-    def _process_slash_command(self, command_text):
-        cmd = command_text.strip().lower()
-        parts = cmd.split()
-        base_cmd = parts[0]
+    def switch_session(self, session_id: str):
+        """Hot-swaps the active memory session."""
+        self.memory = AgentMemory(session_id=session_id)
+        logging.info(f"Switched session to: {session_id}")
+        return f"Switched to session '{session_id}'. Previous context cleared from window."
 
-        if base_cmd in ["/reset", "/new"]:
+    def _process_slash_command(self, command_text):
+        cmd = command_text.strip()
+        parts = cmd.split()
+        base_cmd = parts[0].lower()
+
+        if base_cmd == "/reset":
             self.memory.clear_short_term()
-            return "Session reset. Short-term memory cleared."
+            return f"Session '{self.memory.session_id}' reset. Short-term memory cleared."
+        elif base_cmd == "/new":
+            session_id = parts[1] if len(parts) > 1 else "default"
+            if session_id == "default":
+                self.memory.clear_short_term("default")
+            return self.switch_session(session_id)
         elif base_cmd == "/status":
             num_msgs = len(self.memory.short_term_context)
             fast_mod = getattr(self.router, 'fast_model', None)

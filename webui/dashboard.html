@@ -716,7 +716,18 @@
 
         <!-- 2. INTERACTIVE CHAT -->
         <div id="view-chat" class="view-section chat-layout">
-            <div class="page-title" style="margin-bottom:0.5rem;">Interactive Terminal</div>
+            <div class="page-title"
+                style="margin-bottom:0.5rem; display:flex; justify-content:space-between; align-items:center;">
+                Interactive Terminal
+                <div style="font-size:0.85rem; display:flex; gap:8px;">
+                    <select id="session-dropdown" onchange="switchSession(this.value)"
+                        style="background:var(--card-bg); color:var(--text); border:1px solid rgba(255,255,255,0.1); border-radius:4px; padding:4px 8px; outline:none;">
+                        <option value="default">Session: default</option>
+                    </select>
+                    <button class="btn btn-outline" style="padding:4px 8px;" onclick="createNewSession()">+ New
+                        Session</button>
+                </div>
+            </div>
             <div style="opacity:0.7; font-size:0.9rem; margin-bottom:1rem;">Send direct slash commands like `/clear` or
                 `/status` to debug.</div>
 
@@ -882,8 +893,11 @@
                 </div>
                 <div class="glass-card">
                     <h3>Actions</h3>
-                    <button class="btn-primary" onclick="loadUsage()" style="width:100%;margin-bottom:12px;">↻ Refresh</button>
-                    <button class="btn-secondary" onclick="clearUsage()" style="width:100%;background:rgba(239,68,68,0.15);border-color:rgba(239,68,68,0.4);">🗑 Clear History</button>
+                    <button class="btn-primary" onclick="loadUsage()" style="width:100%;margin-bottom:12px;">↻
+                        Refresh</button>
+                    <button class="btn-secondary" onclick="clearUsage()"
+                        style="width:100%;background:rgba(239,68,68,0.15);border-color:rgba(239,68,68,0.4);">🗑 Clear
+                        History</button>
                 </div>
             </div>
             <div class="glass-card">
@@ -1209,6 +1223,60 @@
                 });
         }
 
+        // ---- Session Management ----
+        function loadSessions() {
+            fetch('/api/sessions').then(r => r.json()).then(data => {
+                const sel = document.getElementById('session-dropdown');
+                if (!sel) return;
+                const current = sel.value;
+                sel.innerHTML = '';
+                const sessions = data.sessions && data.sessions.length ? data.sessions : ['default'];
+                if (!sessions.includes(current) && current) sessions.unshift(current);
+
+                sessions.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s;
+                    opt.textContent = 'Session: ' + s;
+                    if (s === current) opt.selected = true;
+                    sel.appendChild(opt);
+                });
+            });
+        }
+
+        function switchSession(sessionId) {
+            fetch('/api/sessions/switch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_id: sessionId })
+            }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    loadHistory();
+                    loadSessions();
+                } else {
+                    alert("Failed to switch session: " + data.message);
+                }
+            });
+        }
+
+        function createNewSession() {
+            const name = prompt("Enter new session name:");
+            if (name && name.trim()) {
+                const sname = name.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+                const sel = document.getElementById('session-dropdown');
+                if (sel) {
+                    const opt = document.createElement('option');
+                    opt.value = sname;
+                    opt.textContent = 'Session: ' + sname;
+                    sel.appendChild(opt);
+                    sel.value = sname;
+                }
+                switchSession(sname);
+            }
+        }
+
+        // Call once on boot
+        setTimeout(loadSessions, 500);
+
         function loadHistory() {
             const histBox = document.getElementById('history-box');
             fetch('/api/history')
@@ -1449,14 +1517,14 @@
                                 // Remove thinking status bubble
                                 const statusId = 'thinking-status-' + bubbleId;
                                 document.getElementById(statusId)?.remove();
-                                                                if (cursor) cursor.remove();
+                                if (cursor) cursor.remove();
                                 // Render final accumulated text as markdown
                                 if (bubble) {
                                     bubble.classList.add('md-body');
                                     bubble.innerHTML = renderMarkdown(accumText);
                                     bubble.querySelectorAll('pre code').forEach(el => hljs.highlightElement(el));
                                 }
-                                                                // Append tool results if any
+                                // Append tool results if any
                                 if (toolResultHtml) {
                                     const rawId = 'raw-' + Date.now();
                                     bubble.insertAdjacentHTML('afterend',
@@ -1522,7 +1590,7 @@
         function loadUsage() {
             fetch('/api/usage').then(r => r.json()).then(d => {
                 const s = d.session || {}, a = d.alltime || {};
-                const fmt = n => (n||0).toLocaleString();
+                const fmt = n => (n || 0).toLocaleString();
                 document.getElementById('usage-session-calls').textContent = 'Calls: ' + fmt(s.calls);
                 document.getElementById('usage-session-prompt').textContent = 'Prompt tokens: ' + fmt(s.prompt_tokens);
                 document.getElementById('usage-session-completion').textContent = 'Completion tokens: ' + fmt(s.completion_tokens);
@@ -1531,7 +1599,7 @@
                 document.getElementById('usage-alltime-prompt').textContent = 'Prompt tokens: ' + fmt(a.prompt_tokens);
                 document.getElementById('usage-alltime-completion').textContent = 'Completion tokens: ' + fmt(a.completion_tokens);
                 document.getElementById('usage-alltime-total').textContent = 'Total: ' + fmt(a.total_tokens);
-                document.getElementById('usage-alltime-latency').textContent = 'Avg latency: ' + (a.avg_latency_ms||0).toFixed(0) + ' ms';
+                document.getElementById('usage-alltime-latency').textContent = 'Avg latency: ' + (a.avg_latency_ms || 0).toFixed(0) + ' ms';
 
                 // By-model table
                 const models = d.by_model || [];
@@ -1540,7 +1608,7 @@
                 else {
                     bmEl.innerHTML = '<table style="width:100%;border-collapse:collapse;">' +
                         '<tr><th style="text-align:left;padding:6px 12px;opacity:0.7;">Model</th><th style="padding:6px 12px;opacity:0.7;">Calls</th><th style="padding:6px 12px;opacity:0.7;">Prompt</th><th style="padding:6px 12px;opacity:0.7;">Completion</th><th style="padding:6px 12px;opacity:0.7;">Total</th></tr>' +
-                        models.map(m => `<tr><td style="padding:5px 12px;font-family:monospace;">${m.model}</td><td style="padding:5px 12px;text-align:center;">${m.calls}</td><td style="padding:5px 12px;text-align:right;">${fmt(m.prompt_tokens)}</td><td style="padding:5px 12px;text-align:right;">${fmt(m.completion_tokens)}</td><td style="padding:5px 12px;text-align:right;color:var(--accent)">${fmt((m.prompt_tokens||0)+(m.completion_tokens||0))}</td></tr>`).join('') +
+                        models.map(m => `<tr><td style="padding:5px 12px;font-family:monospace;">${m.model}</td><td style="padding:5px 12px;text-align:center;">${m.calls}</td><td style="padding:5px 12px;text-align:right;">${fmt(m.prompt_tokens)}</td><td style="padding:5px 12px;text-align:right;">${fmt(m.completion_tokens)}</td><td style="padding:5px 12px;text-align:right;color:var(--accent)">${fmt((m.prompt_tokens || 0) + (m.completion_tokens || 0))}</td></tr>`).join('') +
                         '</table>';
                 }
 
@@ -1551,7 +1619,7 @@
                 else {
                     rEl.innerHTML = '<table style="width:100%;border-collapse:collapse;">' +
                         '<tr><th style="padding:4px 8px;opacity:0.6;text-align:left;">Time</th><th style="padding:4px 8px;opacity:0.6;text-align:left;">Model</th><th style="padding:4px 8px;opacity:0.6;text-align:right;">Prompt</th><th style="padding:4px 8px;opacity:0.6;text-align:right;">Completion</th><th style="padding:4px 8px;opacity:0.6;text-align:right;">Latency</th><th style="padding:4px 8px;opacity:0.6;">Failover</th></tr>' +
-                        recent.map(r => `<tr><td style="padding:3px 8px;">${(r.timestamp||'').slice(0,19)}</td><td style="padding:3px 8px;color:var(--accent);">${r.model}</td><td style="padding:3px 8px;text-align:right;">${fmt(r.prompt_tokens)}</td><td style="padding:3px 8px;text-align:right;">${fmt(r.completion_tokens)}</td><td style="padding:3px 8px;text-align:right;">${r.latency_ms||0}ms</td><td style="padding:3px 8px;opacity:0.6;">${r.failover||''}</td></tr>`).join('') +
+                        recent.map(r => `<tr><td style="padding:3px 8px;">${(r.timestamp || '').slice(0, 19)}</td><td style="padding:3px 8px;color:var(--accent);">${r.model}</td><td style="padding:3px 8px;text-align:right;">${fmt(r.prompt_tokens)}</td><td style="padding:3px 8px;text-align:right;">${fmt(r.completion_tokens)}</td><td style="padding:3px 8px;text-align:right;">${r.latency_ms || 0}ms</td><td style="padding:3px 8px;opacity:0.6;">${r.failover || ''}</td></tr>`).join('') +
                         '</table>';
                 }
             }).catch(() => {
