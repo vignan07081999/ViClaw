@@ -436,13 +436,22 @@
                     <td>[11] 📖 Wiki</td>
                     <td>Opens this manual in terminal</td>
                 </tr>
+                <tr>
+                    <td>[ ] ✨ ACP Bridge <span class="tag new">New</span></td>
+                    <td>Starts the NDJSON StdIO bridge for IDEs</td>
+                </tr>
+                <tr>
+                    <td>[ ] 📊 Telemetry <span class="tag new">New</span></td>
+                    <td>Starts the Usage tracking metrics menu</td>
+                </tr>
             </table>
 
             <!-- ============================================================ -->
             <h2 id="dashboard">🌐 Web Dashboard</h2>
 
             <p>ViClaw auto-detects port conflicts during install and binds to the nearest open port (default
-                <strong>8501</strong>).</p>
+                <strong>8501</strong>).
+            </p>
             <table>
                 <tr>
                     <th>URL</th>
@@ -480,6 +489,14 @@
                     <td>Clears short-term memory + SQLite checkpoint <span class="tag new">Fixed</span></td>
                 </tr>
                 <tr>
+                    <td><code>/new [name]</code></td>
+                    <td>Creates an isolated conversational context <span class="tag new">Phase 30</span></td>
+                </tr>
+                <tr>
+                    <td><code>/poll create</code></td>
+                    <td>Spin up interactive polls in the terminal/chat <span class="tag new">Phase 30</span></td>
+                </tr>
+                <tr>
                     <td><code>/status</code></td>
                     <td>Shows active models, message count <span class="tag new">Fixed</span></td>
                 </tr>
@@ -505,7 +522,8 @@
             <h2 id="skills">🛠️ Skills & ClawHub Marketplace</h2>
 
             <p>ViClaw uses <strong>Skills (Tools)</strong> for all external actions. Skills are Python files in the
-                <code>skills/</code> directory that extend <code>BaseSkill</code>.</p>
+                <code>skills/</code> directory that extend <code>BaseSkill</code>.
+            </p>
 
             <table>
                 <tr>
@@ -621,6 +639,11 @@
                     <td>Base64 image inputs</td>
                     <td><code>llava:latest</code></td>
                 </tr>
+                <tr>
+                    <td><code>failover</code></td>
+                    <td>Automated retries if primary models timeout</td>
+                    <td><code>any loaded</code> <span class="tag new">Phase 30</span></td>
+                </tr>
             </table>
 
             <!-- ============================================================ -->
@@ -717,7 +740,8 @@
                 disk — no daemon restart needed</div>
 
             <p>All accessor functions (<code>is_webui_enabled()</code>, <code>get_webui_port()</code>, etc.) and the
-                <code>APP_CONFIG</code> alias are preserved for full backward compatibility.</p>
+                <code>APP_CONFIG</code> alias are preserved for full backward compatibility.
+            </p>
 
             <!-- ============================================================ -->
             <h2 id="heartbeat">💓 Proactive Heartbeat & Swarm <span class="tag new">Phase 30</span></h2>
@@ -791,6 +815,16 @@
                 <tr>
                     <td>Session isolation</td>
                     <td><code>AgentMemory(session_id="...")</code> — each user gets their own checkpoint</td>
+                </tr>
+                <tr>
+                    <td>Background Hooks</td>
+                    <td><code>watchdog</code> observers monitor <code>data/dropzone</code> for headless offline analysis
+                    </td>
+                </tr>
+                <tr>
+                    <td>Audio Generation</td>
+                    <td>Offline <code>pyttsx3</code> creates persistent MP3s routed through <code>/static/tts/</code>
+                    </td>
                 </tr>
                 <tr>
                     <td>All data sandboxed</td>
