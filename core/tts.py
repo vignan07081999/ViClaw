@@ -7,6 +7,8 @@ import threading
 TTS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "tts")
 os.makedirs(TTS_DIR, exist_ok=True)
 
+from typing import Optional
+
 class TTSManager:
     _instance = None
     _lock = threading.Lock()
@@ -38,7 +40,7 @@ class TTSManager:
             logging.error(f"Failed to initialize pyttsx3: {e}")
             self.engine = None
 
-    def generate_audio(self, text: str) -> str:
+    def generate_audio(self, text: str) -> Optional[str]:
         """
         Generates TTS audio for the given text and returns the public URL path.
         Blocks until the file is written.

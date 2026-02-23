@@ -1,5 +1,4 @@
 import logging
-import threading
 from core.models import LLMRouter
 
 class SwarmAgent:

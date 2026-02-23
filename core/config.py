@@ -12,7 +12,6 @@ import os
 import json
 import logging
 import threading
-import uuid
 from logging.handlers import RotatingFileHandler
 
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "config.json")

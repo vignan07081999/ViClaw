@@ -6,7 +6,6 @@ import subprocess
 import sys
 import os
 import requests
-import pkg_resources
 from rich.console import Console
 from rich.markdown import Markdown
 

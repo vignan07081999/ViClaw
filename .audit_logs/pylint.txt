@@ -1,0 +1,22 @@
+************* Module acp
+cli/acp.py:46:26: E1101: Instance of 'AgentMemory' has no 'get_recent_context' member (no-member)
+cli/acp.py:47:32: E1101: Instance of 'PersonalityProfile' has no 'get_active_prompt' member (no-member)
+************* Module hooks
+core/hooks.py:6:0: E0401: Unable to import 'watchdog.observers' (import-error)
+core/hooks.py:7:0: E0401: Unable to import 'watchdog.events' (import-error)
+************* Module tts
+core/tts.py:28:12: E0401: Unable to import 'pyttsx3' (import-error)
+************* Module agent
+core/agent.py:261:27: E0606: Possibly using variable 'result' before assignment (possibly-used-before-assignment)
+************* Module remote_ssh
+skills/remote_ssh.py:1:0: E0401: Unable to import 'paramiko' (import-error)
+************* Module app
+webui/app.py:274:25: E0602: Undefined variable 'StaticFiles' (undefined-variable)
+webui/app.py:279:25: E0602: Undefined variable 'StaticFiles' (undefined-variable)
+webui/app.py:286:0: E0102: class already defined line 38 (function-redefined)
+webui/app.py:289:0: E0102: class already defined line 24 (function-redefined)
+webui/app.py:290:17: E0602: Undefined variable 'Dict' (undefined-variable)
+
+-----------------------------------
+Your code has been rated at 9.84/10
+

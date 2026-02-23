@@ -1,0 +1,46 @@
+skills/manager.py:39: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+skills/manager.py:40: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+skills/manager.py:41: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+skills/manager.py:137: error: Item "None" of "Loader | None" has no attribute "exec_module"  [union-attr]
+core/tts.py:47: error: Incompatible return value type (got "None", expected "str")  [return-value]
+core/tts.py:57: error: Incompatible return value type (got "None", expected "str")  [return-value]
+core/tts.py:70: error: Incompatible return value type (got "None", expected "str")  [return-value]
+core/tts.py:73: error: Incompatible return value type (got "None", expected "str")  [return-value]
+core/links.py:10: error: Library stubs not installed for "requests"  [import-untyped]
+skills/clawhub_client.py:19: error: Library stubs not installed for "requests"  [import-untyped]
+skills/clawhub_client.py:58: error: Incompatible default for argument "cursor" (default has type "None", argument has type "str")  [assignment]
+skills/clawhub_client.py:58: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+skills/clawhub_client.py:58: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+skills/clawhub_client.py:68: error: Incompatible types in assignment (expression has type "int", target has type "str")  [assignment]
+skills/clawhub_client.py:95: error: Incompatible return value type (got "None", expected "dict[Any, Any]")  [return-value]
+skills/clawhub_client.py:114: error: Incompatible return value type (got "None", expected "bytes")  [return-value]
+skills/web_search.py:1: error: Library stubs not installed for "requests"  [import-untyped]
+skills/remote_ssh.py:1: error: Library stubs not installed for "paramiko"  [import-untyped]
+skills/remote_ssh.py:1: note: Hint: "python3 -m pip install types-paramiko"
+skills/homelab.py:1: error: Library stubs not installed for "requests"  [import-untyped]
+core/memory.py:82: error: Need type annotation for "selected" (hint: "selected: list[<type>] = ...")  [var-annotated]
+core/memory.py:110: error: Need type annotation for "_embed_queue" (hint: "_embed_queue: list[<type>] = ...")  [var-annotated]
+core/memory.py:201: error: Incompatible default for argument "session_id" (default has type "None", argument has type "str")  [assignment]
+core/memory.py:201: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+core/memory.py:201: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+core/memory.py:246: error: Library stubs not installed for "requests"  [import-untyped]
+core/memory.py:350: error: Argument 1 to "append" of "list" has incompatible type "tuple[Any, Any, Any | list[Any]]"; expected "tuple[Any, Any]"  [arg-type]
+viclaw.py:57: error: Library stubs not installed for "requests"  [import-untyped]
+cli/chat.py:12: error: Library stubs not installed for "requests"  [import-untyped]
+cli/chat.py:12: note: Hint: "python3 -m pip install types-requests"
+cli/chat.py:12: note: (or run "mypy --install-types" to install all missing stub packages)
+cli/chat.py:12: note: See https://mypy.readthedocs.io/en/stable/running_mypy.html#missing-imports
+core/usage.py:39: error: Incompatible types in assignment (expression has type "Encoding", variable has type "str")  [assignment]
+webui/app.py:6: error: Library stubs not installed for "requests"  [import-untyped]
+webui/app.py:274: error: Name "StaticFiles" is not defined  [name-defined]
+webui/app.py:279: error: Name "StaticFiles" is not defined  [name-defined]
+webui/app.py:286: error: Name "SkillInstallRequest" already defined on line 38  [no-redef]
+webui/app.py:289: error: Name "KioskLayout" already defined on line 24  [no-redef]
+webui/app.py:290: error: Name "Dict" is not defined  [name-defined]
+webui/app.py:290: note: Did you forget to import it from "typing"? (Suggestion: "from typing import Dict")
+webui/app.py:507: error: Argument "cursor" to "list_skills" of "ClawHubClient" has incompatible type "str | None"; expected "str"  [arg-type]
+integrations/messaging.py:97: error: Item "None" of "User | None" has no attribute "id"  [union-attr]
+install.py:4: error: Library stubs not installed for "requests"  [import-untyped]
+cli/doctor.py:8: error: Library stubs not installed for "requests"  [import-untyped]
+cli/diagnostics.py:12: error: Library stubs not installed for "requests"  [import-untyped]
+Found 33 errors in 16 files (checked 41 source files)

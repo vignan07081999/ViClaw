@@ -31,7 +31,6 @@ class SessionsSkill(BaseSkill):
     def sessions_send(self, task_description: str, context_payload: str = "") -> str:
         try:
             from core.models import LLMRouter
-            import copy
             
             router = LLMRouter()
             
