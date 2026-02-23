@@ -20,6 +20,7 @@ def main():
             print("ViClaw CLI Wrapper")
             print("\nUsage:")
             print("  viclaw chat          - Interactive chat with the agent")
+            print("  viclaw acp           - Start the NDJSON IDE bridge in stdio")
             print("  viclaw diagnostics   - Check system status and logs")
             print("  viclaw doctor        - Automated troubleshooting")
             print("  viclaw usage         - Show token usage stats")
@@ -33,6 +34,7 @@ def main():
         
     script_map = {
         "chat": "cli/chat.py",
+        "acp": "cli/acp.py",
         "diagnostics": "cli/diagnostics.py",
         "doctor": "cli/doctor.py",
         "usage": "cli/usage.py",
