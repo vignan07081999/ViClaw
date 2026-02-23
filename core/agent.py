@@ -36,7 +36,9 @@ class ViClawAgent:
         self.swarm = SwarmOrchestrator(self)
         
         from core.hooks import HookManager
+        from core.polls import PollManager
         self.hooks = HookManager(self)
+        self.polls = PollManager()
         self.hooks.start()
 
         self.running = False
@@ -47,7 +49,7 @@ class ViClawAgent:
         logging.info(f"Switched session to: {session_id}")
         return f"Switched to session '{session_id}'. Previous context cleared from window."
 
-    def _process_slash_command(self, command_text):
+    def _process_slash_command(self, command_text, user_id="local_user"):
         cmd = command_text.strip()
         parts = cmd.split()
         base_cmd = parts[0].lower()
@@ -74,6 +76,43 @@ class ViClawAgent:
         elif base_cmd == "/compact":
             self.memory.summarize_and_compress()
             return "Context compacted."
+        elif base_cmd == "/poll":
+            if len(parts) < 2:
+                return "Usage: /poll create <Question> | <Opt1> | <Opt2> ... OR /poll vote <ID> <Option> OR /poll view <ID> OR /poll close <ID>"
+            
+            subcmd = parts[1].lower()
+            if subcmd == "create":
+                # e.g. /poll create What is best? | Apple | Banana | Orange
+                rest = " ".join(parts[2:])
+                if "|" not in rest:
+                    return "Provide at least a question and one option separated by |. Example: /poll create Color? | Red | Blue"
+                segments = [s.strip() for s in rest.split("|")]
+                question = segments[0]
+                options = segments[1:]
+                if not options:
+                    return "Provide at least one option."
+                poll_id = self.polls.create_poll(user_id, question, options)
+                return f"Poll created! ID: {poll_id}\n" + self.polls.get_results(poll_id) + f"\n\nVote using: /poll vote {poll_id} <Option Number>"
+            
+            elif subcmd == "vote":
+                if len(parts) < 4:
+                    return "Usage: /poll vote <Poll ID> <Option Number>"
+                poll_id = parts[2]
+                option = parts[3]
+                return self.polls.vote(user_id, poll_id, option)
+                
+            elif subcmd == "view":
+                if len(parts) < 3:
+                    return "Usage: /poll view <Poll ID>"
+                return self.polls.get_results(parts[2])
+                
+            elif subcmd == "close":
+                if len(parts) < 3:
+                    return "Usage: /poll close <Poll ID>"
+                return self.polls.close_poll(user_id, parts[2])
+                
+            else:
+                return f"Unknown /poll subcommand: {subcmd}" 
         else:
             return f"Unknown command: {base_cmd}"
 
@@ -85,7 +124,7 @@ class ViClawAgent:
         
         # Intercept commands
         if message_text.strip().startswith("/"):
-            response_text = self._process_slash_command(message_text)
+            response_text = self._process_slash_command(message_text, user_id)
             self.platform_manager.send(platform_name, user_id, response_text)
             return
             
