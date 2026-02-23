@@ -224,7 +224,15 @@ class ViClawAgent:
                 return f"Okay, I've cancelled the automatic installation of `{target}`. Let me know what else I can do.", []
                 
         self.memory.add_short_term("user", message_text)
+        
         system_prompt = self.personality.construct_system_prompt(current_query=message_text)
+        
+        # Feature 7: Link Understanding
+        from core.links import extract_and_fetch_links
+        link_context = extract_and_fetch_links(message_text)
+        if link_context:
+            system_prompt += link_context
+            
         context = self.memory.get_short_term_context()[:-1] 
         tools = self.skill_manager.get_all_tools()
         tools_xml_prompt = "\n\nAVAILABLE TOOLS:\nYou have access to the following tools. To use a tool, you MUST output an XML block like this: <tool name=\"tool_name\">{\"arg_name\": \"arg_value\"}</tool>. Do NOT output any raw JSON outside of the XML block. If you do not need a tool, just answer normally.\nTools available:\n"

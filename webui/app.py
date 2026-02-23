@@ -95,7 +95,15 @@ def handle_chat_stream(payload: ChatMessage):
 
         # Build system prompt
         from skills.clawhub_bridge import get_installed_skills_context
+        from core.links import extract_and_fetch_links
+        
         system_prompt = agent.personality.construct_system_prompt(current_query=message_text)
+        
+        # Feature 7: Link Understanding
+        link_context = extract_and_fetch_links(message_text)
+        if link_context:
+            system_prompt += link_context
+            
         context = agent.memory.get_short_term_context()[:-1]
 
         tools = agent.skill_manager.get_all_tools()
