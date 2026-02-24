@@ -9,6 +9,7 @@ import threading
 import uvicorn
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional, List
 import uuid

@@ -62,24 +62,26 @@ class UpdaterEngine:
 
     def trigger_pull(self):
         """
-        Safely executes a git pull. 
-        It deliberately avoids overwriting tracking of the `data/` folder and dynamically restarts the daemon.
+        Safely executes a git pull by forcing the local state to match the remote state perfectly. 
+        It deliberately enforces a hard reset to prevent merge-conflict corruption (like bash/python wrapper collisions).
+        User data in `data/` is untouched tracking ignores.
         """
         if not self.is_git_repo():
             return False, "Not a Git repository."
 
         try:
-            # Stash any local modifications outside of data/ (which should be gitignored anyway)
-            subprocess.run(["git", "stash"], cwd=self.repo_dir, capture_output=True)
+            # Fetch latest changes
+            subprocess.run(["git", "fetch", "origin", "main"], cwd=self.repo_dir, capture_output=True, text=True, check=True)
             
-            # Pull latest changes
-            pull_proc = subprocess.run(["git", "pull", "origin", "main"], cwd=self.repo_dir, capture_output=True, text=True, check=True)
-            
-            # Pop stash if necessary (we ignore errors if stash was empty)
-            subprocess.run(["git", "stash", "pop"], cwd=self.repo_dir, capture_output=True)
+            # Identify if requirements.txt will change
+            diff_proc = subprocess.run(["git", "diff", "HEAD..origin/main", "--name-only"], cwd=self.repo_dir, capture_output=True, text=True)
+            reqs_changed = "requirements.txt" in diff_proc.stdout
+
+            # Force the local tree to match origin/main (drops local modifications to tracked files, preserves data/ db)
+            pull_proc = subprocess.run(["git", "reset", "--hard", "origin/main"], cwd=self.repo_dir, capture_output=True, text=True, check=True)
             
             # Execute dependencies update if requirements.txt changed
-            if "requirements.txt" in pull_proc.stdout:
+            if reqs_changed:
                 if os.path.exists(os.path.join(self.repo_dir, ".venv")):
                     subprocess.run([".venv/bin/pip", "install", "-r", "requirements.txt"], cwd=self.repo_dir)
             
