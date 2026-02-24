@@ -39,6 +39,10 @@ class ChatMessage(BaseModel):
 class SkillInstallRequest(BaseModel):
     url: str
 
+class SettingsGuideRequest(BaseModel):
+    key: str
+    value: str
+
 @app.get("/", response_class=HTMLResponse)
 def index_dashboard(response: Response):
     # Force-clear legacy session cookies to prevent "Unauthorized" loops
@@ -282,6 +286,73 @@ def dashboard():
         with open(dash_path, "r") as f:
             return f.read()
     return "Dashboard HTML missing"
+
+@app.get("/settings", response_class=HTMLResponse)
+def settings():
+    import os
+    settings_path = os.path.join(os.path.dirname(__file__), "settings.html")
+    if os.path.exists(settings_path):
+        with open(settings_path, "r") as f:
+            return f.read()
+    return "Settings HTML missing"
+
+@app.get("/api/settings/read")
+def read_settings():
+    from core.config import get_config
+    return get_config()
+
+@app.post("/api/settings/write")
+def write_settings(payload: dict):
+    from core.config import get_config, save_config
+    try:
+        current = get_config()
+        
+        # Deep merge helper
+        def merge(a, b):
+            for key in b:
+                if key in a and isinstance(a[key], dict) and isinstance(b[key], dict):
+                    merge(a[key], b[key])
+                else:
+                    a[key] = b[key]
+            return a
+            
+        merged = merge(current, payload)
+        save_config(merged)
+        
+        # Live-Reload memory identity dynamically without crashing the async daemon loop
+        if agent_instance and "identity" in payload:
+            agent_instance.personality.name = payload["identity"].get("name", agent_instance.personality.name)
+            agent_instance.personality.personality = payload["identity"].get("personality", agent_instance.personality.personality)
+            
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.post("/api/settings/ai_guide")
+def settings_ai_guide(payload: SettingsGuideRequest):
+    if not agent_instance:
+        return {"response": "I am currently offline!"}
+        
+    try:
+        prompt = (
+            f"You are {agent_instance.personality.name}. Your core prompt is: {agent_instance.personality.personality}\n"
+            f"The user just changed a system setting called '{payload.key}' to '{payload.value}'.\n"
+            f"Write a very brief (1-2 sentence) snarky or helpful response commenting on this specific configuration change. "
+            f"Do not use XML tools or output markdown. Just your direct conversational reaction."
+        )
+        
+        # Generate non-streaming response rapidly
+        res_generator = agent_instance.router.generate_stream(prompt, system_prompt="You are an AI configuration co-pilot.")
+        res_text = ""
+        for token in res_generator:
+            if not token.startswith("__STR_MODEL__:"):
+                res_text += token
+                
+        return {"response": res_text.strip()}
+    except Exception as e:
+        import logging
+        logging.error(f"AI Guide generation failed: {e}")
+        return {"response": f"Interesting change to {payload.key}, but my neural nets are currently sparking."}
 
 @app.get("/kiosk", response_class=HTMLResponse)
 def kiosk():

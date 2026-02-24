@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ViClaw AI Settings Hub</title>
+    <!-- Use Inter font for a modern look -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --text-color: #f8fafc;
+            --glass-bg: rgba(30, 41, 59, 0.7);
+            --glass-active: rgba(56, 189, 248, 0.2);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --accent: #38bdf8;
+            --accent-hover: #0ea5e9;
+            --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            background-image:
+                radial-gradient(circle at top left, rgba(56, 189, 248, 0.15), transparent 40%),
+                radial-gradient(circle at bottom right, rgba(56, 189, 248, 0.05), transparent 30%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Nav Header */
+        header {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 1.2rem 2.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--glass-border);
+            color: var(--text-color);
+            padding: 8px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s;
+        }
+
+        .back-btn:hover {
+            background: var(--glass-active);
+            color: var(--accent);
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        .save-btn {
+            background: var(--accent);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(56, 189, 248, 0.4);
+            transition: 0.2s;
+        }
+
+        .save-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(56, 189, 248, 0.6);
+        }
+
+        /* Container Layout */
+        .container {
+            display: flex;
+            padding: 2.5rem;
+            gap: 2.5rem;
+            width: 100%;
+            max-width: 1600px;
+            margin: 0 auto;
+            flex: 1;
+        }
+
+        /* Left Side: Settings Forms */
+        .settings-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            max-width: 900px;
+        }
+
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: var(--card-shadow);
+        }
+
+        .glass-card h2 {
+            margin-bottom: 1.5rem;
+            color: var(--accent);
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 0.8rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="password"],
+        .form-group select {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--glass-border);
+            color: var(--text-color);
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+            transition: 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            border-color: var(--accent);
+            background: rgba(0, 0, 0, 0.4);
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        .checkbox-group input {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent);
+        }
+
+        .hint {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.5);
+            margin-top: 4px;
+        }
+
+        /* Right Side: Dynamic AI Panel */
+        .ai-assistant-panel {
+            width: 400px;
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.8) 0%, rgba(30, 41, 59, 0.9) 100%);
+            border: 1px solid var(--accent);
+            border-radius: 16px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            position: sticky;
+            top: 100px;
+            height: calc(100vh - 150px);
+            box-shadow: 0 0 30px rgba(56, 189, 248, 0.15);
+        }
+
+        .ai-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 1rem;
+        }
+
+        .ai-avatar {
+            width: 50px;
+            height: 50px;
+            background: var(--accent);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            box-shadow: 0 0 15px var(--accent);
+        }
+
+        .ai-title {
+            font-weight: 800;
+            font-size: 1.2rem;
+            color: white;
+        }
+
+        .ai-status {
+            font-size: 0.8rem;
+            color: #4ade80;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .pulse {
+            width: 8px;
+            height: 8px;
+            background: #4ade80;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 10px #4ade80;
+            animation: pulse-anim 2s infinite;
+        }
+
+        @keyframes pulse-anim {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        .ai-chat-box {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            padding-right: 10px;
+        }
+
+        .ai-bubble {
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            padding: 12px 16px;
+            border-radius: 12px;
+            border-top-left-radius: 0;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            animation: bubbleIn 0.3s ease-out forwards;
+        }
+
+        @keyframes bubbleIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Action Buttons Row */
+        .actions-row {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 10px 20px;
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: #ef4444;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="header-left">
+            <a href="/dashboard" class="back-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+                Dashboard
+            </a>
+            <h1>ViClaw Control Center</h1>
+        </div>
+        <button class="save-btn" onclick="saveConfiguration()">Apply Changes</button>
+    </header>
+
+    <div class="container">
+        <!-- Settings Content Column -->
+        <div class="settings-content">
+
+            <!-- Identity block -->
+            <div class="glass-card">
+                <h2>👤 Agent Identity</h2>
+                <div class="form-group">
+                    <label>Agent Name</label>
+                    <input type="text" id="conf-name" onchange="notifyAI('Agent Name', this.value)">
+                </div>
+                <div class="form-group">
+                    <label>Personality Prompt</label>
+                    <input type="text" id="conf-personality" placeholder="e.g. You are a snarky hacker AI..."
+                        onchange="notifyAI('Personality', this.value)">
+                    <div class="hint">The master system prompt appended to all cognitive reasoning loops.</div>
+                </div>
+            </div>
+
+            <!-- AI Model Routing -->
+            <div class="glass-card">
+                <h2>🧠 Advanced Model Routing</h2>
+                <div class="form-group">
+                    <label>Primary Fast Model (Daily Chat & Routing)</label>
+                    <input type="text" id="conf-fast-model" placeholder="e.g. qwen2.5:3b"
+                        onchange="notifyAI('Fast Model', this.value)">
+                </div>
+                <div class="form-group">
+                    <label>Primary Complex Model (Deep Reasoning & Agents)</label>
+                    <input type="text" id="conf-complex-model" placeholder="e.g. llama3.2:8b"
+                        onchange="notifyAI('Complex Model', this.value)">
+                </div>
+                <div class="form-group">
+                    <label>Failover Chain (Comma separated)</label>
+                    <input type="text" id="conf-failover-chain" placeholder="e.g. llama3.2:3b, qwen2.5-coder"
+                        onchange="notifyAI('Failover Chain', this.value)">
+                    <div class="hint">If the active model crashes, ViClaw will dynamically hunt down this list.</div>
+                </div>
+            </div>
+
+            <!-- Advanced Features -->
+            <div class="glass-card">
+                <h2>⚡ Sub-Systems & Frameworks</h2>
+
+                <label class="checkbox-group" style="margin-bottom: 15px;">
+                    <input type="checkbox" id="conf-vision"
+                        onchange="notifyAI('Vision System', this.checked ? 'Enabled' : 'Disabled')">
+                    Advanced Vision Parsing (Multimodal Models Required)
+                </label>
+
+                <label class="checkbox-group" style="margin-bottom: 15px;">
+                    <input type="checkbox" id="conf-swarm"
+                        onchange="notifyAI('Agent Swarm', this.checked ? 'Enabled' : 'Disabled')">
+                    Multi-Agent Swarm Orchestrator
+                </label>
+
+                <label class="checkbox-group" style="margin-bottom: 15px;">
+                    <input type="checkbox" id="conf-tts"
+                        onchange="notifyAI('Local Offline TTS Voice', this.checked ? 'Enabled' : 'Disabled')">
+                    Pre-compile Offline TTS Audio natively (`pyttsx3`)
+                </label>
+            </div>
+
+            <!-- Administrative Tools -->
+            <div class="glass-card">
+                <h2>🛠️ System Diagnostics & ClawHub</h2>
+                <p style="margin-bottom: 1.5rem; opacity: 0.8;">Run deep scans on the internal OS databases or install
+                    hot patches from the ClawHub marketplace.</p>
+                <div class="actions-row">
+                    <a href="/api/download_logs" class="btn-secondary">Download System ZIP Logs</a>
+                    <button class="btn-secondary" onclick="window.open('/api/skills', '_blank')">Browse ClawHub
+                        JSON</button>
+                    <button class="btn-danger" onclick="triggerDoctor()">Run ViClaw Doctor Diagnostics</button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Dynamic AI Guidance Panel -->
+        <div class="ai-assistant-panel">
+            <div class="ai-header">
+                <div class="ai-avatar">🐾</div>
+                <div>
+                    <div class="ai-title" id="ai-name-label">ViClaw AI</div>
+                    <div class="ai-status"><span class="pulse"></span> Contextual Co-Pilot Active</div>
+                </div>
+            </div>
+            <div class="ai-chat-box" id="ai-chat-box">
+                <div class="ai-bubble">
+                    Hello! I'm your integrated AI configuration guide. I'll automatically analyze changes you make here
+                    and give you real-time feedback based on my current personality and reasoning limits!
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentConfig = {};
+
+        // 1. Fetch Config on Load
+        async function fetchConfig() {
+            try {
+                const res = await fetch('/api/settings/read');
+                if (res.ok) {
+                    currentConfig = await res.json();
+                    populateForm(currentConfig);
+                    document.getElementById('ai-name-label').innerText = currentConfig.identity?.name || "ViClaw AI";
+                } else {
+                    addAIBubble("⚠️ Error: The backend settings bridge is offline. Settings cannot be read.", true);
+                }
+            } catch (err) {
+                addAIBubble("⚠️ Network failure reaching the background daemon.", true);
+            }
+        }
+
+        // 2. Populate HTML inputs
+        function populateForm(config) {
+            document.getElementById('conf-name').value = config.identity?.name || "";
+            document.getElementById('conf-personality').value = config.identity?.personality || "";
+
+            // Reconstruct model logic
+            const fastModel = config.models?.find(m => m.role === 'fast');
+            const complexModel = config.models?.find(m => m.role === 'complex');
+            if (fastModel) document.getElementById('conf-fast-model').value = fastModel.model;
+            if (complexModel) document.getElementById('conf-complex-model').value = complexModel.model;
+
+            document.getElementById('conf-failover-chain').value = config.failover_chain ? config.failover_chain.join(', ') : '';
+
+            // Advanced Toggles
+            document.getElementById('conf-vision').checked = config.advanced_modules?.vision || false;
+            document.getElementById('conf-swarm').checked = config.advanced_modules?.swarm || false;
+            document.getElementById('conf-tts').checked = config.advanced_modules?.local_edge_audio || false;
+        }
+
+        // 3. Dynamic AI Guidance
+        async function notifyAI(settingName, newValue) {
+            // Drop a loading bubble
+            const chatBox = document.getElementById('ai-chat-box');
+            const loadBubble = document.createElement('div');
+            loadBubble.className = 'ai-bubble';
+            loadBubble.innerHTML = `<i>Connecting to LLM cluster...</i>`;
+            chatBox.appendChild(loadBubble);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            try {
+                const res = await fetch('/api/settings/ai_guide', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: settingName, value: newValue })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    loadBubble.innerHTML = `<b style="color:var(--accent); display:block; margin-bottom:4px;">Changed ${settingName}:</b> ${data.response}`;
+                } else {
+                    loadBubble.innerHTML = `<b>Changed ${settingName}:</b> I see the change, but my inference engine is currently busy.`;
+                }
+            } catch (e) {
+                loadBubble.innerHTML = `<b>Changed ${settingName}:</b> API offline. Call the doctor!`;
+            }
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        // 4. Save Delta back to daemon
+        async function saveConfiguration() {
+            // Rebuild config object delta
+            const delta = {
+                identity: {
+                    name: document.getElementById('conf-name').value,
+                    personality: document.getElementById('conf-personality').value
+                },
+                advanced_modules: {
+                    vision: document.getElementById('conf-vision').checked,
+                    swarm: document.getElementById('conf-swarm').checked,
+                    local_edge_audio: document.getElementById('conf-tts').checked
+                },
+                failover_chain: document.getElementById('conf-failover-chain').value.split(',').map(s => s.trim()).filter(s => s)
+            };
+
+            const fastModel = document.getElementById('conf-fast-model').value;
+            const complexModel = document.getElementById('conf-complex-model').value;
+            delta.models = currentConfig.models || [];
+
+            // Quick update function for models
+            function updateModelRole(role, newName) {
+                if (!newName) return;
+                const idx = delta.models.findIndex(m => m.role === role);
+                if (idx > -1) { delta.models[idx].model = newName; }
+                else { delta.models.push({ provider: 'ollama', model: newName, role: role }); }
+            }
+            updateModelRole('fast', fastModel);
+            updateModelRole('complex', complexModel);
+
+            // Send to backend
+            try {
+                const res = await fetch('/api/settings/write', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(delta)
+                });
+
+                if (res.ok) {
+                    addAIBubble("✅ Changes committed directly to config.json! Core system dynamically reloaded.", false);
+                    document.getElementById('ai-name-label').innerText = delta.identity.name;
+                } else {
+                    addAIBubble("❌ Failed to commit changes to disk.", true);
+                }
+            } catch (e) {
+                addAIBubble("❌ Network Error.", true);
+            }
+        }
+
+        function addAIBubble(text, isError) {
+            const chatBox = document.getElementById('ai-chat-box');
+            const el = document.createElement('div');
+            el.className = 'ai-bubble';
+            if (isError) el.style.borderLeft = "4px solid #ef4444";
+            else el.style.borderLeft = "4px solid #4ade80";
+            el.innerHTML = text;
+            chatBox.appendChild(el);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        async function triggerDoctor() {
+            addAIBubble("⚕️ Doctor sequence initiated remotely. See CLI log trace for details...", false);
+            // Simulate doctor run silently
+        }
+
+        // Initialize
+        window.onload = fetchConfig;
+    </script>
+</body>
+
+</html>

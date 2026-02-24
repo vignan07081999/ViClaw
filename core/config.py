@@ -131,6 +131,10 @@ def reload_config() -> None:
     """Reload config from disk. Call after the installer wizard saves new settings."""
     _manager.reload()
 
+def save_config(data: dict) -> None:
+    """Save config to disk."""
+    _manager.save(data)
+
 
 # ------------------------------------------------------------------
 # Convenience accessors (unchanged API surface)

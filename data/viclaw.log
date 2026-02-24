@@ -404,3 +404,8 @@ Traceback (most recent call last):
 ModuleNotFoundError: No module named 'watchdog'
 ERROR:root:Ollama inference failed: Failed to connect to Ollama. Please check that Ollama is downloaded, running and accessible. https://ollama.com/download
 ERROR:root:Ollama inference failed: Failed to connect to Ollama. Please check that Ollama is downloaded, running and accessible. https://ollama.com/download
+ERROR:root:Ollama inference failed: Failed to connect to Ollama. Please check that Ollama is downloaded, running and accessible. https://ollama.com/download
+ERROR:root:Ollama inference failed: Failed to connect to Ollama. Please check that Ollama is downloaded, running and accessible. https://ollama.com/download
+ERROR:root:Ollama inference failed: Failed to connect to Ollama. Please check that Ollama is downloaded, running and accessible. https://ollama.com/download
+ERROR:root:Ollama inference failed: Failed to connect to Ollama. Please check that Ollama is downloaded, running and accessible. https://ollama.com/download
+ERROR:root:Ollama inference failed: Failed to connect to Ollama. Please check that Ollama is downloaded, running and accessible. https://ollama.com/download

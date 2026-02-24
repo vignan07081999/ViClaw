@@ -27,12 +27,18 @@ We recently completed a massive architecture upgrade, pushing ViClaw beyond a ch
 |---|---|
 | **Zero-Touch AI Installer** | The wizard sniffs your network, identifies needed dependencies, tests AI models live, and talks you through the installation process contextually. |
 | **Multi-Model Complexity Router** | Seamlessly routes prompts to fast models, complex models, or coding models based on regex and prompt heuristics. |
+| **Failover Confidence Chain** | If a primary model hallucinated, crashed, or errored, ViClaw autonomously pivots to a backup model and transparently notifies the user with a 1-line tag. |
 | **HomeLab Network Scanner** | Discovers 50+ self-hosted services (Proxmox, TrueNAS, Home Assistant, Sonarr, etc.) and auto-configures API access. |
+| **Vector Memory (RAG)** | Dual semantic and temporal RAG database (`sqlite-vec`). The agent retains thousands of local context memories perpetually. |
+| **Native Edge TTS** | Complete offline audio streaming via `pyttsx3` embedded directly into the WebUI and Kiosk modes. |
 | **Swarm Sub-Agents** | Deploy constrained child agents to parallelize heavily structured execution pipelines. |
-| **Doctor CLI & Auto-Healing** | `viclaw doctor` recursively sanitizes missing dependencies, databases, or broken plugins. Even runtime errors trigger "May I run pip install this for you?" |
-| **Live OTA Git Updates** | Trigger `updater.py` directly from chat to pull GitHub patches and safely hot-swap modules without dropping the daemon process. |
+| **Autonomous Realtime Search** | ViClaw dynamically intercepts queries containing words like "today" or "latest", silently scraping DuckDuckGo and augmenting its prompt before inference. |
+| **Browser Automation Agent** | Deploys headless Playwright chromium instances to browse websites and scrape complex JS structures locally. |
+| **Hooks & Automations** | File-system watchdog triggers and custom webhook integrations logic `/api/webhook`. |
+| **Live OTA Git Updates** | Trigger `updater.py` (e.g. `viclaw pull`) directly to safely reset and hot-swap local code modules. |
 | **Premium 3D Dashboard** | Glassmorphism Web User Interface served locally on port `8501` featuring SSE-streaming and live markdown rendering. |
-| **Hot ClawHub Installs** | Missed a tool? ViClaw searches our marketplace and hot-loads skills via `importlib` delta-loads. |
+| **Settings Hub & AI Guidance** | A unified local control center for Logs, Diagnostics, and ClawHub, featuring an avatar that snarkily remarks on your config changes. |
+| **Doctor CLI & Auto-Healing** | `viclaw doctor` recursively sanitizes missing dependencies, databases, or broken plugins. Even runtime errors trigger "May I run pip install this for you?" |
 
 ---
 
@@ -50,6 +56,11 @@ sudo apt update && sudo apt install -y python3 python3-venv git curl
 bash <(curl -fsSL https://raw.githubusercontent.com/vignan07081999/ViClaw/main/setup.sh)
 ```
 *(Optionally, use standard `git clone` and execute `./install.sh`)*
+
+**One-Line Auto Un-Install:**
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/vignan07081999/ViClaw/main/uninstall.sh)
+```
 
 The Guided Installer will explicitly check for system dependencies like `playwright` (Chromium) and `pyttsx3` dependencies, initialize the isolated Python virtual environment, ping your Ollama layer, and launch the conversational wizard to set up Telegram/Discord.
 

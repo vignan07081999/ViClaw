@@ -529,6 +529,23 @@ def main():
         conf_identity(config)
     if "models" not in config:
         conf_models(config)
+        
+        console.print("\n[bold magenta]--- Next Steps ---[/bold magenta]")
+        ai_guide(config, "We have configured the core AI models. You can continue configuring platforms manually here in the terminal, or jump into the beautiful 3D Web UI to configure everything visually.")
+        choice = questionary.select(
+            "How would you like to continue configuring ViClaw?",
+            choices=["Continue Setup in WebUI (Recommended)", "Continue Setup in CLI"]
+        ).ask()
+        
+        if choice and "WebUI" in choice:
+            console.print("[cyan]Initializing WebUI Settings Dashboard...[/cyan]")
+            if "webui" not in config:
+                config["webui"] = {"enabled": True, "port": 8501, "credentials": {}}
+            
+            # The daemon auto-starts at the end of run_installation_core
+            run_installation_core(config)
+            sys.exit(0)
+            
         conf_platforms(config)
         conf_webui(config)
         

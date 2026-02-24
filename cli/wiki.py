@@ -42,6 +42,14 @@ Running `viclaw` opens the Master Interface:
 
 ---
 
+## 🚀 One-Line Uninstall
+Wipe the daemon, python environment, and all databases entirely:
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/vignan07081999/ViClaw/main/uninstall.sh)
+```
+
+---
+
 ## 2. Interactive Chat Slash Commands
 Type these directly in the chat interface:
 
@@ -60,12 +68,15 @@ Type these directly in the chat interface:
 ViClaw has been heavily expanded with autonomous sub-systems:
 
 - **AI-Guided Installation:** The setup wizard tests models live and actively narrates your installation.
-- **Failover Chain:** If the primary model fails or times out, ViClaw seamlessly routes execution to the backup model.
-- **Background Watchdog Hooks:** Drop any text/PDF file into `data/dropzone/` and ViClaw will detect, analyze, and report on it silently.
-- **Playwright Browser Skimming:** The integrated Browser Skill can launch Chromium headless to visually analyze or scrape sites.
-- **TTS Audio Engine:** Utilizes local `pyttsx3` to stream audio responses automatically in the WebUI.
-- **Typing Indicators:** Real-time Dispatch of `/typing` actions across Discord, Telegram, and the WebUI while the model executes tools.
-- **Network Discovery Scanner:** Maps 50+ HomeLab services (Proxmox, TrueNAS, Home Assistant) silently.
+- **Failover Chain & Dynamic Model Switching:** If the primary model fails, ViClaw seamlessly routes execution to the backup model.
+- **Vector Memory (RAG):** Retain thousands of local context memories perpetually via local `nomic-embed-text` embeddings.
+- **Autonomous Realtime Search:** Intercepts real-time queries ("today's weather") and fetches DuckDuckGo data silently.
+- **WebUI Settings Hub:** Modify system configs and dynamically chat with the AI configuration assistant on the web dashboard.
+- **Background Watchdog Hooks:** Drop any text/PDF file into `data/dropzone/` and ViClaw will analyze and report silently.
+- **Playwright Browser Skimming:** Visual scraping via headless chromium agents.
+- **TTS Audio Engine:** Local offline audio via `pyttsx3` streaming natively to the WebUI.
+- **Typing Indicators:** Real-time Dispatch of `/typing` actions across Discord, Telegram, and the WebUI.
+- **Network Discovery Scanner:** Maps 50+ HomeLab services silently.
 
 ---
 
