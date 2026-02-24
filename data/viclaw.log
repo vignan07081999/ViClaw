@@ -388,3 +388,17 @@ ModuleNotFoundError: No module named 'schedule'
 2026-02-21 21:42:38,748 - root - INFO - Starting WebUI on port 8501 bound to 0.0.0.0...
 2026-02-21 21:42:38,748 - root - INFO - Starting ViClaw Proactive Heartbeat...
 2026-02-21 21:42:38,749 - root - INFO - ViClaw is running. Press Ctrl+C to terminate.
+==================================================
+              ViClaw Agent Core                   
+==================================================
+Traceback (most recent call last):
+  File "/Users/MXW476/Library/CloudStorage/GoogleDrive-vignan07081999@gmail.com/My Drive/AI Agent/OpenClawClone/main.py", line 95, in <module>
+    main()
+  File "/Users/MXW476/Library/CloudStorage/GoogleDrive-vignan07081999@gmail.com/My Drive/AI Agent/OpenClawClone/main.py", line 75, in main
+    agent = ViClawAgent(platform_manager)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/MXW476/Library/CloudStorage/GoogleDrive-vignan07081999@gmail.com/My Drive/AI Agent/OpenClawClone/core/agent.py", line 38, in __init__
+    from core.hooks import HookManager
+  File "/Users/MXW476/Library/CloudStorage/GoogleDrive-vignan07081999@gmail.com/My Drive/AI Agent/OpenClawClone/core/hooks.py", line 6, in <module>
+    from watchdog.observers import Observer
+ModuleNotFoundError: No module named 'watchdog'
