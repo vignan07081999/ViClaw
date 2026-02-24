@@ -105,6 +105,20 @@ def handle_chat_stream(payload: ChatMessage):
         if link_context:
             system_prompt += link_context
             
+        # Feature: Autonomous Smart Web Search (Real-time injection)
+        realtime_keywords = ["latest", "news", "today", "current", "price of", "weather", "who won", "what happened", "stock", "update"]
+        if any(kw in message_text.lower() for kw in realtime_keywords):
+            try:
+                from skills.web_search import WebSearchSkill
+                ws = WebSearchSkill()
+                search_results = ws.search_web(message_text)
+                system_prompt += f"\n\n[AUTONOMOUS REALTIME WEB SEARCH RESULTS]:\n{search_results}\n"
+                import logging
+                logging.info(f"Injected autonomous web search for real-time query in WebUI stream.")
+            except Exception as e:
+                import logging
+                logging.error(f"Autonomous web search failed: {e}")
+            
         context = agent.memory.get_short_term_context()[:-1]
 
         tools = agent.skill_manager.get_all_tools()
@@ -136,6 +150,17 @@ def handle_chat_stream(payload: ChatMessage):
                 context=context,
                 images=images if images else None
             ):
+                if token.startswith("__STR_MODEL__:"):
+                    selected_model = token.split("__STR_MODEL__:")[1].split("__")[0]
+                    last_model = getattr(agent.memory, "_last_used_model", None)
+                    if selected_model != last_model and selected_model != "unknown":
+                        model_notice = f"_[Switched to **{selected_model}** model for this task]_\n\n"
+                        setattr(agent.memory, "_last_used_model", selected_model)
+                        safe_token = model_notice.replace("\n", "\\n")
+                        yield f"data: {safe_token}\n\n"
+                        full_text.append(model_notice)
+                    continue
+
                 full_text.append(token)
                 chunk_buf += token
 

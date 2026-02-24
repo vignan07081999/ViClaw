@@ -123,6 +123,7 @@ class LLMRouter:
                 if res.get("content") and not res["content"].startswith("I encountered an error"):
                     if i > 0:
                         res["_failover_used"] = model_cfg["model"]
+                    res["_selected_model_name"] = model_cfg["model"]
                     break
             except Exception as e:
                 last_error = e
@@ -130,6 +131,7 @@ class LLMRouter:
                 res = {"content": str(e), "tool_calls": []}
         else:
             res = {"content": "All models in the failover chain failed. Please check your Ollama/API configuration.", "tool_calls": []}
+
             
         # UNIVERSAL XML TOOL EXTRACTOR
         # Parses <tool name="...">{...}</tool> from the output text.
@@ -272,6 +274,8 @@ class LLMRouter:
         """
         selected = self._select_model(prompt, context)
         logging.info(f"Stream routing → {selected['model']} ({selected['provider']})")
+        
+        yield f"__STR_MODEL__:{selected['model']}__"
 
         messages = [{"role": "system", "content": system_prompt or ""}]
         if context:

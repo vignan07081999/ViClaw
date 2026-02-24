@@ -377,6 +377,18 @@ class ViClawAgent:
             self.platform_manager.send_typing(platform_name, user_id)
         except Exception as e:
             logging.debug(f"Typing indicator failed: {e}")
+            
+        # Feature: Autonomous Smart Web Search (Real-time injection)
+        realtime_keywords = ["latest", "news", "today", "current", "price of", "weather", "who won", "what happened", "stock", "update"]
+        if any(kw in message_text.lower() for kw in realtime_keywords):
+            try:
+                from skills.web_search import WebSearchSkill
+                ws = WebSearchSkill()
+                search_results = ws.search_web(message_text)
+                system_prompt += f"\n\n[AUTONOMOUS REALTIME WEB SEARCH RESULTS]:\n{search_results}\n"
+                logging.info(f"Injected autonomous web search for real-time query.")
+            except Exception as e:
+                logging.error(f"Autonomous web search failed: {e}")
 
         response = self.router.generate(message_text, system_prompt=system_prompt, context=context, images=images)
         
@@ -407,8 +419,18 @@ class ViClawAgent:
                 final_reply = f"To accomplish this, I need the `{missing_skill}` skill from ClawHub. May I dynamically download and install it now?"
                 return final_reply, []
         
+        # Stateful Model Switching Notification
+        selected_model = response.get("_selected_model_name", "unknown")
+        last_model = getattr(self.memory, "_last_used_model", None)
+        model_notice = ""
+        if selected_model != last_model and selected_model != "unknown":
+            model_notice = f"_[Switched to **{selected_model}** model for this task]_\n\n"
+            setattr(self.memory, "_last_used_model", selected_model)
+            
         if response.get("content"):
-            self.memory.add_short_term("assistant", response["content"])
+            final_content = model_notice + response["content"]
+            self.memory.add_short_term("assistant", final_content)
+            response["content"] = final_content # Update the response dict so callers get the prepended notice
             
         if response.get("tool_calls"):
             raw_tools = response["tool_calls"]

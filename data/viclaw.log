@@ -402,3 +402,4 @@ Traceback (most recent call last):
   File "/Users/MXW476/Library/CloudStorage/GoogleDrive-vignan07081999@gmail.com/My Drive/AI Agent/OpenClawClone/core/hooks.py", line 6, in <module>
     from watchdog.observers import Observer
 ModuleNotFoundError: No module named 'watchdog'
+ERROR:root:Ollama inference failed: Failed to connect to Ollama. Please check that Ollama is downloaded, running and accessible. https://ollama.com/download
