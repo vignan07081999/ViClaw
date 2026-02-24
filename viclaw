@@ -37,7 +37,7 @@ def main():
         "acp": "cli/acp.py",
         "diagnostics": "cli/diagnostics.py",
         "doctor": "cli/doctor.py",
-        "usage": "cli/usage.py",
+        "usage": "cli/usage_cmd.py",
         "main": "main.py",
         "launcher": "launcher.py",
         "viclaw": "viclaw.py"

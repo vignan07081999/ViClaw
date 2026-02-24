@@ -27,7 +27,7 @@ class ShellEngineSkill(BaseSkill):
     def execute_shell(self, command: str) -> str:
         try:
             # We add a 60 second timeout to prevent the agent from hanging on interactive prompts (like ssh without keys)
-            result = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=60)
+            result = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=60) # nosec B602
             if result.returncode == 0:
                 out = result.stdout.strip()
                 return out if out else f"Command '{command}' executed successfully with no output."

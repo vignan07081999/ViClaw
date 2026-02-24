@@ -42,11 +42,11 @@ def main():
                 # Add to memory
                 agent.memory.add_short_term(user_id, message)
                 
-                # We can use the agent's router directly
-                context = agent.memory.get_recent_context()
-                system_prompt = agent.personality.get_active_prompt()
+                # Build MCP schema correctly
+                context = agent.memory.get_short_term_context()
+                sys_prompt = agent.personality.construct_system_prompt(current_query=message) # Assuming 'message' is the current query
                 
-                response = agent.router.generate(message, system_prompt=system_prompt, context=context)
+                response = agent.router.generate(message, system_prompt=sys_prompt, context=context)
                 reply = response.get("content", "")
                 
                 agent.memory.add_short_term("assistant", reply)

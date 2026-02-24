@@ -227,12 +227,13 @@ class ViClawAgent:
             
         import subprocess
         self.memory.add_short_term("system", f"User approved installation of {target}.")
+        result = None
         try:
             if act_type == "pip_install":
                 import sys
                 result = subprocess.run([sys.executable, "-m", "pip", "install", target], capture_output=True, text=True)
             elif act_type == "apt_install":
-                result = subprocess.run(f"sudo apt-get install -y {target}", shell=True, capture_output=True, text=True)
+                result = subprocess.run(["sudo", "apt-get", "install", "-y", target], capture_output=True, text=True)
             elif act_type == "clawhub_skill":
                 self.memory.add_short_term("system", f"Fetching {target} from ClawHub...")
                 from webui.app import browse_clawhub
@@ -299,7 +300,7 @@ class ViClawAgent:
                         result = subprocess.run([sys.executable, "-m", "pip", "install", target], capture_output=True, text=True)
                     elif act_type == "apt_install":
                         # Attempt to use sudo if available
-                        result = subprocess.run(f"sudo apt-get install -y {target}", shell=True, capture_output=True, text=True)
+                        result = subprocess.run(["sudo", "apt-get", "install", "-y", target], capture_output=True, text=True)
                     elif act_type == "clawhub_skill":
                         self.memory.add_short_term("system", f"Fetching {target} from ClawHub...")
                         

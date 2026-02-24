@@ -31,7 +31,7 @@ def main():
     connected = False
     for _ in range(5):
         try:
-            res = requests.get(f"{base_url}/api/memory")
+            res = requests.get(f"{base_url}/api/memory", timeout=5)
             if res.status_code == 200:
                 connected = True
                 break
@@ -60,7 +60,8 @@ def main():
                 try:
                     res = requests.post(
                         f"{base_url}/api/chat",
-                        json={"message": user_input}
+                        json={"message": user_input},
+                        timeout=30
                     )
                     if res.status_code == 200:
                         data = res.json()

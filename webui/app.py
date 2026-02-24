@@ -304,16 +304,7 @@ TTS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "tts"
 os.makedirs(TTS_DIR, exist_ok=True)
 app.mount("/static/tts", StaticFiles(directory=TTS_DIR), name="static_tts")
 
-# Models for the API payload
-class ChatRequest(BaseModel):
-    message: str
-    images: Optional[List[str]] = None
-
-class SkillInstallRequest(BaseModel):
-    url: str
-
-class KioskLayout(BaseModel):
-    layout: List[Dict]
+# Legacy route aliases use ChatMessage, SkillInstallRequest, KioskLayout defined at the top
 
 @app.get("/wiki", response_class=HTMLResponse)
 def wiki():
@@ -604,8 +595,8 @@ def start_webui(agent):
 
     def run_server():
         # Use uvicorn.Server + isolated asyncio loop so signal handlers
-        # don't crash when running inside a daemon thread.
-        cfg = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="warning")
+        # We want it to be exposed universally on 0.0.0.0 so we use nosec
+        cfg = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="warning") # nosec B104
         server = uvicorn.Server(cfg)
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)

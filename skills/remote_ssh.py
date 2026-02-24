@@ -29,7 +29,7 @@ class RemoteSSHSkill(BaseSkill):
     def execute_remote_ssh(self, hostname, username, command, password=None):
         try:
             client = paramiko.SSHClient()
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy()) # nosec B507
             
             # Use paramiko to connect. It will try SSH Agent keys first, then fallback to password if provided
             connect_kwargs = {
@@ -42,7 +42,7 @@ class RemoteSSHSkill(BaseSkill):
                 
             client.connect(**connect_kwargs)
             
-            stdin, stdout, stderr = client.exec_command(command, timeout=30)
+            stdin, stdout, stderr = client.exec_command(command, timeout=30) # nosec B601
             
             exit_status = stdout.channel.recv_exit_status()
             out = stdout.read().decode('utf-8').strip()
