@@ -11,7 +11,13 @@ import sys
 import os
 
 # Ensure project root is on the path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if sys.prefix == sys.base_prefix:
+    venv_python = os.path.join(root_dir, ".venv", "bin", "python3")
+    if os.path.exists(venv_python):
+        os.execv(venv_python, [venv_python] + sys.argv)
+
+sys.path.insert(0, root_dir)
 
 from rich.console import Console
 

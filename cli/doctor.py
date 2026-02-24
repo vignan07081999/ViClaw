@@ -1,10 +1,6 @@
 import subprocess
 import sys
 import os
-from rich.console import Console
-import subprocess
-import sys
-import os
 import requests
 from rich.console import Console
 from rich.markdown import Markdown

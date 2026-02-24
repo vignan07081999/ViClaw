@@ -970,12 +970,22 @@
 
         function loadDiagnostics() {
             fetch('/api/diagnostics')
-                .then(res => res.json())
+                .then(res => {
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    return res.json();
+                })
                 .then(data => {
-                    document.getElementById('diag-daemon').innerText = data.daemon_status;
-                    document.getElementById('diag-model').innerText = data.model;
-                    document.getElementById('diag-provider').innerText = `Ollama Link: ${data.ollama_status}`;
-                    document.getElementById('diag-db').innerText = data.db_size;
+                    document.getElementById('diag-daemon').innerText = data.daemon_status || 'Unknown';
+                    document.getElementById('diag-model').innerText = data.model || 'Unknown';
+                    document.getElementById('diag-provider').innerText = `Ollama Link: ${data.ollama_status || 'N/A'}`;
+                    document.getElementById('diag-db').innerText = data.db_size || 'N/A';
+                })
+                .catch(err => {
+                    console.error('loadDiagnostics failed:', err);
+                    ['diag-daemon', 'diag-model', 'diag-provider', 'diag-db'].forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) el.innerText = 'Unavailable (daemon offline)';
+                    });
                 });
         }
 
@@ -983,16 +993,26 @@
             const logBox = document.getElementById('sys-logs');
             logBox.innerText = 'Fetching...';
             fetch('/api/logs')
-                .then(res => res.json())
+                .then(res => {
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    return res.json();
+                })
                 .then(data => {
-                    logBox.innerText = data.logs;
+                    logBox.innerText = data.logs || 'No logs available.';
                     logBox.scrollTop = logBox.scrollHeight;
+                })
+                .catch(err => {
+                    console.error('fetchLogs failed:', err);
+                    logBox.innerText = `Failed to fetch logs: ${err.message}. Is the daemon running?`;
                 });
         }
 
         function loadSkills() {
             fetch('/api/skills')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    return response.json();
+                })
                 .then(data => {
                     const list = document.getElementById('skills-list');
                     list.innerHTML = '';
@@ -1003,6 +1023,11 @@
                     data.skills.forEach(skill => {
                         list.innerHTML += `<li><strong>${skill.name}</strong>: ${skill.description}</li>`;
                     });
+                })
+                .catch(err => {
+                    console.error('loadSkills failed:', err);
+                    const list = document.getElementById('skills-list');
+                    if (list) list.innerHTML = '<li>Could not load skills (daemon offline).</li>';
                 });
         }
 
@@ -1169,7 +1194,10 @@
             const list = document.getElementById('installed-list');
             list.innerHTML = '<div style="opacity:0.6;">Loading...</div>';
             fetch('/api/clawhub/installed')
-                .then(res => res.json())
+                .then(res => {
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    return res.json();
+                })
                 .then(data => {
                     const items = data.installed || [];
                     if (items.length === 0) {
@@ -1192,6 +1220,10 @@
                             </div>
                         `;
                     });
+                })
+                .catch(err => {
+                    console.error('loadInstalledSkills failed:', err);
+                    list.innerHTML = '<div style="color:#ef4444;">Could not load installed skills. Is the daemon running?</div>';
                 });
         }
 
@@ -1224,7 +1256,10 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ url: document.getElementById('skill-url').value })
             })
-                .then(res => res.json())
+                .then(res => {
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    return res.json();
+                })
                 .then(data => {
                     btn.innerText = "Direct Add";
                     document.getElementById('skill-url').value = '';
@@ -1234,26 +1269,36 @@
                     } else {
                         msgDiv.innerHTML = `<span style='color:#e84118;'>${data.message}</span>`;
                     }
+                })
+                .catch(err => {
+                    btn.innerText = "Direct Add";
+                    msgDiv.innerHTML = `<span style='color:#e84118;'>Install failed: ${err.message}</span>`;
                 });
         }
 
         // ---- Session Management ----
         function loadSessions() {
-            fetch('/api/sessions').then(r => r.json()).then(data => {
-                const sel = document.getElementById('session-dropdown');
-                if (!sel) return;
-                const current = sel.value;
-                sel.innerHTML = '';
-                const sessions = data.sessions && data.sessions.length ? data.sessions : ['default'];
-                if (!sessions.includes(current) && current) sessions.unshift(current);
-                sessions.forEach(s => {
-                    const opt = document.createElement('option');
-                    opt.value = s;
-                    opt.textContent = 'Session: ' + s;
-                    if (s === current) opt.selected = true;
-                    sel.appendChild(opt);
-                });
-            });
+            fetch('/api/sessions')
+                .then(r => {
+                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                    return r.json();
+                })
+                .then(data => {
+                    const sel = document.getElementById('session-dropdown');
+                    if (!sel) return;
+                    const current = sel.value;
+                    sel.innerHTML = '';
+                    const sessions = data.sessions && data.sessions.length ? data.sessions : ['default'];
+                    if (!sessions.includes(current) && current) sessions.unshift(current);
+                    sessions.forEach(s => {
+                        const opt = document.createElement('option');
+                        opt.value = s;
+                        opt.textContent = 'Session: ' + s;
+                        if (s === current) opt.selected = true;
+                        sel.appendChild(opt);
+                    });
+                })
+                .catch(err => console.error('loadSessions failed:', err));
         }
 
         function switchSession(sessionId) {
