@@ -36,7 +36,7 @@ def check_ollama_status(url):
         return f"[bold red]Unreachable[/bold red] ({e})"
 
 def get_db_size():
-    db_path = "data/memory.db"
+    db_path = os.path.join(root_dir, "data", "memory.db")
     if os.path.exists(db_path):
         size_bytes = os.path.getsize(db_path)
         size_mb = size_bytes / (1024 * 1024)
@@ -131,7 +131,7 @@ def master_menu():
             run_script("reinstall.sh")
         elif choice == "4":
             run_script("uninstall.sh")
-            if not os.path.exists("data/config.json"):
+            if not os.path.exists(os.path.join(root_dir, "data/config.json")):
                 break
         elif choice == "5":
             continue

@@ -374,6 +374,24 @@
             <div class="glass-card">
                 <h2>🧠 Advanced Model Routing</h2>
                 <div class="form-group">
+                    <label>Global AI Engine Provider</label>
+                    <select id="conf-provider" onchange="notifyAI('Global Provider', this.value)"
+                        style="width:100%; padding:0.8rem 1rem; background:rgba(0,0,0,0.1); border:1px solid var(--glass-border); border-radius:8px; color:var(--text-color); font-size:1rem; outline:none;">
+                        <option value="ollama" style="color: black;">Ollama (Local/Remote CPU/GPU)</option>
+                        <option value="litellm" style="color: black;">LiteLLM (OpenAI/Anthropic Cloud)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Ollama Connection URL</label>
+                    <input type="text" id="conf-ollama-url" placeholder="http://localhost:11434"
+                        onchange="notifyAI('Ollama Host', this.value)">
+                </div>
+                <div class="form-group">
+                    <label>LiteLLM API Key Environment Variable</label>
+                    <input type="text" id="conf-api-key" placeholder="OPENAI_API_KEY"
+                        onchange="notifyAI('API Key Env', this.value)">
+                </div>
+                <div class="form-group" style="margin-top: 2rem;">
                     <label>Primary Fast Model (Daily Chat & Routing)</label>
                     <input type="text" id="conf-fast-model" placeholder="e.g. qwen2.5:3b"
                         onchange="notifyAI('Fast Model', this.value)">
@@ -412,6 +430,26 @@
                         onchange="notifyAI('Local Offline TTS Voice', this.checked ? 'Enabled' : 'Disabled')">
                     Pre-compile Offline TTS Audio natively (`pyttsx3`)
                 </label>
+
+                <h3 style="margin-top: 15px; margin-bottom: 10px; color: var(--accent); font-size: 1.05rem;">Web 3D
+                    Pillbot (Kiosk) Options</h3>
+                <label class="checkbox-group" style="margin-bottom: 15px;">
+                    <input type="checkbox" id="conf-kiosk-tts"
+                        onchange="notifyAI('Kiosk UI Browser Voice (TTS)', this.checked ? 'Enabled' : 'Disabled')">
+                    Enable Web Browser TTS in Kiosk (Mascot Voice)
+                </label>
+            </div>
+
+            <!-- Web Server -->
+            <div class="glass-card">
+                <h2>🌐 Web Server</h2>
+                <div class="form-group">
+                    <label>Dashboard Daemon Port</label>
+                    <input type="number" id="conf-webui-port" placeholder="8501"
+                        onchange="notifyAI('WebUI Port', this.value)">
+                    <div class="hint">Port changes require a full restart of the ViClaw daemon via CLI or `systemctl`.
+                    </div>
+                </div>
             </div>
 
             <!-- Administrative Tools -->
@@ -477,12 +515,23 @@
             if (fastModel) document.getElementById('conf-fast-model').value = fastModel.model;
             if (complexModel) document.getElementById('conf-complex-model').value = complexModel.model;
 
+            const defaultModel = fastModel || complexModel || config.models?.[0] || {};
+            document.getElementById('conf-provider').value = defaultModel.provider || 'ollama';
+            document.getElementById('conf-ollama-url').value = defaultModel.ollama_url || 'http://localhost:11434';
+            document.getElementById('conf-api-key').value = defaultModel.api_key_env || 'OPENAI_API_KEY';
+
             document.getElementById('conf-failover-chain').value = config.failover_chain ? config.failover_chain.join(', ') : '';
 
             // Advanced Toggles
             document.getElementById('conf-vision').checked = config.advanced_modules?.vision || false;
             document.getElementById('conf-swarm').checked = config.advanced_modules?.swarm || false;
             document.getElementById('conf-tts').checked = config.advanced_modules?.local_edge_audio || false;
+
+            // Kiosk Defaults
+            document.getElementById('conf-kiosk-tts').checked = config.kiosk?.enable_tts !== false; // default true
+
+            // Web Server defaults
+            document.getElementById('conf-webui-port').value = config.webui?.port || 8501;
         }
 
         // 3. Dynamic AI Guidance
@@ -527,19 +576,36 @@
                     swarm: document.getElementById('conf-swarm').checked,
                     local_edge_audio: document.getElementById('conf-tts').checked
                 },
+                kiosk: {
+                    enable_tts: document.getElementById('conf-kiosk-tts').checked
+                },
+                webui: {
+                    enabled: currentConfig.webui?.enabled !== false, // Preserve enablement block
+                    port: parseInt(document.getElementById('conf-webui-port').value) || 8501
+                },
                 failover_chain: document.getElementById('conf-failover-chain').value.split(',').map(s => s.trim()).filter(s => s)
             };
 
             const fastModel = document.getElementById('conf-fast-model').value;
             const complexModel = document.getElementById('conf-complex-model').value;
+            const globProvider = document.getElementById('conf-provider').value;
+            const globUrl = document.getElementById('conf-ollama-url').value;
+            const globKey = document.getElementById('conf-api-key').value;
             delta.models = currentConfig.models || [];
 
             // Quick update function for models
             function updateModelRole(role, newName) {
                 if (!newName) return;
                 const idx = delta.models.findIndex(m => m.role === role);
-                if (idx > -1) { delta.models[idx].model = newName; }
-                else { delta.models.push({ provider: 'ollama', model: newName, role: role }); }
+                if (idx > -1) {
+                    delta.models[idx].model = newName;
+                    delta.models[idx].provider = globProvider;
+                    delta.models[idx].ollama_url = globUrl;
+                    delta.models[idx].api_key_env = globKey;
+                }
+                else {
+                    delta.models.push({ provider: globProvider, model: newName, role: role, ollama_url: globUrl, api_key_env: globKey });
+                }
             }
             updateModelRole('fast', fastModel);
             updateModelRole('complex', complexModel);

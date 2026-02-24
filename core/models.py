@@ -33,9 +33,10 @@ class LLMRouter:
         if len(prompt) > 500:
             complexity_score += 1
         
+        prompt_lower = prompt.lower()
         complex_keywords = ["analyze", "summarize", "multi-step", "reasoning", "extract"]
         for word in complex_keywords:
-            if word in prompt.lower():
+            if word in prompt_lower:
                 complexity_score += 1
                 
         if context and len(context) > 10:  # If conversation history is long
@@ -44,8 +45,9 @@ class LLMRouter:
         return complexity_score >= 2
 
     def is_coding_task(self, prompt):
+        prompt_lower = prompt.lower()
         coding_keywords = ["code", "script", "python", "bash", "javascript", "function", "debug", "html", "css", "docker", "api"]
-        return any(word in prompt.lower() for word in coding_keywords)
+        return any(word in prompt_lower for word in coding_keywords)
 
     def _select_model(self, prompt, context):
         """Returns the route-selected model based on complexity/coding heuristics."""
@@ -248,10 +250,16 @@ class LLMRouter:
             tool_calls = []
             if hasattr(message, "tool_calls") and message.tool_calls:
                 for tc in message.tool_calls:
+                    try:
+                        args = json.loads(tc.function.arguments) if isinstance(tc.function.arguments, str) else dict(tc.function.arguments)
+                    except Exception as e:
+                        logging.warning(f"Failed to parse LiteLLM XML tool args: {e}")
+                        args = {}
+                        
                     tool_calls.append({
                         "function": {
                             "name": tc.function.name,
-                            "arguments": json.loads(tc.function.arguments)
+                            "arguments": args
                         }
                     })
                     

@@ -2,10 +2,13 @@ import os
 import sys
 
 # Auto-enforce virtual environment
+root_dir = os.path.dirname(os.path.abspath(__file__))
 if sys.prefix == sys.base_prefix:
-    venv_python = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".venv", "bin", "python3")
+    venv_python = os.path.join(root_dir, ".venv", "bin", "python3")
     if os.path.exists(venv_python):
         os.execv(venv_python, [venv_python] + sys.argv)
+
+sys.path.insert(0, root_dir)
 
 import subprocess
 from rich.console import Console
@@ -36,19 +39,19 @@ def main():
         if choice == "0":
             break
         elif choice == "1":
-            subprocess.run([sys.executable, "cli/chat.py"])
+            subprocess.run([sys.executable, os.path.join(root_dir, "cli/chat.py")])
         elif choice == "2":
-            subprocess.run([sys.executable, "launcher.py", "restart"])
+            subprocess.run([sys.executable, os.path.join(root_dir, "launcher.py"), "restart"])
             Prompt.ask("\nPress Enter to continue...")
         elif choice == "3":
-            subprocess.run([sys.executable, "launcher.py", "stop"])
+            subprocess.run([sys.executable, os.path.join(root_dir, "launcher.py"), "stop"])
             Prompt.ask("\nPress Enter to continue...")
         elif choice == "4":
-            subprocess.run([sys.executable, "cli/diagnostics.py"])
+            subprocess.run([sys.executable, os.path.join(root_dir, "cli/diagnostics.py")])
         elif choice == "5":
-            subprocess.run([sys.executable, "cli/doctor.py"])
+            subprocess.run([sys.executable, os.path.join(root_dir, "cli/doctor.py")])
         elif choice == "6":
-            subprocess.run(["bash", "scripts/update_config.sh"])
+            subprocess.run(["bash", os.path.join(root_dir, "scripts/update_config.sh")])
         elif choice == "7":
             console.print("\n[bold cyan]--- Recent Agent Memory & Action Logs ---[/bold cyan]")
             try:
@@ -77,10 +80,10 @@ def main():
                 console.print("[dim]Is the background daemon running? Try option 2 to start it.[/dim]")
             Prompt.ask("\nPress Enter to return to menu...")
         elif choice == "8":
-            subprocess.run(["bash", "scripts/reinstall.sh"])
+            subprocess.run(["bash", os.path.join(root_dir, "scripts/reinstall.sh")])
         elif choice == "9":
-            subprocess.run(["bash", "scripts/uninstall.sh"])
-            if not os.path.exists("data/config.json"):
+            subprocess.run(["bash", os.path.join(root_dir, "scripts/uninstall.sh")])
+            if not os.path.exists(os.path.join(root_dir, "data/config.json")):
                 break
         elif choice == "10":
             sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -104,7 +107,7 @@ def main():
                 console.print(f"[red]Updater error: {e}[/red]")
             Prompt.ask("\nPress Enter to return to menu...")
         elif choice == "11":
-            subprocess.run([sys.executable, "cli/wiki.py"])
+            subprocess.run([sys.executable, os.path.join(root_dir, "cli/wiki.py")])
             Prompt.ask("\nPress Enter to return to menu...")
 
 if __name__ == "__main__":

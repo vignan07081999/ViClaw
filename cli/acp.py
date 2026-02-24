@@ -2,6 +2,16 @@ import sys
 import json
 import logging
 import asyncio
+import os
+
+# Auto-enforce virtual environment
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if sys.prefix == sys.base_prefix:
+    venv_python = os.path.join(root_dir, ".venv", "bin", "python3")
+    if os.path.exists(venv_python):
+        os.execv(venv_python, [venv_python] + sys.argv)
+
+sys.path.insert(0, root_dir)
 
 # Disable standard logging to stdout so we don't pollute the NDJSON stream
 logging.basicConfig(level=logging.ERROR, stream=sys.stderr)

@@ -5,10 +5,13 @@ from rich.panel import Panel
 from rich.markdown import Markdown
 
 # Auto-enforce virtual environment
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if sys.prefix == sys.base_prefix:
-    venv_python = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".venv", "bin", "python3")
+    venv_python = os.path.join(root_dir, ".venv", "bin", "python3")
     if os.path.exists(venv_python):
         os.execv(venv_python, [venv_python] + sys.argv)
+
+sys.path.insert(0, root_dir)
 
 console = Console()
 def main():

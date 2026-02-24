@@ -299,13 +299,13 @@ def settings():
 @app.get("/api/settings/read")
 def read_settings():
     from core.config import get_config
-    return get_config()
+    return get_config().as_dict()
 
 @app.post("/api/settings/write")
 def write_settings(payload: dict):
     from core.config import get_config, save_config
     try:
-        current = get_config()
+        current = get_config().as_dict()
         
         # Deep merge helper
         def merge(a, b):

@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridstack@7.2.3/dist/gridstack.min.css" />
     <!-- Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/gridstack@7.2.3/dist/gridstack-all.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.150.1/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 
     <style>
@@ -749,7 +749,7 @@
                 }).then(res => res.json()).then(data => {
                     botState = 'idle';
                     bubble.innerText = data.reply;
-                    if (window.speechSynthesis) {
+                    if (window.speechSynthesis && window.viclawKioskConfig?.enable_tts !== false) {
                         const ut = new SpeechSynthesisUtterance(data.reply);
                         ut.pitch = 1.5; ut.rate = 1.1;
                         window.speechSynthesis.speak(ut);
@@ -774,6 +774,14 @@
         }
 
         async function loadLayout() {
+            try {
+                const confRes = await fetch('/api/settings/read');
+                if (confRes.ok) {
+                    const data = await confRes.json();
+                    window.viclawKioskConfig = data.kiosk || { enable_tts: true };
+                }
+            } catch (e) { }
+
             const res = await fetch('/api/kiosk_layout');
             const data = await res.json();
             grid.removeAll();

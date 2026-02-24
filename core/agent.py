@@ -138,7 +138,6 @@ class ViClawAgent:
         # Get tools and construct XML prompt
         tools = self.skill_manager.get_all_tools()
         tools_xml_prompt = "\n\nAVAILABLE TOOLS:\nYou have access to the following tools. To use a tool, you MUST output an XML block like this: <tool name=\"tool_name\">{\"arg_name\": \"arg_value\"}</tool>. Do NOT output any raw JSON outside of the XML block. If you do not need a tool, just answer normally.\nTools available:\n"
-        import json
         for t in tools:
             tools_xml_prompt += f"- {t['function']['name']}: {t['function'].get('description', '')}\n  Schema: {json.dumps(t['function'].get('parameters', {}))}\n"
         

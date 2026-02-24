@@ -8,6 +8,8 @@ if sys.prefix == sys.base_prefix:
     if os.path.exists(venv_python):
         os.execv(venv_python, [venv_python] + sys.argv)
 
+sys.path.insert(0, root_dir)
+
 import time
 import requests
 from rich.console import Console
