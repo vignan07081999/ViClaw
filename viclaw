@@ -1,8 +1,21 @@
 #!/bin/bash
+# ViClaw CLI Entry Point
+# This is a bash script. Run with: ./viclaw [subcommand] [args...]
+# DO NOT rename this file or remove the shebang line.
+
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-if [ -f "$DIR/.venv/bin/python3" ]; then
-    exec "$DIR/.venv/bin/python3" "$DIR/viclaw_router.py" "$@"
-else
-    echo "ViClaw virtual environment not found. Please run ./install.sh first."
+VENV_PYTHON="$DIR/.venv/bin/python3"
+ROUTER="$DIR/viclaw_router.py"
+
+if [ ! -f "$VENV_PYTHON" ]; then
+    echo "[ViClaw] ERROR: Virtual environment not found at $VENV_PYTHON"
+    echo "[ViClaw] Please run: bash install.sh"
     exit 1
 fi
+
+if [ ! -f "$ROUTER" ]; then
+    echo "[ViClaw] ERROR: Router script not found at $ROUTER"
+    exit 1
+fi
+
+exec "$VENV_PYTHON" "$ROUTER" "$@"

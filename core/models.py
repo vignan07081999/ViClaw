@@ -277,46 +277,120 @@ class LLMRouter:
 
     def generate_stream(self, prompt, system_prompt=None, context=None, images=None):
         """
-        Generator that yields text token chunks progressively with failover support.
-        Tries: route-selected model → fallback_chain → default model.
+        Two-pass fast-first generator:
+          Pass 1 — Always stream the fast model immediately for low latency.
+          Pass 2 — If the task is complex/coding, emit [UPGRADE] then re-stream with
+                   the appropriate heavy model so the user gets a better answer.
+        Yields: token strings, plus control signals:
+          __STR_MODEL__:<name>__  — model selected
+          [UPGRADE]               — UI should clear fast response; heavy model starting
+          [DONE]                  — handled upstream in app.py
         """
-        selected = self._select_model(prompt, context)
-        logging.info(f"Stream routing → {selected['model']} ({selected['provider']})")
-        
-        yield f"__STR_MODEL__:{selected['model']}__"
+        prompt_lower = prompt.lower()
+        is_complex   = self.evaluate_complexity(prompt, context)
+        is_code      = self.is_coding_task(prompt)
+        needs_upgrade = (is_complex or is_code) and (self.complex_model or self.coding_model)
+
+        # ── Pass 1: fast model ──────────────────────────────────────────
+        fast = self.fast_model or self.default_model
+        logging.info(f"Stream Pass-1 (fast) → {fast['model']} ({fast['provider']})")
+        yield f"__STR_MODEL__:{fast['model']}__"
 
         messages = [{"role": "system", "content": system_prompt or ""}]
         if context:
             messages.extend(context)
         user_msg = {"role": "user", "content": prompt}
-        if images and selected["provider"] == "ollama":
+        if images and fast["provider"] == "ollama":
             user_msg["images"] = images
         messages.append(user_msg)
 
-        chain = self._build_failover_chain(selected)
-        last_error = None
-        for i, model_cfg in enumerate(chain):
+        fast_tokens = []
+        fast_chain = self._build_failover_chain(fast)
+        fast_ok = False
+        for i, model_cfg in enumerate(fast_chain):
             try:
                 if i > 0:
                     self.failover_stats["failovers"] += 1
                     import datetime
                     self.failover_stats["last_failover"] = datetime.datetime.now().isoformat()
-                    logging.warning(f"Stream failover #{i}: trying {model_cfg['model']}")
+                    logging.warning(f"Stream pass-1 failover #{i}: trying {model_cfg['model']}")
                     yield f"[Failover → {model_cfg['model']}] "
 
                 if model_cfg["provider"] == "ollama":
                     url = model_cfg.get("ollama_url", "http://localhost:11434")
-                    # Test if the stream produces at least one token before committing
                     token_count = 0
                     for token in self._call_ollama_stream(messages, model_cfg["model"], url):
                         if token.startswith("[Stream error:") and token_count == 0:
                             raise RuntimeError(token)
                         token_count += 1
-                        yield token
-                    return  # success — done
+                        fast_tokens.append(token)
+                        # Only yield directly if we are NOT going to upgrade
+                        if not needs_upgrade:
+                            yield token
+                    fast_ok = True
+                    break
                 else:
-                    # LiteLLM: non-streaming fallback
                     res = self._call_litellm(messages, model_cfg["model"],
+                                             os.environ.get(model_cfg.get("api_key_env", "OPENAI_API_KEY")))
+                    content = res.get("content", "")
+                    if content and not content.startswith("I encountered an error"):
+                        fast_tokens.append(content)
+                        if not needs_upgrade:
+                            yield content
+                        fast_ok = True
+                        break
+                    raise RuntimeError(content)
+            except Exception as e:
+                logging.error(f"Stream pass-1 model {model_cfg['model']} failed: {e}")
+
+        if not fast_ok:
+            yield "[Fast model unavailable] "
+
+        # If no upgrade needed, we're done
+        if not needs_upgrade:
+            return
+
+        # Yield the fast response first so the user sees something immediately,
+        # then signal the UI to expect an upgraded answer
+        if fast_tokens:
+            yield from fast_tokens
+
+        # ── Pass 2: complex/coding model ────────────────────────────────
+        heavy = (self.coding_model if is_code else self.complex_model) or self.default_model
+        logging.info(f"Stream Pass-2 (heavy) → {heavy['model']} ({heavy['provider']})")
+        yield "[UPGRADE]"
+        yield f"__STR_MODEL__:{heavy['model']}__"
+
+        heavy_messages = [{"role": "system", "content": system_prompt or ""}]
+        if context:
+            heavy_messages.extend(context)
+        heavy_user_msg = {"role": "user", "content": prompt}
+        if images and heavy["provider"] == "ollama":
+            heavy_user_msg["images"] = images
+        heavy_messages.append(heavy_user_msg)
+
+        heavy_chain = self._build_failover_chain(heavy)
+        last_error = None
+        for i, model_cfg in enumerate(heavy_chain):
+            try:
+                if i > 0:
+                    self.failover_stats["failovers"] += 1
+                    import datetime
+                    self.failover_stats["last_failover"] = datetime.datetime.now().isoformat()
+                    logging.warning(f"Stream pass-2 failover #{i}: trying {model_cfg['model']}")
+                    yield f"[Failover → {model_cfg['model']}] "
+
+                if model_cfg["provider"] == "ollama":
+                    url = model_cfg.get("ollama_url", "http://localhost:11434")
+                    token_count = 0
+                    for token in self._call_ollama_stream(heavy_messages, model_cfg["model"], url):
+                        if token.startswith("[Stream error:") and token_count == 0:
+                            raise RuntimeError(token)
+                        token_count += 1
+                        yield token
+                    return  # success
+                else:
+                    res = self._call_litellm(heavy_messages, model_cfg["model"],
                                              os.environ.get(model_cfg.get("api_key_env", "OPENAI_API_KEY")))
                     content = res.get("content", "")
                     if content and not content.startswith("I encountered an error"):
@@ -325,7 +399,7 @@ class LLMRouter:
                     raise RuntimeError(content)
             except Exception as e:
                 last_error = e
-                logging.error(f"Stream model {model_cfg['model']} failed: {e}")
+                logging.error(f"Stream pass-2 model {model_cfg['model']} failed: {e}")
 
         yield f"[All models failed. Last error: {last_error}]"
 

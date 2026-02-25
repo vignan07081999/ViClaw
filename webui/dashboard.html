@@ -1571,6 +1571,20 @@
                                 continue;
                             }
 
+                            // ── UPGRADE: fast response done, heavy model starting ──
+                            if (data === '[UPGRADE]') {
+                                // Clear accumulated text so heavy model starts fresh
+                                accumText = '';
+                                if (bubble) {
+                                    bubble.classList.remove('md-body');
+                                    bubble.innerHTML =
+                                        '<span style="display:inline-flex;align-items:center;gap:8px;opacity:0.7;font-size:0.85em;">'
+                                        + '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);animation:blink 0.8s step-end infinite;"></span>'
+                                        + 'Upgrading to deeper model…</span>';
+                                }
+                                continue;
+                            }
+
                             if (data === '[DONE]') {
                                 // Remove thinking status bubble
                                 const statusId = 'thinking-status-' + bubbleId;
