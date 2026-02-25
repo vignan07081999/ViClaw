@@ -8,10 +8,12 @@ __pycache__/
 *.pyo
 *.pyd
 
-# Data / secrets (never commit)
+# Data / secrets / runtime files (never commit)
 data/config.json
 data/memory.db
+data/usage.db
 data/viclaw.pid
+data/viclaw.log
 data/viclaw_logs_archive.zip
 
 # OS
