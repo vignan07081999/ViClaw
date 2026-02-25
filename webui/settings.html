@@ -407,6 +407,31 @@
                         onchange="notifyAI('Failover Chain', this.value)">
                     <div class="hint">If the active model crashes, ViClaw will dynamically hunt down this list.</div>
                 </div>
+                <div class="form-group">
+                    <label>Coding Model (Code Generation &amp; Debug)</label>
+                    <input type="text" id="conf-coding-model" placeholder="e.g. qwen2.5-coder:7b"
+                        onchange="notifyAI('Coding Model', this.value)">
+                    <div class="hint">Auto-activated when ViClaw detects code, scripts, or API-related tasks.</div>
+                </div>
+            </div>
+
+            <!-- Performance Tuning -->
+            <div class="glass-card">
+                <h2>⚡ Performance Tuning</h2>
+                <div class="form-group">
+                    <label>Fast Model Max Tokens (Pass 1 Cap)</label>
+                    <input type="number" id="conf-fast-num-predict" placeholder="256" min="64" max="2048"
+                        onchange="notifyAI('Fast Model Max Tokens', this.value)">
+                    <div class="hint">Max tokens fast model generates before handing off to the heavy model. Lower =
+                        faster handoff. Default: 256.</div>
+                </div>
+                <div class="form-group">
+                    <label>Context Window (Max Conversation Turns)</label>
+                    <input type="number" id="conf-context-max-turns" placeholder="20" min="4" max="100"
+                        onchange="notifyAI('Context Window Turns', this.value)">
+                    <div class="hint">Past messages sent to the model per request. Lower = faster on long sessions.
+                        Default: 20.</div>
+                </div>
             </div>
 
             <!-- Advanced Features -->
@@ -447,9 +472,106 @@
                     <label>Dashboard Daemon Port</label>
                     <input type="number" id="conf-webui-port" placeholder="8501"
                         onchange="notifyAI('WebUI Port', this.value)">
-                    <div class="hint">Port changes require a full restart of the ViClaw daemon via CLI or `systemctl`.
+                    <div class="hint">Port changes require a full restart of the ViClaw daemon via CLI or
+                        <code>systemctl</code>.
                     </div>
                 </div>
+                <div class="form-group">
+                    <label>WebUI Enabled</label>
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="conf-webui-enabled">
+                        Enable WebUI Dashboard on startup
+                    </label>
+                    <div class="hint">Disable to run ViClaw as a headless CLI/messaging-only daemon.</div>
+                </div>
+            </div>
+
+            <!-- Platform Integrations -->
+            <div class="glass-card">
+                <h2>📡 Platform Integrations</h2>
+                <p style="margin-bottom:1.2rem; opacity:0.7; font-size:0.9rem;">Enable messaging platforms to allow
+                    remote chat with ViClaw from anywhere.</p>
+
+                <h3 style="color:var(--accent); font-size:0.95rem; margin-bottom:10px;">Telegram</h3>
+                <label class="checkbox-group" style="margin-bottom:10px;">
+                    <input type="checkbox" id="conf-telegram-enabled">
+                    Enable Telegram Bot
+                </label>
+                <div class="form-group">
+                    <label>Telegram Bot Token</label>
+                    <input type="password" id="conf-telegram-token" placeholder="1234567890:ABCdef..."
+                        autocomplete="off">
+                </div>
+
+                <h3 style="color:var(--accent); font-size:0.95rem; margin:15px 0 10px;">Discord</h3>
+                <label class="checkbox-group" style="margin-bottom:10px;">
+                    <input type="checkbox" id="conf-discord-enabled">
+                    Enable Discord Bot
+                </label>
+                <div class="form-group">
+                    <label>Discord Bot Token</label>
+                    <input type="password" id="conf-discord-token" placeholder="MTk4..." autocomplete="off">
+                </div>
+
+                <h3 style="color:var(--accent); font-size:0.95rem; margin:15px 0 10px;">Slack</h3>
+                <label class="checkbox-group" style="margin-bottom:10px;">
+                    <input type="checkbox" id="conf-slack-enabled">
+                    Enable Slack Bot
+                </label>
+                <div class="form-group">
+                    <label>Slack Bot Token</label>
+                    <input type="password" id="conf-slack-token" placeholder="xoxb-..." autocomplete="off">
+                </div>
+
+                <h3 style="color:var(--accent); font-size:0.95rem; margin:15px 0 10px;">Custom Webhook</h3>
+                <label class="checkbox-group" style="margin-bottom:10px;">
+                    <input type="checkbox" id="conf-webhook-enabled">
+                    Enable Custom Webhook Platform
+                </label>
+                <div class="form-group">
+                    <label>Webhook URL</label>
+                    <input type="text" id="conf-webhook-url" placeholder="https://your.server/viclaw-hook">
+                </div>
+            </div>
+
+            <!-- Memory Tuning -->
+            <div class="glass-card">
+                <h2>🧠 Memory &amp; Context</h2>
+                <div class="form-group">
+                    <label>Long-Term Memory (RAG) Top-K Results</label>
+                    <input type="number" id="conf-memory-top-k" placeholder="3" min="1" max="20"
+                        onchange="notifyAI('RAG Top-K', this.value)">
+                    <div class="hint">Number of long-term memory entries injected into context per message. Default: 3.
+                    </div>
+                </div>
+                <label class="checkbox-group" style="margin-top:10px;">
+                    <input type="checkbox" id="conf-memory-rag-enabled">
+                    Enable Long-Term Memory (RAG)
+                </label>
+                <div style="margin-top:1.5rem;">
+                    <button class="btn-danger" onclick="clearMemory()">🗑️ Clear All Long-Term Memories</button>
+                </div>
+            </div>
+
+            <!-- OTA Auto-Updater -->
+            <div class="glass-card">
+                <h2>🔄 OTA Auto-Updater</h2>
+                <label class="checkbox-group" style="margin-bottom:15px;">
+                    <input type="checkbox" id="conf-ota-enabled"
+                        onchange="notifyAI('OTA Auto-Updater', this.checked ? 'Enabled' : 'Disabled')">
+                    Enable Automatic Updates from GitHub
+                </label>
+                <div class="form-group">
+                    <label>Update Frequency</label>
+                    <select id="conf-ota-frequency"
+                        style="width:100%; padding:0.8rem 1rem; background:rgba(0,0,0,0.15); border:1px solid var(--glass-border); border-radius:8px; color:var(--text-color); font-size:1rem;">
+                        <option value="Every hour">Every Hour</option>
+                        <option value="Daily" selected>Daily</option>
+                        <option value="Weekly">Weekly</option>
+                    </select>
+                </div>
+                <div class="hint">When enabled, ViClaw daemon will auto-pull latest commits from the configured Git
+                    remote and restart itself.</div>
             </div>
 
             <!-- Administrative Tools -->
@@ -506,32 +628,58 @@
 
         // 2. Populate HTML inputs
         function populateForm(config) {
-            document.getElementById('conf-name').value = config.identity?.name || "";
-            document.getElementById('conf-personality').value = config.identity?.personality || "";
+            document.getElementById('conf-name').value = config.identity?.name || '';
+            document.getElementById('conf-personality').value = config.identity?.personality || '';
 
-            // Reconstruct model logic
+            // Model routing
             const fastModel = config.models?.find(m => m.role === 'fast');
             const complexModel = config.models?.find(m => m.role === 'complex');
+            const codingModel = config.models?.find(m => m.role === 'coding');
             if (fastModel) document.getElementById('conf-fast-model').value = fastModel.model;
             if (complexModel) document.getElementById('conf-complex-model').value = complexModel.model;
+            if (codingModel) document.getElementById('conf-coding-model').value = codingModel.model;
 
-            const defaultModel = fastModel || complexModel || config.models?.[0] || {};
-            document.getElementById('conf-provider').value = defaultModel.provider || 'ollama';
-            document.getElementById('conf-ollama-url').value = defaultModel.ollama_url || 'http://localhost:11434';
-            document.getElementById('conf-api-key').value = defaultModel.api_key_env || 'OPENAI_API_KEY';
+            const refModel = fastModel || complexModel || config.models?.[0] || {};
+            document.getElementById('conf-provider').value = refModel.provider || 'ollama';
+            document.getElementById('conf-ollama-url').value = refModel.ollama_url || 'http://localhost:11434';
+            document.getElementById('conf-api-key').value = refModel.api_key_env || 'OPENAI_API_KEY';
 
-            document.getElementById('conf-failover-chain').value = config.failover_chain ? config.failover_chain.join(', ') : '';
+            document.getElementById('conf-failover-chain').value = config.failover_chain
+                ? config.failover_chain.join(', ') : '';
 
-            // Advanced Toggles
+            // Performance knobs
+            document.getElementById('conf-fast-num-predict').value = config.fast_num_predict || 256;
+            document.getElementById('conf-context-max-turns').value = config.context_max_turns || 20;
+
+            // Sub-systems
             document.getElementById('conf-vision').checked = config.advanced_modules?.vision || false;
             document.getElementById('conf-swarm').checked = config.advanced_modules?.swarm || false;
             document.getElementById('conf-tts').checked = config.advanced_modules?.local_edge_audio || false;
+            document.getElementById('conf-kiosk-tts').checked = config.kiosk?.enable_tts !== false;
 
-            // Kiosk Defaults
-            document.getElementById('conf-kiosk-tts').checked = config.kiosk?.enable_tts !== false; // default true
-
-            // Web Server defaults
+            // Web server
             document.getElementById('conf-webui-port').value = config.webui?.port || 8501;
+            document.getElementById('conf-webui-enabled').checked = config.webui?.enabled !== false;
+
+            // Platform integrations
+            const plat = config.platforms || {};
+            document.getElementById('conf-telegram-enabled').checked = plat.telegram?.enabled || false;
+            document.getElementById('conf-telegram-token').value = plat.telegram?.token || '';
+            document.getElementById('conf-discord-enabled').checked = plat.discord?.enabled || false;
+            document.getElementById('conf-discord-token').value = plat.discord?.token || '';
+            document.getElementById('conf-slack-enabled').checked = plat.slack?.enabled || false;
+            document.getElementById('conf-slack-token').value = plat.slack?.token || '';
+            document.getElementById('conf-webhook-enabled').checked = plat.webhook?.enabled || false;
+            document.getElementById('conf-webhook-url').value = plat.webhook?.url || '';
+
+            // Memory
+            document.getElementById('conf-memory-top-k').value = config.memory?.top_k || 3;
+            document.getElementById('conf-memory-rag-enabled').checked = config.memory?.rag_enabled !== false;
+
+            // OTA
+            document.getElementById('conf-ota-enabled').checked = config.ota?.enabled || false;
+            const otaFreq = document.getElementById('conf-ota-frequency');
+            if (config.ota?.frequency) otaFreq.value = config.ota.frequency;
         }
 
         // 3. Dynamic AI Guidance
@@ -565,8 +713,25 @@
 
         // 4. Save Delta back to daemon
         async function saveConfiguration() {
-            // Rebuild config object delta
+            const globProvider = document.getElementById('conf-provider').value;
+            const globUrl = document.getElementById('conf-ollama-url').value;
+            const globKey = document.getElementById('conf-api-key').value;
+
+            // Build models array
+            const models = currentConfig.models ? [...currentConfig.models] : [];
+            function updateModelRole(role, name) {
+                if (!name) return;
+                const idx = models.findIndex(m => m.role === role);
+                const entry = { provider: globProvider, model: name, role, ollama_url: globUrl, api_key_env: globKey };
+                if (idx > -1) Object.assign(models[idx], entry);
+                else models.push(entry);
+            }
+            updateModelRole('fast', document.getElementById('conf-fast-model').value);
+            updateModelRole('complex', document.getElementById('conf-complex-model').value);
+            updateModelRole('coding', document.getElementById('conf-coding-model').value);
+
             const delta = {
+                models,
                 identity: {
                     name: document.getElementById('conf-name').value,
                     personality: document.getElementById('conf-personality').value
@@ -576,57 +741,72 @@
                     swarm: document.getElementById('conf-swarm').checked,
                     local_edge_audio: document.getElementById('conf-tts').checked
                 },
-                kiosk: {
-                    enable_tts: document.getElementById('conf-kiosk-tts').checked
-                },
+                kiosk: { enable_tts: document.getElementById('conf-kiosk-tts').checked },
                 webui: {
-                    enabled: currentConfig.webui?.enabled !== false, // Preserve enablement block
+                    enabled: document.getElementById('conf-webui-enabled').checked,
                     port: parseInt(document.getElementById('conf-webui-port').value) || 8501
                 },
-                failover_chain: document.getElementById('conf-failover-chain').value.split(',').map(s => s.trim()).filter(s => s)
+                failover_chain: document.getElementById('conf-failover-chain').value
+                    .split(',').map(s => s.trim()).filter(Boolean),
+                // Performance
+                fast_num_predict: parseInt(document.getElementById('conf-fast-num-predict').value) || 256,
+                context_max_turns: parseInt(document.getElementById('conf-context-max-turns').value) || 20,
+                // Platform integrations
+                platforms: {
+                    telegram: {
+                        enabled: document.getElementById('conf-telegram-enabled').checked,
+                        token: document.getElementById('conf-telegram-token').value
+                    },
+                    discord: {
+                        enabled: document.getElementById('conf-discord-enabled').checked,
+                        token: document.getElementById('conf-discord-token').value
+                    },
+                    slack: {
+                        enabled: document.getElementById('conf-slack-enabled').checked,
+                        token: document.getElementById('conf-slack-token').value
+                    },
+                    webhook: {
+                        enabled: document.getElementById('conf-webhook-enabled').checked,
+                        url: document.getElementById('conf-webhook-url').value
+                    }
+                },
+                // Memory
+                memory: {
+                    rag_enabled: document.getElementById('conf-memory-rag-enabled').checked,
+                    top_k: parseInt(document.getElementById('conf-memory-top-k').value) || 3
+                },
+                // OTA
+                ota: {
+                    enabled: document.getElementById('conf-ota-enabled').checked,
+                    frequency: document.getElementById('conf-ota-frequency').value
+                }
             };
 
-            const fastModel = document.getElementById('conf-fast-model').value;
-            const complexModel = document.getElementById('conf-complex-model').value;
-            const globProvider = document.getElementById('conf-provider').value;
-            const globUrl = document.getElementById('conf-ollama-url').value;
-            const globKey = document.getElementById('conf-api-key').value;
-            delta.models = currentConfig.models || [];
-
-            // Quick update function for models
-            function updateModelRole(role, newName) {
-                if (!newName) return;
-                const idx = delta.models.findIndex(m => m.role === role);
-                if (idx > -1) {
-                    delta.models[idx].model = newName;
-                    delta.models[idx].provider = globProvider;
-                    delta.models[idx].ollama_url = globUrl;
-                    delta.models[idx].api_key_env = globKey;
-                }
-                else {
-                    delta.models.push({ provider: globProvider, model: newName, role: role, ollama_url: globUrl, api_key_env: globKey });
-                }
-            }
-            updateModelRole('fast', fastModel);
-            updateModelRole('complex', complexModel);
-
-            // Send to backend
             try {
                 const res = await fetch('/api/settings/write', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(delta)
                 });
-
                 if (res.ok) {
-                    addAIBubble("✅ Changes committed directly to config.json! Core system dynamically reloaded.", false);
-                    document.getElementById('ai-name-label').innerText = delta.identity.name;
+                    addAIBubble('\u2705 Changes committed to config.json! Core system dynamically reloaded.', false);
+                    document.getElementById('ai-name-label').innerText = delta.identity.name || 'ViClaw AI';
+                    currentConfig = { ...currentConfig, ...delta };
                 } else {
-                    addAIBubble("❌ Failed to commit changes to disk.", true);
+                    addAIBubble('\u274c Failed to commit changes to disk.', true);
                 }
             } catch (e) {
-                addAIBubble("❌ Network Error.", true);
+                addAIBubble('\u274c Network Error: ' + e.message, true);
             }
+        }
+
+        async function clearMemory() {
+            if (!confirm('Clear ALL long-term memories? This cannot be undone.')) return;
+            try {
+                const res = await fetch('/api/memory/clear', { method: 'POST' });
+                if (res.ok) addAIBubble('\ud83d\uddd1\ufe0f Long-term memories wiped.', false);
+                else addAIBubble('\u274c Memory clear failed.', true);
+            } catch (e) { addAIBubble('\u274c Network Error.', true); }
         }
 
         function addAIBubble(text, isError) {

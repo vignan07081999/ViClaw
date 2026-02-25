@@ -450,6 +450,17 @@ def get_memory():
         return {"short_term": agent_instance.memory.get_short_term_context()}
     return {"short_term": []}
 
+@app.post("/api/memory/clear")
+def clear_memory():
+    """Wipe all long-term memories from the SQLite database."""
+    if agent_instance and hasattr(agent_instance, 'memory'):
+        try:
+            agent_instance.memory.clear_long_term()
+            return {"success": True, "message": "All long-term memories cleared."}
+        except Exception as e:
+            return {"success": False, "message": str(e)}
+    return {"success": False, "message": "Agent not available."}
+
 @app.get("/api/check_update")
 def check_update():
     from core.updater import UpdaterEngine
