@@ -1,0 +1,18 @@
+# Force Unix LF line endings on all shell/Python files
+# Prevents CRLF corruption on Windows checkouts breaking shebangs on Linux
+
+* text=auto
+viclaw             text eol=lf
+*.sh               text eol=lf
+*.py               text eol=lf
+*.html             text eol=lf
+*.json             text eol=lf
+*.md               text eol=lf
+*.txt              text eol=lf
+
+# Binary files — never touch line endings
+*.db               binary
+*.zip              binary
+*.png              binary
+*.jpg              binary
+*.webp             binary
