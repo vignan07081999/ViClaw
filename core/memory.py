@@ -153,6 +153,10 @@ class AgentMemory:
                     content    TEXT
                 )
             """)
+            # Performance indexes — prevent full table scans as memory grows
+            c.execute("CREATE INDEX IF NOT EXISTS idx_memories_timestamp ON memories(timestamp DESC)")
+            c.execute("CREATE INDEX IF NOT EXISTS idx_memories_topic ON memories(topic)")
+            c.execute("CREATE INDEX IF NOT EXISTS idx_stc_session ON short_term_checkpoint(session_id, timestamp DESC)")
             conn.commit()
 
     # ------------------------------------------------------------------

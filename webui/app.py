@@ -146,6 +146,18 @@ def handle_chat_stream(payload: ChatMessage):
         chunk_buf = ""        # Accumulates text since last [CHUNK] boundary
         CHUNK_TRIGGERS = {".\n", "\n\n", "!\n", "?\n", ". ", "! ", "? "}
         CHUNK_MIN_LEN = 80   # Don't emit a chunk boundary for very short buffers
+        # SSE token batching: batch up to N tokens before yielding to reduce HTTP frames
+        SSE_BATCH_SIZE = 4
+        sse_buf = []
+
+        def _flush_sse_buf():
+            """Emit accumulated SSE tokens as one frame and clear the buffer."""
+            nonlocal sse_buf
+            if not sse_buf:
+                return
+            combined = "".join(sse_buf).replace("\n", "\\n")
+            sse_buf = []
+            return f"data: {combined}\n\n"
 
         try:
             for token in agent.router.generate_stream(
@@ -154,7 +166,11 @@ def handle_chat_stream(payload: ChatMessage):
                 context=context,
                 images=images if images else None
             ):
+                # Control signals must be flushed immediately (never batched)
                 if token.startswith("__STR_MODEL__:"):
+                    flush_out = _flush_sse_buf()
+                    if flush_out:
+                        yield flush_out
                     selected_model = token.split("__STR_MODEL__:")[1].split("__")[0]
                     last_model = getattr(agent.memory, "_last_used_model", None)
                     if selected_model != last_model and selected_model != "unknown":
@@ -165,25 +181,47 @@ def handle_chat_stream(payload: ChatMessage):
                         full_text.append(model_notice)
                     continue
 
+                # [UPGRADE] is a control signal — flush and emit immediately
+                if token == "[UPGRADE]":
+                    flush_out = _flush_sse_buf()
+                    if flush_out:
+                        yield flush_out
+                    yield "data: [UPGRADE]\n\n"
+                    continue
+
                 full_text.append(token)
                 chunk_buf += token
 
-                # Emit the token
-                safe_token = token.replace("\n", "\\n")
-                yield f"data: {safe_token}\n\n"
+                # Batch regular tokens
+                sse_buf.append(token)
+                if len(sse_buf) >= SSE_BATCH_SIZE:
+                    flush_out = _flush_sse_buf()
+                    if flush_out:
+                        yield flush_out
 
-                # Emit [CHUNK] boundary at natural break points
+                # Emit [CHUNK] boundary at natural break points (after flushing)
                 if len(chunk_buf) >= CHUNK_MIN_LEN:
                     for trigger in CHUNK_TRIGGERS:
                         if chunk_buf.endswith(trigger):
+                            flush_out = _flush_sse_buf()
+                            if flush_out:
+                                yield flush_out
                             yield "data: [CHUNK]\n\n"
                             chunk_buf = ""
                             break
 
         except Exception as e:
+            flush_out = _flush_sse_buf()
+            if flush_out:
+                yield flush_out
             yield f"data: [Error: {e}]\n\n"
             yield "data: [DONE]\n\n"
             return
+
+        # Flush any remaining buffered tokens
+        flush_out = _flush_sse_buf()
+        if flush_out:
+            yield flush_out
 
         assembled = "".join(full_text)
         agent.memory.add_short_term("assistant", assembled)

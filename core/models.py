@@ -21,6 +21,10 @@ class LLMRouter:
         cfg = _gc()
         fallback_names = cfg.get("failover_chain", [])  # list of model names from config
         self._fallback_models = [m for name in fallback_names for m in self.models if m.get("model") == name]
+        # Max tokens for fast-model Pass 1 (keeps latency low; heavy model does full answer)
+        self._fast_num_predict = int(cfg.get("fast_num_predict", 256))
+        # Max conversation turns to keep in context before pruning older messages
+        self._context_max_turns = int(cfg.get("context_max_turns", 20))
 
     def evaluate_complexity(self, prompt, context=None):
         """
@@ -61,6 +65,29 @@ class LLMRouter:
         elif not is_complex and not is_code and self.fast_model:
             selected = self.fast_model
         return selected
+
+    def _prune_context(self, context):
+        """Trim context to the most recent N turns to cap input token count."""
+        if not context or len(context) <= self._context_max_turns:
+            return context
+        return context[-self._context_max_turns:]
+
+    def _warmup_model(self, model_cfg):
+        """Fire a zero-token keepalive request to preload the model into VRAM."""
+        try:
+            if model_cfg and model_cfg.get("provider") == "ollama":
+                url = model_cfg.get("ollama_url", "http://localhost:11434")
+                client = ollama.Client(host=url)
+                # Chat with empty content just to wake up the model
+                client.chat(
+                    model=model_cfg["model"],
+                    messages=[{"role": "user", "content": "."}],
+                    keep_alive=-1,
+                    options={"num_predict": 1}
+                )
+                logging.info(f"Warmup ping sent to {model_cfg['model']}")
+        except Exception as e:
+            logging.debug(f"Warmup skipped for {model_cfg.get('model','?')}: {e}")
 
     def _build_failover_chain(self, selected):
         """Build ordered list of models to try: selected → fallback_chain → default."""
@@ -191,7 +218,7 @@ class LLMRouter:
         try:
             client = ollama.Client(host=url)
             
-            options = {}
+            options = {"keep_alive": -1}  # Keep model hot in VRAM
             if tools:
                 options['tools'] = tools
                 
@@ -291,10 +318,20 @@ class LLMRouter:
         is_code      = self.is_coding_task(prompt)
         needs_upgrade = (is_complex or is_code) and (self.complex_model or self.coding_model)
 
+        # Prune context to cap input token count
+        context = self._prune_context(context)
+
         # ── Pass 1: fast model ──────────────────────────────────────────
         fast = self.fast_model or self.default_model
         logging.info(f"Stream Pass-1 (fast) → {fast['model']} ({fast['provider']})")
         yield f"__STR_MODEL__:{fast['model']}__"
+
+        # If we know an upgrade is coming, warm up the heavy model in background NOW
+        # so it's already loaded in VRAM by the time Pass 1 finishes
+        if needs_upgrade:
+            import threading as _t
+            heavy_preload = (self.coding_model if is_code else self.complex_model) or self.default_model
+            _t.Thread(target=self._warmup_model, args=(heavy_preload,), daemon=True).start()
 
         messages = [{"role": "system", "content": system_prompt or ""}]
         if context:
@@ -318,8 +355,10 @@ class LLMRouter:
 
                 if model_cfg["provider"] == "ollama":
                     url = model_cfg.get("ollama_url", "http://localhost:11434")
+                    # Apply num_predict cap only on fast model pass
+                    np = self._fast_num_predict if needs_upgrade else None
                     token_count = 0
-                    for token in self._call_ollama_stream(messages, model_cfg["model"], url):
+                    for token in self._call_ollama_stream(messages, model_cfg["model"], url, num_predict=np):
                         if token.startswith("[Stream error:") and token_count == 0:
                             raise RuntimeError(token)
                         token_count += 1
@@ -403,12 +442,15 @@ class LLMRouter:
 
         yield f"[All models failed. Last error: {last_error}]"
 
-    def _call_ollama_stream(self, messages, model_name, url):
+    def _call_ollama_stream(self, messages, model_name, url, num_predict=None):
         """Stream tokens from Ollama using the ollama library's stream=True mode."""
         logging.info(f"Stream routing to Ollama (Model: {model_name}) at {url}")
         try:
             client = ollama.Client(host=url)
-            stream = client.chat(model=model_name, messages=messages, stream=True)
+            opts = {"keep_alive": -1}  # Keep model hot in VRAM
+            if num_predict:
+                opts["num_predict"] = num_predict
+            stream = client.chat(model=model_name, messages=messages, stream=True, options=opts)
             for chunk in stream:
                 try:
                     token = chunk.message.content
